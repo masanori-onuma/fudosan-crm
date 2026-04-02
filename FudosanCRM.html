@@ -332,6 +332,7 @@ const { useState, useEffect, useCallback, useRef } = React;
 // ═══ GAS経由SharePoint設定 ═══
 const GAS_URL   = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
 const ADMIN_PASS = "admin1234";
+const CRM_BASE_URL = "https://masanori-onuma.github.io/fudosan-crm/FudosanCRM.html";
 
 // GAS GET リクエスト
 async function gasGet(action) {
@@ -452,7 +453,7 @@ const FL=({label,children,span=2})=>(<div style={{marginBottom:12,gridColumn:`sp
 const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 
 function QRModal({name, onClose}){
-  const url=`https://dancing-pavlova-6f55f0.netlify.app/fudosancrm?survey&staff=${encodeURIComponent(name)}`;
+  const url=`${CRM_BASE_URL}?survey&staff=${encodeURIComponent(name)}`;
   const ref=React.useRef(null);
   const [copied,setCopied]=React.useState(false);
   React.useEffect(()=>{
@@ -509,7 +510,7 @@ function LoginScreen({onLogin}){
       <button onClick={login} style={{width:"100%",padding:14,background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:16}}>ログイン →</button>
     </div>
     <div style={{marginTop:20,textAlign:"center"}}>
-      <a href="?survey" style={{fontSize:12,color:"#2E75B6",textDecoration:"none"}}>📋 お客様アンケートはこちら</a>
+      
     </div>
   </div>);
 }
