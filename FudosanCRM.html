@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>不動産顧客管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<!-- アンケート用スタイル（?surveyのとき表示） -->
+<style id="survey-style">
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:#F4F6F9;color:#1A202C;min-height:100vh}
+input,select,textarea,button{font-family:'Noto Sans JP',sans-serif}
+::-webkit-scrollbar{display:none}
+@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* アンケート用 */
+#survey-app{display:none}
+#survey-app.active{display:block}
+#crm-app{display:block}
+#crm-app.hidden{display:none}
+
+.sv-header{background:#1F4E79;color:#fff;padding:20px 18px 16px;text-align:center}
+.sv-header .logo{font-size:28px;margin-bottom:6px}
+.sv-header h1{font-size:17px;font-weight:700}
+.sv-header p{font-size:11px;opacity:.75;margin-top:4px;line-height:1.6}
+.sv-progress-bar{background:rgba(255,255,255,.2);border-radius:99px;height:4px;margin-top:14px;overflow:hidden}
+.sv-progress-fill{height:100%;background:#fff;border-radius:99px;transition:width .35s ease}
+
+.sv-step{display:none;padding:18px 16px}
+.sv-step.active{display:block}
+.sv-step-label{text-align:center;font-size:11px;color:#718096;margin-bottom:10px;font-weight:600;letter-spacing:.05em}
+.sv-step-title{font-size:17px;font-weight:700;color:#1F4E79;margin-bottom:4px;text-align:center}
+.sv-step-desc{font-size:12px;color:#718096;text-align:center;margin-bottom:18px;line-height:1.6}
+
+.sv-card{background:#fff;border-radius:14px;padding:18px 16px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:14px}
+.sv-field{margin-bottom:16px}
+.sv-field:last-child{margin-bottom:0}
+.sv-field label{display:block;font-size:11px;font-weight:700;color:#718096;margin-bottom:5px;letter-spacing:.04em}
+.sv-field label .req{color:#C0392B;margin-left:3px}
+.sv-field input[type=text],.sv-field input[type=tel],.sv-field input[type=email],.sv-field input[type=number],.sv-field select,.sv-field textarea{
+  width:100%;padding:13px 14px;border:1.5px solid #E2E8F0;border-radius:10px;
+  font-size:16px;font-family:inherit;color:#1A202C;background:#fff;
+  outline:none;-webkit-appearance:none;appearance:none;transition:border-color .2s
+}
+.sv-field input:focus,.sv-field select:focus,.sv-field textarea:focus{border-color:#2E75B6}
+.sv-field textarea{resize:vertical;min-height:80px;line-height:1.6}
+
+.sv-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 20px}
+.sv-mode-btn{padding:24px 12px;border:2px solid #E2E8F0;border-radius:14px;background:#fff;
+  font-family:inherit;font-size:13px;font-weight:700;color:#718096;cursor:pointer;
+  text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.sv-mode-btn .icon{font-size:32px;line-height:1}
+.sv-mode-btn.buy.selected{border-color:#1F4E79;background:#EBF3FB;color:#1F4E79}
+.sv-mode-btn.sell.selected{border-color:#00703C;background:#E8F5E9;color:#00703C}
+
+.sv-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sv-choice-grid.col1{grid-template-columns:1fr}
+.sv-choice-btn{padding:12px 10px;border:1.5px solid #E2E8F0;border-radius:10px;background:#fff;
+  font-family:inherit;font-size:14px;color:#718096;cursor:pointer;text-align:center;transition:all .18s;line-height:1.4}
+.sv-choice-btn.selected{border-color:#1F4E79;background:#EBF3FB;color:#1F4E79;font-weight:700}
+.sv-choice-btn.sell-mode.selected{border-color:#00703C;background:#E8F5E9;color:#00703C}
+
+.sv-range-wrap{padding:4px 0}
+.sv-range-labels{display:flex;justify-content:space-between;font-size:11px;color:#718096;margin-bottom:6px}
+.sv-field input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1F4E79 50%,#E2E8F0 50%);border-radius:99px;outline:none;border:none;padding:0}
+.sv-field input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#1F4E79;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
+.sv-range-val{text-align:center;font-size:18px;font-weight:700;color:#1F4E79;margin-top:8px}
+
+.sv-nav-btns{display:flex;gap:10px;margin-top:16px}
+.sv-btn{flex:1;padding:15px;border:none;border-radius:12px;font-size:15px;font-family:inherit;cursor:pointer;font-weight:700;transition:opacity .15s,transform .1s}
+.sv-btn:active{transform:scale(.97)}
+.sv-btn-primary{background:#1F4E79;color:#fff}
+.sv-btn-sell{background:#00703C;color:#fff}
+.sv-btn-secondary{background:#fff;color:#718096;border:1.5px solid #E2E8F0;flex:0 0 80px}
+
+.sv-error-msg{color:#C0392B;font-size:12px;margin-top:5px;display:none}
+.sv-error-msg.show{display:block}
+
+#sv-done-screen{display:none;padding:32px 20px;text-align:center}
+#sv-done-screen.active{display:block}
+.sv-done-icon{font-size:56px;margin-bottom:14px}
+.sv-done-title{font-size:20px;font-weight:700;color:#1F4E79;margin-bottom:8px}
+.sv-done-sub{font-size:13px;color:#718096;line-height:1.7;margin-bottom:24px}
+.sv-staff-note{background:#EBF3FB;border-radius:10px;padding:12px 14px;font-size:11px;color:#1F4E79;line-height:1.7;margin-bottom:14px;text-align:left}
+.sv-staff-note strong{font-weight:700}
+.sv-json-box{background:#1A202C;color:#68D391;border-radius:12px;padding:14px;font-family:monospace;font-size:11px;word-break:break-all;text-align:left;line-height:1.7;margin-bottom:14px;max-height:160px;overflow-y:auto}
+.sv-copy-btn{width:100%;padding:15px;background:#D4EDDA;color:#00703C;border:1.5px solid #00703C;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px}
+.sv-copy-btn.copied{background:#00703C;color:#fff}
+.sv-reset-btn{width:100%;padding:13px;background:#F4F6F9;color:#718096;border:1.5px solid #E2E8F0;border-radius:12px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:500}
+</style>
+</head>
+<body>
+
+<!-- ═══ CRMアプリ（通常アクセス用） ═══ -->
+<div id="crm-app">
+  <div id="root"></div>
+</div>
+
+<!-- ═══ アンケートアプリ（?surveyアクセス用） ═══ -->
+<div id="survey-app">
+  <header class="sv-header">
+    <div class="logo">🏠</div>
+    <h1>お客様アンケート</h1>
+    <p>ご要望を詳しくお聞かせください<br>所要時間：約2〜3分</p>
+    <div class="sv-progress-bar"><div class="sv-progress-fill" id="sv-progress" style="width:0%"></div></div>
+  </header>
+
+  <!-- STEP 0: 購入 or 売却 -->
+  <div class="sv-step active" id="sv-step0">
+    <p class="sv-step-label" style="margin-top:8px">STEP 1 / 5</p>
+    <p class="sv-step-title">本日のご相談内容</p>
+    <p class="sv-step-desc">どちらのご相談でしょうか？</p>
+    <div class="sv-mode-grid">
+      <button class="sv-mode-btn buy" id="sv-btn-buy" onclick="svSelectMode('buy')">
+        <span class="icon">🔍</span><span>物件を<br>お探しの方</span>
+      </button>
+      <button class="sv-mode-btn sell" id="sv-btn-sell" onclick="svSelectMode('sell')">
+        <span class="icon">🏷️</span><span>物件を<br>売りたい方</span>
+      </button>
+    </div>
+    <p class="sv-error-msg" id="sv-err-mode" style="text-align:center">ご相談内容をお選びください</p>
+    <div class="sv-nav-btns" style="margin-top:0">
+      <button class="sv-btn sv-btn-primary" id="sv-mode-next-btn" onclick="svModeNext()">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 1: 基本情報 -->
+  <div class="sv-step" id="sv-step1">
+    <p class="sv-step-label">STEP 2 / 5</p>
+    <p class="sv-step-title">お客様情報</p>
+    <p class="sv-step-desc">基本的な情報をご入力ください</p>
+    <div class="sv-card">
+      <div class="sv-field"><label>お名前<span class="req">*必須</span></label><input type="text" id="sv-f-n" placeholder="田中 太郎"><p class="sv-error-msg" id="sv-err-n">お名前をご入力ください</p></div>
+      <div class="sv-field"><label>フリガナ</label><input type="text" id="sv-f-k" placeholder="タナカ タロウ"></div>
+      <div class="sv-field"><label>電話番号</label><input type="tel" id="sv-f-p" placeholder="090-1234-5678"></div>
+      <div class="sv-field"><label>メールアドレス</label><input type="email" id="sv-f-e" placeholder="example@email.com"></div>
+      <div class="sv-field"><label>現在のご住所</label><input type="text" id="sv-f-a" placeholder="東京都〇〇区〇〇"></div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(0)">← 戻る</button>
+      <button class="sv-btn sv-btn-primary" onclick="svNext1()">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2A: 購入 -->
+  <div class="sv-step" id="sv-step2buy">
+    <p class="sv-step-label">STEP 3 / 5</p>
+    <p class="sv-step-title">ご希望の物件</p>
+    <p class="sv-step-desc">お探しの物件タイプをお選びください</p>
+    <div class="sv-card">
+      <div class="sv-field">
+        <label>物件種別<span class="req">*必須</span></label>
+        <div class="sv-choice-grid" id="sv-cg-type">
+          <button class="sv-choice-btn" data-val="マンション" onclick="svPick('sv-cg-type',this,'sv-f-t')">🏢 マンション</button>
+          <button class="sv-choice-btn" data-val="一戸建て" onclick="svPick('sv-cg-type',this,'sv-f-t')">🏠 一戸建て</button>
+          <button class="sv-choice-btn" data-val="土地" onclick="svPick('sv-cg-type',this,'sv-f-t')">🗾 土地</button>
+          <button class="sv-choice-btn" data-val="収益物件" onclick="svPick('sv-cg-type',this,'sv-f-t')">💰 収益物件</button>
+        </div>
+        <input type="hidden" id="sv-f-t">
+        <p class="sv-error-msg" id="sv-err-t">物件種別をお選びください</p>
+      </div>
+      <div class="sv-field" style="margin-top:16px"><label>希望エリア</label><input type="text" id="sv-f-ar" placeholder="例：渋谷・恵比寿、横浜市緑区など"></div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(1)">← 戻る</button>
+      <button class="sv-btn sv-btn-primary" onclick="svNext2buy()">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2B: 売却 -->
+  <div class="sv-step" id="sv-step2sell">
+    <p class="sv-step-label">STEP 3 / 5</p>
+    <p class="sv-step-title">売却物件の情報</p>
+    <p class="sv-step-desc">売却をお考えの物件について教えてください</p>
+    <div class="sv-card">
+      <div class="sv-field"><label>物件の所在地<span class="req">*必須</span></label><input type="text" id="sv-f-sp-addr" placeholder="東京都〇〇区〇〇1-2-3"><p class="sv-error-msg" id="sv-err-sp-addr">所在地をご入力ください</p></div>
+      <div class="sv-field">
+        <label>物件種別</label>
+        <div class="sv-choice-grid" id="sv-cg-sp-type">
+          <button class="sv-choice-btn sell-mode" data-val="マンション" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🏢 マンション</button>
+          <button class="sv-choice-btn sell-mode" data-val="一戸建て" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🏠 一戸建て</button>
+          <button class="sv-choice-btn sell-mode" data-val="土地" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🗾 土地</button>
+          <button class="sv-choice-btn sell-mode" data-val="収益物件" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">💰 収益物件</button>
+        </div>
+        <input type="hidden" id="sv-f-sp-type">
+      </div>
+      <div class="sv-field"><label>専有面積（㎡）</label><input type="number" id="sv-f-sp-area" placeholder="68"></div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(1)">← 戻る</button>
+      <button class="sv-btn sv-btn-sell" onclick="svNext2sell()">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3A: 購入 予算・間取り -->
+  <div class="sv-step" id="sv-step3buy">
+    <p class="sv-step-label">STEP 4 / 5</p>
+    <p class="sv-step-title">予算・間取り</p>
+    <p class="sv-step-desc">ご希望の予算と間取りをお教えください</p>
+    <div class="sv-card">
+      <div class="sv-field">
+        <label>ご予算（万円）</label>
+        <div class="sv-range-wrap">
+          <div class="sv-range-labels"><span>500万</span><span>3000万</span><span>5000万</span><span>1億+</span></div>
+          <input type="range" id="sv-f-b" min="500" max="10000" step="100" value="3000" oninput="svUpdRange(this,'sv-f-b-val')">
+          <div class="sv-range-val" id="sv-f-b-val">3000万円</div>
+        </div>
+      </div>
+      <div class="sv-field" style="margin-top:8px">
+        <label>希望の間取り</label>
+        <div class="sv-choice-grid" id="sv-cg-l">
+          <button class="sv-choice-btn" data-val="1K〜1LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">1K〜1LDK</button>
+          <button class="sv-choice-btn" data-val="2LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">2LDK</button>
+          <button class="sv-choice-btn" data-val="3LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">3LDK</button>
+          <button class="sv-choice-btn" data-val="4LDK以上" onclick="svPick('sv-cg-l',this,'sv-f-l')">4LDK以上</button>
+        </div>
+        <input type="hidden" id="sv-f-l">
+      </div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('2buy')">← 戻る</button>
+      <button class="sv-btn sv-btn-primary" onclick="svGoStep('4buy')">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3B: 売却 理由・希望 -->
+  <div class="sv-step" id="sv-step3sell">
+    <p class="sv-step-label">STEP 4 / 5</p>
+    <p class="sv-step-title">売却のご希望</p>
+    <p class="sv-step-desc">売却のご事情をお聞かせください</p>
+    <div class="sv-card">
+      <div class="sv-field">
+        <label>売却をお考えの理由</label>
+        <div class="sv-choice-grid col1" id="sv-cg-reason">
+          <button class="sv-choice-btn sell-mode" data-val="買い替え" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">🔄 買い替え</button>
+          <button class="sv-choice-btn sell-mode" data-val="住み替え（賃貸へ）" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">🏢 賃貸への住み替え</button>
+          <button class="sv-choice-btn sell-mode" data-val="相続" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">📋 相続</button>
+          <button class="sv-choice-btn sell-mode" data-val="転勤・転居" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">✈️ 転勤・転居</button>
+          <button class="sv-choice-btn sell-mode" data-val="資産整理" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">💼 資産整理</button>
+          <button class="sv-choice-btn sell-mode" data-val="その他" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">その他</button>
+        </div>
+        <input type="hidden" id="sv-f-reason">
+      </div>
+      <div class="sv-field" style="margin-top:16px">
+        <label>ご希望の売却時期</label>
+        <div class="sv-choice-grid col1" id="sv-cg-timing-sell">
+          <button class="sv-choice-btn sell-mode" data-val="3ヶ月以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">できるだけ早く（3ヶ月以内）</button>
+          <button class="sv-choice-btn sell-mode" data-val="半年以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">半年以内</button>
+          <button class="sv-choice-btn sell-mode" data-val="1年以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">1年以内</button>
+          <button class="sv-choice-btn sell-mode" data-val="未定" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">まだ検討段階</button>
+        </div>
+        <input type="hidden" id="sv-f-timing-sell">
+      </div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('2sell')">← 戻る</button>
+      <button class="sv-btn sv-btn-sell" onclick="svGoStep('4sell')">次へ →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4A: 購入 ご要望 -->
+  <div class="sv-step" id="sv-step4buy">
+    <p class="sv-step-label">STEP 5 / 5</p>
+    <p class="sv-step-title">ご要望・入居時期</p>
+    <p class="sv-step-desc">お住まいへのこだわりをお聞かせください</p>
+    <div class="sv-card">
+      <div class="sv-field"><label>ご要望・こだわり（自由記入）</label><textarea id="sv-f-m" placeholder="例：駅徒歩10分以内、日当たり重視、ペット可など"></textarea></div>
+      <div class="sv-field">
+        <label>ご入居のご希望時期</label>
+        <div class="sv-choice-grid col1" id="sv-cg-timing">
+          <button class="sv-choice-btn" data-val="3ヶ月以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">できるだけ早く（3ヶ月以内）</button>
+          <button class="sv-choice-btn" data-val="半年以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">半年以内</button>
+          <button class="sv-choice-btn" data-val="1年以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">1年以内</button>
+          <button class="sv-choice-btn" data-val="未定" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">まだ検討段階</button>
+        </div>
+        <input type="hidden" id="sv-f-timing">
+      </div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('3buy')">← 戻る</button>
+      <button class="sv-btn sv-btn-primary" onclick="svBuildConfirm('buy')">確認 →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4B: 売却 ご要望 -->
+  <div class="sv-step" id="sv-step4sell">
+    <p class="sv-step-label">STEP 5 / 5</p>
+    <p class="sv-step-title">その他のご要望</p>
+    <p class="sv-step-desc">売却に関してご要望があればお聞かせください</p>
+    <div class="sv-card">
+      <div class="sv-field"><label>ご要望・ご事情（自由記入）</label><textarea id="sv-f-ms" placeholder="例：なるべく高く売りたい、内覧は土日のみ対応可など"></textarea></div>
+    </div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('3sell')">← 戻る</button>
+      <button class="sv-btn sv-btn-sell" onclick="svBuildConfirm('sell')">確認 →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: 確認 -->
+  <div class="sv-step" id="sv-step5">
+    <p class="sv-step-label" id="sv-s5-label">確認</p>
+    <p class="sv-step-title">入力内容の確認</p>
+    <p class="sv-step-desc">以下の内容でよろしいでしょうか</p>
+    <div class="sv-card" id="sv-confirm-card"></div>
+    <div class="sv-nav-btns">
+      <button class="sv-btn sv-btn-secondary" id="sv-confirm-back">← 戻る</button>
+      <button class="sv-btn sv-btn-primary" id="sv-submit-btn" onclick="svSubmit()">送信する ✓</button>
+    </div>
+  </div>
+
+  <!-- 完了画面 -->
+  <div id="sv-done-screen">
+    <div class="sv-done-icon">✅</div>
+    <p class="sv-done-title">ありがとうございました！</p>
+    <p class="sv-done-sub">アンケートへのご回答ありがとうございます。<br>担当者よりご連絡いたします。</p>
+    <div class="sv-staff-note"><strong>スタッフの方へ：</strong><br>下のボタンで回答データをコピーし、<br>顧客管理アプリの「📋 取込」から貼り付けてください。</div>
+    <div class="sv-json-box" id="sv-json-output"></div>
+    <button class="sv-copy-btn" id="sv-copy-btn" onclick="svCopyJson()">📋 データをコピー（アプリへ取込用）</button>
+    <button class="sv-reset-btn" onclick="location.href=location.pathname+'?survey'">新しいアンケートを開始</button>
+  </div>
+</div>
+
+<!-- ═══ CRM React アプリ ═══ -->
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ═══ GAS経由SharePoint設定 ═══
+const GAS_URL   = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
+const ADMIN_PASS = "admin1234";
+
+// GAS GET リクエスト
+async function gasGet(action) {
+  const res = await fetch(`${GAS_URL}?action=${action}`, {
+    redirect: "follow",
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "GASエラー");
+  return json.data;
+}
+
+// GAS POST リクエスト（no-corsでリダイレクト対応）
+async function gasPost(body) {
+  // GASはリダイレクトするためno-corsで送信し、レスポンスは別途GETで確認
+  await fetch(GAS_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(body),
+  });
+  // no-corsではレスポンスが読めないため成功とみなす
+  return null;
+}
+
+// 顧客データをSharePoint形式→CRM形式に変換
+function spToCustomer(item) {
+  const f = item.fields;
+  let history = [], buyers = [];
+  try { history = JSON.parse(f.備考?.match(/\[\[HIST\]\](.*)/s)?.[1] || "[]"); } catch(e) {}
+  try { buyers = JSON.parse(f.備考?.match(/\[\[BUYERS\]\](.*)/s)?.[1] || "[]"); } catch(e) {}
+  return {
+    _spId: item.id,
+    id: parseInt(item.id),
+    mode: f.顧客種別Value || "buy",
+    staff: f.担当者 || "",
+    n: f.Title || "",
+    k: f.フリガナ || "",
+    p: f.電話番号 || "",
+    e: f.メールアドレス || "",
+    a: f.住所 || "",
+    t: f.物件種別 || "",
+    ar: f.希望エリア || "",
+    b: parseInt(f.予算) || 0,
+    l: f.間取り || "",
+    s: f.ステータス || (f.顧客種別Value === "sell" ? "査定前" : "未接触"),
+    pr: f.見込み || "低",
+    d: f.登録日 || "",
+    ad: f.次回アクション日 || "",
+    ac: f.次回アクション内容 || "",
+    m: f.メモ?.replace(/\[\[HIST\]\].*/s, "").replace(/\[\[BUYERS\]\].*/s, "").trim() || "",
+    sp_addr: f.物件住所 || "",
+    sp_type: f.売却物件種別 || "",
+    sp_area: f.専有面積 || "",
+    sp_assess: f.査定価格 || "",
+    sp_price: f.売出価格 || "",
+    sp_reason: f.売却理由 || "",
+    sp_timing: f.希望売却時期 || "",
+    sp_nairanCount: f.内覧回数 || "0",
+    sp_nairanNote: f.内覧メモ || "",
+    fromSurvey: f.アンケート取込済み || false,
+    history,
+    buyers
+  };
+}
+
+// CRM形式→SharePoint形式に変換
+function customerToSp(c) {
+  const fields = {
+    Title: c.n || "",
+    担当者: c.staff || "",
+    顧客種別Value: c.mode || "buy",
+    電話番号: c.p || "",
+    メールアドレス: c.e || "",
+    住所: c.a || "",
+    予算: c.b || 0,
+    希望エリア: c.ar || "",
+    物件住所: c.sp_addr || "",
+    査定価格: c.sp_assess || "",
+    ステータス: c.s || "",
+    見込み: c.pr || "低",
+    メモ: (c.m || "") + (c.history?.length ? `\n[[HIST]]${JSON.stringify(c.history)}` : "") + (c.buyers?.length ? `\n[[BUYERS]]${JSON.stringify(c.buyers)}` : ""),
+    アンケート取込済み: c.fromSurvey || false,
+  };
+  return fields;
+}
+
+// GAS経由で全顧客データ読み込み
+async function loadCustomersFromSP() {
+  return await gasGet("load");
+}
+
+// GAS経由で担当者リスト読み込み
+async function loadStaffFromSP() {
+  return await gasGet("loadStaff");
+}
+
+// GAS経由でアンケート読み込み
+async function loadSurveysFromGAS() {
+  return await gasGet("loadSurveys");
+}
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const todayStr = () => new Date().toISOString().slice(0,10);
+const BUY_STATUSES   = ["未接触","初回面談済","物件提案中","契約交渉中","成約","見送り"];
+const SELL_STATUSES  = ["査定前","査定済","媒介契約中","販売活動中","売買交渉中","成約","見送り"];
+const TYPES          = ["マンション","一戸建て","土地","収益物件","その他"];
+const SELL_REASONS   = ["買い替え","住み替え（賃貸へ）","相続","転勤・転居","資産整理","離婚","その他"];
+const SELL_TIMINGS   = ["3ヶ月以内","半年以内","1年以内","未定"];
+const BUYER_PROGRESS = ["情報収集中","内覧済","申込済","契約交渉中","成約","見送り"];
+const SAMPLE = [
+  {id:1,mode:"buy",staff:"小沼由美子",n:"田中 太郎",k:"タナカ タロウ",p:"090-1234-5678",e:"tanaka@email.com",a:"東京都渋谷区",t:"マンション",ar:"渋谷・恵比寿",b:5000,l:"2LDK",s:"物件提案中",pr:"高",d:"2026-01-15",ad:"2026-04-05",ac:"内覧予約確認",m:"子育て世帯",history:[]},
+  {id:2,mode:"sell",staff:"奈良豊成",n:"鈴木 一郎",k:"スズキ イチロウ",p:"070-5555-1111",e:"suzuki@email.com",a:"埼玉県さいたま市",s:"販売活動中",pr:"高",d:"2026-02-20",ad:"2026-04-08",ac:"内覧対応",m:"転勤のため早期売却希望",history:[],sp_addr:"埼玉県さいたま市大宮区桜木町2-1-5",sp_type:"マンション",sp_area:"68",sp_assess:"2800",sp_price:"2980",sp_reason:"転勤",sp_timing:"3ヶ月以内",sp_nairanCount:"3",sp_nairanNote:"前向きな反応2名",buyers:[{id:101,name:"木村様",progress:"内覧済",note:"価格交渉希望",date:"2026-03-28"}]},
+];
+function adSt(d){if(!d)return null;const dt=new Date(d);dt.setHours(0,0,0,0);const diff=Math.round((dt-TODAY)/86400000);if(diff<0)return{c:"overdue",t:`⚠️ ${Math.abs(diff)}日超過`};if(diff<=3)return{c:"soon",t:`🔔 あと${diff}日`};return{c:"ok",t:`✓ ${d}`};}
+function pOrd(p){return p==="高"?0:p==="中"?1:p==="低"?2:3;}
+function pcls(pr){return pr==="高"?"high":pr==="中"?"mid":"low";}
+const S={width:"100%",padding:"11px",border:"1.5px solid #E2E8F0",borderRadius:8,fontSize:16,color:"#1A202C",background:"#fff",outline:"none",WebkitAppearance:"none",boxSizing:"border-box"};
+const FL=({label,children,span=2})=>(<div style={{marginBottom:12,gridColumn:`span ${span}`}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:4,fontWeight:600}}>{label}</label>{children}</div>);
+const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+
+function LoginScreen({onLogin}){
+  const [staffList,setStaffList]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [selectedName,setSelectedName]=useState("");
+  const [pass,setPass]=useState("");
+  const [err,setErr]=useState("");
+  const [role,setRole]=useState("staff");
+  useEffect(()=>{(async()=>{try{const list=await loadStaffFromSP();if(list.length>0)setStaffList(list);else setStaffList([{name:"小沼由美子",pass:"1111"},{name:"奈良豊成",pass:"2222"}]);}catch(e){setStaffList([{name:"小沼由美子",pass:"1111"},{name:"奈良豊成",pass:"2222"}]);}setLoading(false);})();},[]);
+  const login=()=>{setErr("");if(role==="admin"){if(pass===ADMIN_PASS)onLogin({role:"admin",name:"管理者"});else setErr("パスワードが違います");}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
+  return(<div style={{minHeight:"100vh",background:"#F4F6F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{fontSize:48,marginBottom:12}}>🏠</div>
+    <h1 style={{fontSize:20,fontWeight:700,color:"#1F4E79",marginBottom:4}}>不動産顧客管理</h1>
+    <p style={{fontSize:12,color:"#718096",marginBottom:28}}>ログインしてください</p>
+    <div style={{display:"flex",gap:8,marginBottom:20,background:"#E2E8F0",borderRadius:12,padding:4,width:"100%",maxWidth:340}}>
+      {[["staff","👤 担当者"],["admin","🔑 管理者"]].map(([v,l])=>(<button key={v} onClick={()=>{setRole(v);setErr("");setPass("");}} style={{flex:1,padding:"9px 0",border:"none",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",background:role===v?"#fff":"transparent",color:role===v?"#1F4E79":"#718096",boxShadow:role===v?"0 1px 4px rgba(0,0,0,.1)":"none"}}>{l}</button>))}
+    </div>
+    <div style={{background:"#fff",borderRadius:16,padding:"24px 20px",width:"100%",maxWidth:340,boxShadow:"0 4px 24px rgba(0,0,0,.08)"}}>
+      {role==="staff"?(<>
+        <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>お名前</label>
+          {loading?<div style={{padding:"12px",color:"#718096",fontSize:13}}>読み込み中…</div>
+            :<select style={S} value={selectedName} onChange={e=>{setSelectedName(e.target.value);setErr("");}}>
+              <option value="">-- 選択してください --</option>
+              {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
+            </select>}
+        </div>
+        <div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力"/></div>
+      </>):(<div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>管理者パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力" autoFocus/></div>)}
+      {err&&<p style={{color:"#C0392B",fontSize:12,marginTop:8,marginBottom:0}}>⚠️ {err}</p>}
+      <button onClick={login} style={{width:"100%",padding:14,background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:16}}>ログイン →</button>
+    </div>
+    <div style={{marginTop:20,textAlign:"center"}}>
+      <a href="?survey" style={{fontSize:12,color:"#2E75B6",textDecoration:"none"}}>📋 お客様アンケートはこちら</a>
+    </div>
+  </div>);
+}
+
+function StaffTab({gasUrl}){
+  const [staffList,setStaffList]=useState([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState("");const [newName,setNewName]=useState("");const [newPass,setNewPass]=useState("");const [showPass,setShowPass]=useState({});
+  const flash=m=>{setMsg(m);setTimeout(()=>setMsg(""),3000);};
+  useEffect(()=>{(async()=>{try{const list=await loadStaffFromSP();setStaffList(list);}catch(e){setMsg("⚠️ 読み込み失敗");}setLoading(false);})();},[]);
+  const addStaff=async()=>{if(!newName.trim()){alert("名前を入力してください");return;}if(!newPass.trim()){alert("パスワードを入力してください");return;}if(staffList.some(s=>s.name===newName.trim())){alert("同じ名前の担当者がすでにいます");return;}setSaving(true);try{const cur=await gasGet("loadStaff");const next=[...cur,{name:newName.trim(),pass:newPass.trim()}];await gasPost({action:"saveStaff",staffList:next});const list=await gasGet("loadStaff");setStaffList(list);setNewName("");setNewPass("");flash("✓ 追加しました");}catch(e){flash("⚠️ 保存失敗");}setSaving(false);};
+  const changePass=async(item,newP)=>{if(!newP.trim()){alert("新しいパスワードを入力してください");return;}setSaving(true);try{const cur=await gasGet("loadStaff");const next=cur.map(s=>s.name===item.name?{...s,pass:newP.trim()}:s);await gasPost({action:"saveStaff",staffList:next});const list=await gasGet("loadStaff");setStaffList(list);flash("✓ 保存しました");}catch(e){flash("⚠️ 保存失敗");}setSaving(false);};
+  const removeStaff=async(item)=>{if(!confirm(`「${item.name}」を削除しますか？`))return;setSaving(true);try{const cur=await gasGet("loadStaff");const next=cur.filter(s=>s.name!==item.name);await gasPost({action:"saveStaff",staffList:next});setStaffList(next);flash("✓ 削除しました");}catch(e){flash("⚠️ 削除失敗");}setSaving(false);};
+  if(loading)return<div style={{textAlign:"center",padding:"40px 0",color:"#718096"}}>⟳ 読み込み中…</div>;
+  return(<div>
+    {msg&&<div style={{background:"#EBF3FB",color:"#1F4E79",borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:12,fontWeight:600}}>{msg}</div>}
+    {staffList.length===0?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>担当者がいません</div>
+      :staffList.map(s=><StaffCard key={s.name} s={s} showPass={showPass[s.name]} onTogglePass={()=>setShowPass(p=>({...p,[s.name]:!p[s.name]}))} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
+    <div style={{background:"#F0F4F8",borderRadius:10,padding:"14px",marginTop:16,border:"1px solid #E2E8F0"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:12}}>＋ 担当者を追加</div>
+      <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>名前</label><input style={S} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="山田 太郎"/></div>
+      <div style={{marginBottom:12}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>初期パスワード</label><input style={S} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="例：1234"/></div>
+      <button onClick={addStaff} disabled={saving} style={{width:"100%",padding:"11px",background:"#1F4E79",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{saving?"保存中…":"追加する"}</button>
+    </div>
+  </div>);
+}
+
+function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
+  const [editing,setEditing]=useState(false);const [newPass,setNewPass]=useState("");
+  return(<div style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:editing?10:0}}>
+      <div><div style={{fontSize:14,fontWeight:700}}>{s.name}</div><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><span style={{fontSize:12,color:"#718096",fontFamily:"monospace"}}>{showPass?s.pass:"••••"}</span><button onClick={onTogglePass} style={{border:"none",background:"none",fontSize:11,color:"#2E75B6",cursor:"pointer",padding:0}}>{showPass?"隠す":"表示"}</button></div></div>
+      <div style={{display:"flex",gap:6}}><button onClick={()=>{setEditing(!editing);setNewPass("");}} style={{background:"#EBF3FB",border:"none",borderRadius:7,padding:"5px 12px",fontSize:11,cursor:"pointer",color:"#1F4E79",fontWeight:600}}>🔑 変更</button><button onClick={onRemove} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div>
+    </div>
+    {editing&&(<div style={{display:"flex",gap:8,marginTop:4}}><input style={{...S,flex:1}} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="新しいパスワード" type="text"/><button onClick={()=>{onChangePass(newPass);setEditing(false);setNewPass("");}} style={{background:"#1F4E79",border:"none",borderRadius:8,padding:"0 14px",fontSize:12,cursor:"pointer",color:"#fff",fontWeight:700,flexShrink:0}}>保存</button><button onClick={()=>{setEditing(false);setNewPass("");}} style={{background:"#F4F6F9",border:"1px solid #E2E8F0",borderRadius:8,padding:"0 10px",fontSize:12,cursor:"pointer",color:"#718096",flexShrink:0}}>✕</button></div>)}
+  </div>);
+}
+
+function App(){
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const isAdmin=user?.role==="admin";const myName=user?.name||"";
+  const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
+  const fetchGAS=useCallback(async()=>{setSyncing(true);setSyncMsg("同期中…");try{const customers=await loadCustomersFromSP();if(customers.length>0){setData(customers);flash("✓ 同期完了");}else{setData(SAMPLE);flash("✓ 初回データ");}}catch(e){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}setSyncing(false);setLoaded(true);},[]);
+  const saveGAS=useCallback(async(nd)=>{try{await store.set("fudo",JSON.stringify(nd));}catch(e){}setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
+  useEffect(()=>{if(!user)return;fetchGAS();const t=setInterval(fetchGAS,120000);return()=>clearInterval(t);},[user]);
+  const persist=useCallback(nd=>{setData(nd);clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>saveGAS(nd),1500);},[saveGAS]);
+  useEffect(()=>{if(!loaded)return;const check=()=>{const ti=new Date().toISOString().slice(0,10);const mine=isAdmin?data:data.filter(c=>c.staff===myName);const hits=mine.filter(c=>c.ad===ti&&c.s!=="成約"&&c.s!=="見送り");if(hits.length>0){setAlarms(hits);if(navigator.vibrate)navigator.vibrate([300,100,300]);}};if(!alarmChecked.current){check();alarmChecked.current=true;}const t=setInterval(check,60000);return()=>clearInterval(t);},[data,loaded,isAdmin,myName]);
+  const getList=useCallback(()=>{let r=data.filter(c=>c.mode===mode);if(!isAdmin)r=r.filter(c=>c.staff===myName);if(isAdmin&&staffFilter!=="all")r=r.filter(c=>c.staff===staffFilter);if(filter!=="all")r=r.filter(c=>c.s===filter);if(sq){const q=sq.toLowerCase();r=r.filter(c=>[c.n,c.k,c.a,c.ar,c.m,c.p,c.sp_addr].some(v=>(v||"").toLowerCase().includes(q)));}r.sort((a,b)=>{let v=0;if(sort.k==="no")v=a.id-b.id;else if(sort.k==="name")v=(a.n||"").localeCompare(b.n||"","ja");else if(sort.k==="prospect")v=pOrd(a.pr)-pOrd(b.pr);else if(sort.k==="action")v=(a.ad||"9999").localeCompare(b.ad||"9999");else if(sort.k==="staff")v=(a.staff||"").localeCompare(b.staff||"","ja");return sort.asc?v:-v;});return r;},[data,mode,isAdmin,myName,staffFilter,filter,sq,sort]);
+  const ff=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const openNew=()=>{const base={mode,staff:myName,s:mode==="buy"?"未接触":"査定前",pr:"",d:"",ad:"",ac:"",n:"",k:"",p:"",e:"",a:"",m:"",history:[]};const ex=mode==="buy"?{t:"",ar:"",b:"",l:""}:{sp_addr:"",sp_type:"",sp_area:"",sp_assess:"",sp_price:"",sp_reason:"",sp_timing:"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]};setForm({...base,...ex});setFormTab("info");setModal("new");};
+  const openEdit=c=>{setForm({...c});setFormTab("info");setModal("edit");};
+  const closeModal=()=>setModal(null);
+  const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}const c={...form,b:parseInt(form.b)||0,staff:form.staff||myName};let nd;if(modal==="edit"){nd=data.map(x=>x.id===form.id?c:x);}else{c.id=data.length?Math.max(...data.map(x=>x.id))+1:1;nd=[...data,c];}setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ 保存失敗");}};
+  const del=async()=>{if(!confirm(`「${form.n}」を削除しますか？`))return;if(form._spId){try{await gasPost({action:"deleteCustomer",spId:form._spId});}catch(e){}}const nd=data.filter(x=>x.id!==form.id);setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();};
+  const addHistory=()=>{if(!histForm.content.trim()){alert("内容を入力してください");return;}setForm(f=>({...f,history:[{id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment},...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};
+  const toggleDone=hid=>setForm(f=>({...f,history:(f.history||[]).map(h=>h.id===hid?{...h,done:!h.done}:h)}));
+  const delHist=hid=>setForm(f=>({...f,history:(f.history||[]).filter(h=>h.id!==hid)}));
+  const addBuyer=()=>{if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}setForm(f=>({...f,buyers:[...(f.buyers||[]),{id:Date.now(),...buyerForm}]}));setBuyerForm({name:"",progress:"情報収集中",note:"",date:todayStr()});};
+  const delBuyer=bid=>setForm(f=>({...f,buyers:(f.buyers||[]).filter(b=>b.id!==bid)}));
+  const updBuyer=(bid,k,v)=>setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===bid?{...b,[k]:v}:b)}));
+  const importSurvey=()=>{setSurveyError("");try{const p=JSON.parse(surveyJson);if(!p.n?.trim()){setSurveyError("氏名（n）は必須です");return;}const isSell=p.mode==="sell";const nc={id:data.length?Math.max(...data.map(x=>x.id))+1:1,mode:isSell?"sell":"buy",staff:myName,n:p.n,k:p.k||"",p:p.p||"",e:p.e||"",a:p.a||"",...(isSell?{sp_addr:p.sp_addr||"",sp_type:p.sp_type||"",sp_area:p.sp_area||"",sp_assess:"",sp_price:"",sp_reason:p.sp_reason||"",sp_timing:p.sp_timing||"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]}:{t:p.t||"",ar:p.ar||"",b:parseInt(p.b)||0,l:p.l||""}),s:isSell?"査定前":"未接触",pr:"低",d:todayStr(),ad:"",ac:isSell?"査定依頼":"初回ヒアリング",m:p.m||"",history:[],fromSurvey:true};persist([...data,nc]);setSurveyModal(false);setSurveyJson("");alert(`「${nc.n}」様（${isSell?"売却":"購入"}）のアンケートを取り込みました`);}catch(e){setSurveyError("JSONの形式が正しくありません。");}};
+  const tog=id=>setExpanded(e=>({...e,[id]:!e[id]}));const setS=k=>setSort(s=>s.k===k?{...s,asc:!s.asc}:{k,asc:true});const sf=k=>sort.k===k?(sort.asc?" ↑":" ↓"):"";
+  const list=getList();const statuses=mode==="buy"?BUY_STATUSES:SELL_STATUSES;const myData=isAdmin?data:data.filter(c=>c.staff===myName);const staffList=[...new Set(data.map(c=>c.staff).filter(Boolean))];const overdueCount=myData.filter(c=>adSt(c.ad)?.c==="overdue").length;const fTabs=form.mode==="sell"?[["info","👤 基本"],["sell","🏠 物件・査定"],["buyers","🤝 買主候補"],["history","📅 履歴"]]:[["info","👤 基本情報"],["history","📅 履歴"]];
+  if(!user)return<LoginScreen onLogin={setUser}/>;
+  return(<div style={{background:"#F4F6F9",minHeight:"100vh"}}>
+    {alarms.length>0&&(<div style={{position:"fixed",top:0,left:0,right:0,zIndex:500,background:"#C0392B",color:"#fff",padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:13,fontWeight:700}}>🔔 本日アクション期限！</div><div style={{fontSize:11,opacity:.9}}>{alarms.map(a=>a.n).join("、")}</div></div><button onClick={()=>setAlarms([])} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>✕</button></div>)}
+    <div style={{background:isAdmin?"#2C3E50":"#1F4E79",color:"#fff",padding:`${alarms.length>0?"54px":"14px"} 16px 12px`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.2)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div><div style={{fontSize:16,fontWeight:700}}>{isAdmin?"👑 管理者ビュー":"🏠 不動産顧客管理"}</div><div style={{fontSize:11,opacity:.7,marginTop:1}}>{isAdmin?"全担当者のデータ":`担当：${myName}`}{syncMsg&&<span style={{marginLeft:8}}>{syncMsg}</span>}</div></div>
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={fetchGAS} disabled={syncing} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:12,cursor:"pointer"}}>{syncing?"⟳":"🔄"}</button>
+          {!isAdmin&&<button onClick={()=>setSurveyModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>📋 取込</button>}
+          <button onClick={()=>exportCSV(list,mode)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>📥</button>
+          <button onClick={()=>setUser(null)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>🚪</button>
+        </div>
+      </div>
+      {isAdmin&&(<div style={{display:"flex",gap:6,marginBottom:8}}>{[["customers","👥 顧客リスト"],["staff","⚙️ 担当者管理"]].map(([v,l])=>(<button key={v} onClick={()=>setAdminTab(v)} style={{padding:"7px 16px",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:adminTab===v?"rgba(255,255,255,.9)":"rgba(255,255,255,.15)",color:adminTab===v?"#2C3E50":"rgba(255,255,255,.8)"}}>{l}</button>))}</div>)}
+      {(!isAdmin||adminTab==="customers")&&<>
+        {isAdmin&&(<div style={{display:"flex",gap:6,marginBottom:8,overflowX:"auto"}}>{[["all","全員"],...staffList.map(s=>[s,s])].map(([v,l])=>(<button key={v} onClick={()=>setStaffFilter(v)} style={{flexShrink:0,padding:"5px 13px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer",border:"none",background:staffFilter===v?"rgba(255,255,255,.9)":"rgba(255,255,255,.2)",color:staffFilter===v?"#2C3E50":"#fff"}}>{l}</button>))}</div>)}
+        <div style={{display:"flex",gap:6,marginBottom:8}}>{[["buy",`🔍 購入 ${myData.filter(c=>c.mode==="buy").length}件`],["sell",`🏷️ 売却 ${myData.filter(c=>c.mode==="sell").length}件`]].map(([v,l])=>(<button key={v} onClick={()=>{setMode(v);setFilter("all");}} style={{flex:1,padding:"8px 0",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",background:mode===v?"rgba(255,255,255,.22)":"rgba(255,255,255,.08)",color:mode===v?"#fff":"rgba(255,255,255,.5)",borderBottom:mode===v?"2.5px solid #fff":"2.5px solid transparent"}}>{l}</button>))}</div>
+        <input value={sq} onChange={e=>setSq(e.target.value)} placeholder="🔍 氏名・住所・エリアで検索…" style={{width:"100%",padding:"9px 14px",borderRadius:10,border:"none",background:"rgba(255,255,255,.18)",color:"#fff",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+      </>}
+    </div>
+    {isAdmin&&adminTab==="staff"&&(<div style={{padding:"14px 16px"}}><StaffTab gasUrl={GAS_URL}/></div>)}
+    {(!isAdmin||adminTab==="customers")&&<>
+      <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"8px 14px",display:"flex",gap:7,overflowX:"auto"}}>{[["all","すべて"],...statuses.map(s=>[s,s])].map(([v,l])=>(<button key={v} onClick={()=>setFilter(v)} style={{flexShrink:0,border:`1.5px solid ${filter===v?"#1F4E79":"#E2E8F0"}`,background:filter===v?"#1F4E79":"#fff",color:filter===v?"#fff":"#718096",padding:"5px 13px",borderRadius:18,fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>))}</div>
+      <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"7px 14px",display:"flex",gap:7,alignItems:"center",overflowX:"auto"}}><span style={{fontSize:11,color:"#718096",flexShrink:0}}>並替：</span>{[["no","No."],["name","名前"],["prospect","見込み"],["action","アクション日"],...(isAdmin?[["staff","担当者"]]:[])]
+        .map(([k,l])=>(<button key={k} onClick={()=>setS(k)} style={{flexShrink:0,border:`1.5px solid ${sort.k===k?"#2E75B6":"#E2E8F0"}`,background:sort.k===k?"#2E75B6":"#fff",color:sort.k===k?"#fff":"#718096",padding:"5px 11px",borderRadius:18,fontSize:11,cursor:"pointer"}}>{l}{sf(k)}</button>))}</div>
+      <div style={{padding:"6px 16px",fontSize:11,color:"#718096",background:"#F4F6F9",display:"flex",justifyContent:"space-between"}}><span>{list.length}件表示中</span>{overdueCount>0&&<span style={{color:"#C0392B",fontWeight:700}}>⚠️ 期限超過 {overdueCount}件</span>}</div>
+      <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",gap:10,paddingBottom:90}}>
+        {!loaded?<div style={{textAlign:"center",padding:"60px 0",color:"#718096"}}>⟳ 読み込み中…</div>
+          :list.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:"#718096",fontSize:14}}><div style={{fontSize:40,marginBottom:12}}>📋</div>顧客がいません</div>
+          :list.map(c=><Card key={c.id} c={c} exp={expanded[c.id]} onTog={()=>tog(c.id)} onEdit={()=>openEdit(c)} isAdmin={isAdmin}/>)}
+      </div>
+      {!isAdmin&&<button onClick={openNew} style={{position:"fixed",bottom:24,right:20,width:54,height:54,borderRadius:"50%",background:mode==="buy"?"#1F4E79":"#00703C",color:"#fff",fontSize:26,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,.3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>＋</button>}
+    </>}
+    {modal&&(<div onClick={e=>e.target===e.currentTarget&&closeModal()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.52)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"93vh",overflowY:"auto",padding:"20px 16px 52px",animation:"sup .22s ease"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div><h2 style={{fontSize:15,fontWeight:700,margin:0,color:form.mode==="sell"?"#00703C":"#1F4E79"}}>{form.mode==="sell"?"🏷️":"🔍"} {modal==="new"?"新規顧客":"顧客情報を編集"}</h2><div style={{fontSize:11,color:"#718096",marginTop:2}}>担当：{form.staff||myName}</div></div>{modal==="edit"&&<button onClick={del} style={{border:"none",background:"#fee",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:"#C0392B",fontWeight:600}}>🗑️ 削除</button>}</div>
+      <div style={{display:"flex",marginBottom:14,borderBottom:"1.5px solid #E2E8F0",overflowX:"auto"}}>{fTabs.map(([t,l])=>(<button key={t} onClick={()=>setFormTab(t)} style={{border:"none",background:"none",padding:"7px 14px",fontSize:12,fontWeight:formTab===t?700:400,color:formTab===t?(form.mode==="sell"?"#00703C":"#1F4E79"):"#718096",borderBottom:formTab===t?`2.5px solid ${form.mode==="sell"?"#00703C":"#1F4E79"}`:"2.5px solid transparent",cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>{l}{t==="history"&&form.history?.length>0?` (${form.history.length})`:""}{t==="buyers"&&form.buyers?.length>0?` (${form.buyers.length})`:""}
+      </button>))}</div>
+      {formTab==="info"&&<InfoTab form={form} ff={ff} statuses={statuses}/>}
+      {formTab==="sell"&&form.mode==="sell"&&<SellTab form={form} ff={ff}/>}
+      {formTab==="buyers"&&form.mode==="sell"&&<BuyersTab form={form} buyerForm={buyerForm} setBuyerForm={setBuyerForm} addBuyer={addBuyer} delBuyer={delBuyer} updBuyer={updBuyer}/>}
+      {formTab==="history"&&<HistTab form={form} histForm={histForm} setHistForm={setHistForm} addHistory={addHistory} toggleDone={toggleDone} delHist={delHist}/>}
+      <div style={{display:"flex",gap:10,marginTop:18}}><button onClick={closeModal} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={save} onPointerDown={e=>e.currentTarget.style.transform="scale(0.95)"} onPointerUp={e=>e.currentTarget.style.transform="scale(1)"} onPointerLeave={e=>e.currentTarget.style.transform="scale(1)"} style={{flex:2,padding:13,border:"none",background:form.mode==="sell"?"#00703C":"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700,transition:"transform 0.1s"}}>保存</button></div>
+    </div></div>)}
+    {surveyModal&&(<div onClick={e=>e.target===e.currentTarget&&(setSurveyModal(false),setSurveyJson(""),setSurveyError(""))} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 18px 48px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h2 style={{fontSize:16,fontWeight:700,color:"#1F4E79",margin:0}}>📋 アンケートデータ取込</h2><button onClick={()=>{setSurveyModal(false);setSurveyJson("");setSurveyError("");}} style={{border:"none",background:"none",fontSize:20,cursor:"pointer",color:"#718096"}}>✕</button></div>
+      <textarea value={surveyJson} onChange={e=>setSurveyJson(e.target.value)} placeholder='{"mode":"buy","n":"田中 太郎",...}' style={{...S,resize:"vertical",minHeight:110,fontFamily:"monospace",fontSize:12,background:"#F8FAFC"}}/>
+      {surveyError&&<div style={{color:"#C0392B",fontSize:12,marginTop:6}}>⚠️ {surveyError}</div>}
+      <div style={{display:"flex",gap:10,marginTop:14}}><button onClick={()=>{setSurveyModal(false);setSurveyJson("");setSurveyError("");}} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={importSurvey} style={{flex:2,padding:13,border:"none",background:"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700}}>取り込む</button></div>
+    </div></div>)}
+  </div>);
+}
+
+function InfoTab({form,ff,statuses}){return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><FL label="氏名 *" span={1}><input style={S} value={form.n||""} onChange={e=>ff("n",e.target.value)} placeholder="田中 太郎"/></FL><FL label="フリガナ" span={1}><input style={S} value={form.k||""} onChange={e=>ff("k",e.target.value)} placeholder="タナカ タロウ"/></FL><FL label="📞 電話番号" span={1}><input style={S} value={form.p||""} onChange={e=>ff("p",e.target.value)} placeholder="090-1234-5678"/></FL><FL label="✉️ メール" span={1}><input style={S} value={form.e||""} onChange={e=>ff("e",e.target.value)} placeholder="example@email.com"/></FL><FL label="現住所"><input style={S} value={form.a||""} onChange={e=>ff("a",e.target.value)} placeholder="東京都〇〇区"/></FL>{form.mode==="buy"&&<><FL label="希望種別" span={1}><select style={S} value={form.t||""} onChange={e=>ff("t",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望エリア" span={1}><input style={S} value={form.ar||""} onChange={e=>ff("ar",e.target.value)} placeholder="渋谷・恵比寿"/></FL><FL label="予算（万円）" span={1}><input style={S} value={form.b||""} onChange={e=>ff("b",e.target.value)} placeholder="5000"/></FL><FL label="間取り" span={1}><input style={S} value={form.l||""} onChange={e=>ff("l",e.target.value)} placeholder="2LDK"/></FL></>}<FL label="ステータス" span={1}><select style={S} value={form.s||statuses[0]} onChange={e=>ff("s",e.target.value)}>{statuses.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="見込み度" span={1}><select style={S} value={form.pr||""} onChange={e=>ff("pr",e.target.value)}><option value="">選択</option>{["高","中","低"].map(v=><option key={v}>{v}</option>)}</select></FL><FL label="初回接触日" span={1}><input style={S} type="date" value={form.d||""} onChange={e=>ff("d",e.target.value)}/></FL><FL label="⏰ 次回アクション日" span={1}><input style={S} type="date" value={form.ad||""} onChange={e=>ff("ad",e.target.value)}/></FL><FL label="アクション内容"><input style={S} value={form.ac||""} onChange={e=>ff("ac",e.target.value)} placeholder="内覧予約確認"/></FL><FL label="メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.m||""} onChange={e=>ff("m",e.target.value)} placeholder="特記事項"/></FL></div>);}
+function SellTab({form,ff}){return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><FL label="売却物件所在地"><input style={S} value={form.sp_addr||""} onChange={e=>ff("sp_addr",e.target.value)} placeholder="東京都〇〇区〇〇1-2-3"/></FL><FL label="種別" span={1}><select style={S} value={form.sp_type||""} onChange={e=>ff("sp_type",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="専有面積（㎡）" span={1}><input style={S} value={form.sp_area||""} onChange={e=>ff("sp_area",e.target.value)} placeholder="68"/></FL><FL label="査定額（万円）" span={1}><input style={S} value={form.sp_assess||""} onChange={e=>ff("sp_assess",e.target.value)} placeholder="2800"/></FL><FL label="売出価格（万円）" span={1}><input style={S} value={form.sp_price||""} onChange={e=>ff("sp_price",e.target.value)} placeholder="2980"/></FL><FL label="売却理由" span={1}><select style={S} value={form.sp_reason||""} onChange={e=>ff("sp_reason",e.target.value)}><option value="">選択</option>{SELL_REASONS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望時期" span={1}><select style={S} value={form.sp_timing||""} onChange={e=>ff("sp_timing",e.target.value)}><option value="">選択</option>{SELL_TIMINGS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="内覧回数" span={1}><input style={S} value={form.sp_nairanCount||"0"} onChange={e=>ff("sp_nairanCount",e.target.value)} placeholder="0"/></FL><FL label="内覧反応・メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.sp_nairanNote||""} onChange={e=>ff("sp_nairanNote",e.target.value)} placeholder="前向きな反応あり"/></FL></div>);}
+function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer}){return(<div><div style={{background:"#F0FFF4",borderRadius:10,padding:"12px 14px",marginBottom:14,border:"1px solid #C6F6D5"}}><div style={{fontSize:12,fontWeight:700,color:"#00703C",marginBottom:10}}>＋ 買主候補を追加</div><div style={{marginBottom:8}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>候補者名</label><input style={S} value={buyerForm.name} onChange={e=>setBuyerForm(b=>({...b,name:e.target.value}))} placeholder="木村様"/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>進捗</label><select style={S} value={buyerForm.progress} onChange={e=>setBuyerForm(b=>({...b,progress:e.target.value}))}>{BUYER_PROGRESS.map(v=><option key={v}>{v}</option>)}</select></div><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={buyerForm.date} onChange={e=>setBuyerForm(b=>({...b,date:e.target.value}))}/></div></div><div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>メモ</label><input style={S} value={buyerForm.note} onChange={e=>setBuyerForm(b=>({...b,note:e.target.value}))} placeholder="価格交渉希望など"/></div><button onClick={addBuyer} style={{width:"100%",padding:"11px",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>候補者を追加</button></div>{(!form.buyers||form.buyers.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>🤝 買主候補はまだいません</div>:(form.buyers||[]).map(b=>{const pc=b.progress==="成約"?"#00703C":b.progress==="見送り"?"#C0392B":"#2E75B6";const pb=b.progress==="成約"?"#D4EDDA":b.progress==="見送り"?"#FDECEA":"#EBF3FB";return(<div key={b.id} style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"11px 13px",marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div><div style={{fontSize:14,fontWeight:700}}>{b.name}</div><div style={{fontSize:10,color:"#718096"}}>{b.date}</div></div><div style={{display:"flex",gap:6,alignItems:"center"}}><span style={{background:pb,color:pc,padding:"2px 9px",borderRadius:9,fontSize:10,fontWeight:700}}>{b.progress}</span><button onClick={()=>delBuyer(b.id)} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"4px 8px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div></div><select value={b.progress} onChange={e=>updBuyer(b.id,"progress",e.target.value)} style={{fontSize:12,border:"1px solid #E2E8F0",borderRadius:7,padding:"4px 8px",color:"#1A202C",background:"#fff"}}>{BUYER_PROGRESS.map(v=><option key={v}>{v}</option>)}</select>{b.note&&<div style={{marginTop:6,fontSize:11,color:"#718096"}}>💬 {b.note}</div>}</div>);})}</div>);}
+function HistTab({form,histForm,setHistForm,addHistory,toggleDone,delHist}){return(<div><div style={{background:"#F0F4F8",borderRadius:10,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:10}}>＋ アクションを記録</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={histForm.date} onChange={e=>setHistForm(h=>({...h,date:e.target.value}))}/></div><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>内容</label><input style={S} value={histForm.content} onChange={e=>setHistForm(h=>({...h,content:e.target.value}))} placeholder="電話・内覧など"/></div></div><div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>コメント</label><input style={S} value={histForm.comment} onChange={e=>setHistForm(h=>({...h,comment:e.target.value}))} placeholder="詳細メモ"/></div><button onClick={addHistory} style={{width:"100%",padding:"11px",background:"#2E75B6",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>記録する</button></div>{(!form.history||form.history.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>📋 履歴はまだありません</div>:(form.history||[]).map(h=>(<div key={h.id} style={{background:"#fff",border:`1.5px solid ${h.done?"#C6F6D5":"#E2E8F0"}`,borderRadius:10,padding:"11px 13px",marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}><span style={{fontSize:10,color:"#718096",fontFamily:"monospace"}}>{h.date}</span>{h.done&&<span style={{background:"#C6F6D5",color:"#276749",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>✓ 完了</span>}</div><div style={{fontSize:13,fontWeight:600,textDecoration:h.done?"line-through":"none"}}>{h.content}</div>{h.comment&&<div style={{fontSize:11,color:"#718096",marginTop:3}}>💬 {h.comment}</div>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><button onClick={()=>toggleDone(h.id)} style={{background:h.done?"#F0FFF4":"#EBF8FF",border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",color:h.done?"#276749":"#2E75B6",fontWeight:600}}>{h.done?"↩️":"✓"}</button><button onClick={()=>delHist(h.id)} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"5px 8px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div></div></div>))}</div>);}
+function Card({c,exp,onTog,onEdit,isAdmin}){const cl=pcls(c.pr);const aS=adSt(c.ad);const isSell=c.mode==="sell";const bc=isSell?(cl==="high"?"#00703C":cl==="mid"?"#F0A500":"#AAA"):(cl==="high"?"#2E75B6":cl==="mid"?"#F0A500":"#AAA");const pbg=cl==="high"?"#D4EDDA":cl==="mid"?"#FFF3CD":"#F0F0F0";const ptx=cl==="high"?"#155724":cl==="mid"?"#664D03":"#555";const adColor=aS?.c==="overdue"?"#C0392B":aS?.c==="soon"?"#E65100":"#2E7D32";const adBg=aS?.c==="overdue"?"#FDECEA":aS?.c==="soon"?"#FFF8E1":"#E8F5E9";const ph=(c.history||[]).filter(h=>!h.done).length;const ab=isSell?(c.buyers||[]).filter(b=>b.progress!=="見送り").length:0;return(<div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 12px rgba(0,0,0,.08)",border:"1px solid #E2E8F0",borderLeft:`4px solid ${bc}`,overflow:"hidden"}}><div style={{padding:"12px 13px 9px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1,minWidth:0}}><div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><span style={{fontSize:15,fontWeight:700}}>{c.n}</span>{isSell&&<span style={{background:"#E8F5E9",color:"#00703C",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>売却</span>}{c.fromSurvey&&<span style={{background:"#EBF8FF",color:"#2E75B6",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>📋</span>}{isAdmin&&c.staff&&<span style={{background:"#EBF3FB",color:"#1F4E79",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>👤{c.staff}</span>}</div><div style={{fontSize:10,color:"#718096",marginTop:1}}>{c.k}</div>{isSell&&c.sp_addr&&<div style={{fontSize:11,color:"#4A5568",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🏠 {c.sp_addr}</div>}<div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:5,alignItems:"center"}}><span style={{padding:"2px 9px",borderRadius:10,fontSize:10,fontWeight:500,background:isSell?"#E8F5E9":"#EBF3FB",color:isSell?"#00703C":"#1F4E79"}}>{c.s||"未設定"}</span>{aS&&<span style={{padding:"3px 8px",borderRadius:10,fontSize:10,fontWeight:600,background:adBg,color:adColor}}>{aS.t}</span>}{c.ac&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#F0F4F8",color:"#4A5568"}}>{c.ac}</span>}{ph>0&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#FFF3CD",color:"#664D03",fontWeight:600}}>📅未完了{ph}</span>}{isSell&&ab>0&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#E8F5E9",color:"#00703C",fontWeight:600}}>🤝候補{ab}名</span>}</div></div><div style={{textAlign:"right",flexShrink:0,marginLeft:8}}><span style={{padding:"3px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:pbg,color:ptx}}>{c.pr||"-"}</span>{isSell&&c.sp_price&&<div style={{fontSize:11,color:"#00703C",fontWeight:700,marginTop:4}}>{parseInt(c.sp_price).toLocaleString()}万</div>}<div style={{fontSize:9,color:"#718096",marginTop:4,fontFamily:"monospace"}}>#{String(c.id).padStart(3,"0")}</div></div></div><div style={{display:"flex",borderTop:"1px solid #E2E8F0"}}>{[{ico:"📞",sub:c.p||"電話なし",href:c.p?`tel:${c.p.replace(/[^0-9+]/g,"")}`:"",dis:!c.p},{ico:"📍",sub:"マップ",href:(c.sp_addr||c.a)?`https://maps.google.com/?q=${encodeURIComponent(c.sp_addr||c.a)}`:"",dis:!c.a&&!c.sp_addr,blank:true},{ico:"✉️",sub:c.e?"メール":"メールなし",href:c.e?`mailto:${c.e}`:"",dis:!c.e},{ico:"✏️",sub:"編集",onClick:onEdit}].map((btn,i,arr)=>(<a key={i} href={btn.href||"#"} target={btn.blank?"_blank":undefined} onClick={btn.onClick?(e=>{e.preventDefault();btn.onClick();}):(btn.dis?(e=>e.preventDefault()):undefined)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 4px",textDecoration:"none",color:btn.dis?"#ccc":"#2E75B6",gap:3,borderRight:i<arr.length-1?"1px solid #E2E8F0":"none",cursor:btn.dis&&!btn.onClick?"default":"pointer"}}><span style={{fontSize:17,lineHeight:1}}>{btn.ico}</span><span style={{fontSize:8}}>{btn.sub}</span></a>))}</div><button onClick={onTog} style={{width:"100%",background:"none",border:"none",borderTop:"1px solid #E2E8F0",padding:7,fontSize:11,color:"#718096",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>{exp?"▲ 閉じる":"▼ 詳細を見る"}</button>{exp&&(<div><div style={{padding:"6px 13px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>{(isSell?[["物件種別",c.sp_type],["専有面積",c.sp_area?c.sp_area+"㎡":""],["査定額",c.sp_assess?parseInt(c.sp_assess).toLocaleString()+"万円":""],["売出価格",c.sp_price?parseInt(c.sp_price).toLocaleString()+"万円":""],["売却理由",c.sp_reason],["希望時期",c.sp_timing],["内覧回数",c.sp_nairanCount+"回"],["初回接触日",c.d]]:[["種別",c.t],["エリア",c.ar],["予算",c.b?c.b.toLocaleString()+"万円":""],["間取り",c.l],["初回接触日",c.d],["次回アクション日",c.ad]]).map(([k,v])=>(<div key={k}><span style={{fontSize:9,color:"#718096",display:"block"}}>{k}</span><span style={{fontSize:12,fontWeight:500}}>{v||"-"}</span></div>))}</div>{c.m&&<div style={{margin:"0 13px 10px",padding:"8px 10px",background:"#F8FAFC",borderRadius:8,fontSize:11,color:"#718096",lineHeight:1.5,border:"1px solid #E2E8F0"}}>📝 {c.m}</div>}{isSell&&c.buyers&&c.buyers.length>0&&<div style={{margin:"0 13px 12px"}}><div style={{fontSize:10,color:"#718096",fontWeight:600,marginBottom:5}}>🤝 買主候補</div>{c.buyers.map(b=>{const pc=b.progress==="成約"?"#00703C":b.progress==="見送り"?"#C0392B":"#2E75B6";const pb=b.progress==="成約"?"#D4EDDA":b.progress==="見送り"?"#FDECEA":"#EBF3FB";return(<div key={b.id} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 8px",background:"#F8FAFC",borderRadius:7,marginBottom:4,border:"1px solid #E2E8F0"}}><span style={{flex:1,fontSize:12,fontWeight:600}}>{b.name}</span><span style={{background:pb,color:pc,padding:"1px 8px",borderRadius:9,fontSize:9,fontWeight:700}}>{b.progress}</span><span style={{fontSize:10,color:"#718096",fontFamily:"monospace"}}>{b.date}</span></div>);})}</div>}{c.history&&c.history.length>0&&<div style={{margin:"0 13px 12px"}}><div style={{fontSize:10,color:"#718096",fontWeight:600,marginBottom:5}}>📅 アクション履歴（直近3件）</div>{c.history.slice(0,3).map(h=>(<div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:h.done?"#F0FFF4":"#F8FAFC",borderRadius:7,marginBottom:4,border:`1px solid ${h.done?"#C6F6D5":"#E2E8F0"}`}}><span style={{fontSize:10,fontFamily:"monospace",color:"#718096",flexShrink:0}}>{h.date}</span><span style={{fontSize:11,flex:1,textDecoration:h.done?"line-through":"none",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{h.content}</span>{h.done&&<span style={{fontSize:9,color:"#276749",fontWeight:700}}>✓</span>}</div>))}{c.history.length>3&&<div style={{fontSize:10,color:"#718096",textAlign:"center",padding:3}}>他 {c.history.length-3} 件</div>}</div>}</div>)}</div>);}
+function exportCSV(list,mode){const isSell=mode==="sell";const h=isSell?["No.","担当者","氏名","フリガナ","電話","メール","現住所","物件住所","種別","面積","査定額","売出価格","売却理由","希望時期","内覧回数","ステータス","見込み","次回アクション日","メモ"]:["No.","担当者","氏名","フリガナ","電話","メール","住所","種別","エリア","予算","間取り","ステータス","見込み","次回アクション日","メモ"];const mr=c=>isSell?[c.id,c.staff,c.n,c.k,c.p,c.e,c.a,c.sp_addr,c.sp_type,c.sp_area,c.sp_assess,c.sp_price,c.sp_reason,c.sp_timing,c.sp_nairanCount,c.s,c.pr,c.ad,c.m]:[c.id,c.staff,c.n,c.k,c.p,c.e,c.a,c.t,c.ar,c.b,c.l,c.s,c.pr,c.ad,c.m];const csv="\uFEFF"+[h.map(x=>`"${x}"`), ...list.map(c=>mr(c).map(v=>`"${String(v||"").replace(/"/g,'""')}"`))].map(r=>r.join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=`${isSell?"売却":"購入"}顧客_${new Date().toISOString().slice(0,10).replace(/-/g,"")}.csv`;a.click();}
+
+// URLに?surveyがあればアンケートを表示、なければCRMを表示
+if(window.location.search.includes('survey')){
+  document.getElementById('crm-app').classList.add('hidden');
+  document.getElementById('survey-app').classList.add('active');
+}else{
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+}
+</script>
+
+<!-- アンケート用JavaScript -->
+<script>
+const SV_SP_HOST = "reallinks524.sharepoint.com";
+const SV_SITE_NAME = "CRM";
+let svCurrentMode = "";
+let svResultJson = "";
+let svSpToken = null;
+let svSpSiteId = null;
+
+async function svGetToken() {
+  if (svSpToken) return svSpToken;
+  // MSALが使えない場合はトークンなしで送信（アンケートは認証不要にする）
+  return null;
+}
+
+async function svSubmitToSP(data) {
+  // GAS経由でSharePointに送信
+  const GAS = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
+  try {
+    await fetch(GAS, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "survey", survey: data }),
+    });
+  } catch(e) {
+    console.log("アンケート送信エラー:", e);
+  }
+}
+
+function svUpdProgress(n){ const el=document.getElementById('sv-progress'); if(el)el.style.width=(n/5*100)+'%'; }
+function svSelectMode(m){
+  svCurrentMode=m;
+  document.getElementById('sv-btn-buy').classList.toggle('selected',m==='buy');
+  document.getElementById('sv-btn-sell').classList.toggle('selected',m==='sell');
+  document.getElementById('sv-err-mode').style.display='none';
+  const nb=document.getElementById('sv-mode-next-btn');
+  nb.className='sv-btn '+(m==='sell'?'sv-btn-sell':'sv-btn-primary');
+  document.getElementById('sv-submit-btn').className='sv-btn '+(m==='sell'?'sv-btn-sell':'sv-btn-primary');
+}
+function svModeNext(){
+  if(!svCurrentMode){document.getElementById('sv-err-mode').style.display='block';return;}
+  svGoStep(1);
+}
+function svGoStep(id){
+  document.querySelectorAll('.sv-step').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('sv-step'+id);
+  if(el)el.classList.add('active');
+  window.scrollTo(0,0);
+  const m={0:1,1:2,'2buy':3,'2sell':3,'3buy':4,'3sell':4,'4buy':5,'4sell':5,5:5};
+  svUpdProgress(m[id]||1);
+}
+function svPick(gridId,btn,hiddenId){
+  document.querySelectorAll('#'+gridId+' .sv-choice-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById(hiddenId).value=btn.dataset.val;
+}
+function svNext1(){
+  const n=document.getElementById('sv-f-n').value.trim();
+  document.getElementById('sv-err-n').classList.toggle('show',!n);
+  if(!n)return;
+  svGoStep(svCurrentMode==='sell'?'2sell':'2buy');
+}
+function svNext2buy(){
+  const t=document.getElementById('sv-f-t').value;
+  document.getElementById('sv-err-t').classList.toggle('show',!t);
+  if(!t)return;
+  svGoStep('3buy');
+}
+function svNext2sell(){
+  const a=document.getElementById('sv-f-sp-addr').value.trim();
+  document.getElementById('sv-err-sp-addr').classList.toggle('show',!a);
+  if(!a)return;
+  svGoStep('3sell');
+}
+function svUpdRange(el,valId){
+  const min=+el.min,max=+el.max,val=+el.value;
+  const pct=Math.round((val-min)/(max-min)*100);
+  el.style.background=`linear-gradient(to right,#1F4E79 ${pct}%,#E2E8F0 ${pct}%)`;
+  document.getElementById(valId).textContent=val.toLocaleString()+'万円';
+}
+function svBuildConfirm(mode){
+  let rows;
+  if(mode==='buy'){
+    rows=[['ご相談内容','物件のご購入'],['お名前',document.getElementById('sv-f-n').value],['フリガナ',document.getElementById('sv-f-k').value],['電話番号',document.getElementById('sv-f-p').value],['メール',document.getElementById('sv-f-e').value],['現住所',document.getElementById('sv-f-a').value],['物件種別',document.getElementById('sv-f-t').value],['希望エリア',document.getElementById('sv-f-ar').value],['ご予算',document.getElementById('sv-f-b').value+'万円'],['希望間取り',document.getElementById('sv-f-l').value],['入居時期',document.getElementById('sv-f-timing').value],['ご要望',document.getElementById('sv-f-m').value]];
+    document.getElementById('sv-confirm-back').onclick=()=>svGoStep('4buy');
+    document.getElementById('sv-s5-label').textContent='購入 — 確認';
+  }else{
+    rows=[['ご相談内容','物件の売却'],['お名前',document.getElementById('sv-f-n').value],['フリガナ',document.getElementById('sv-f-k').value],['電話番号',document.getElementById('sv-f-p').value],['メール',document.getElementById('sv-f-e').value],['現住所',document.getElementById('sv-f-a').value],['売却物件所在地',document.getElementById('sv-f-sp-addr').value],['物件種別',document.getElementById('sv-f-sp-type').value],['専有面積',document.getElementById('sv-f-sp-area').value?document.getElementById('sv-f-sp-area').value+'㎡':''],['売却理由',document.getElementById('sv-f-reason').value],['希望時期',document.getElementById('sv-f-timing-sell').value],['ご要望',document.getElementById('sv-f-ms').value]];
+    document.getElementById('sv-confirm-back').onclick=()=>svGoStep('4sell');
+    document.getElementById('sv-s5-label').textContent='売却 — 確認';
+  }
+  const card=document.getElementById('sv-confirm-card');
+  card.innerHTML=rows.filter(([,v])=>v).map(([k,v])=>`<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #E2E8F0;font-size:13px"><span style="flex:0 0 100px;color:#718096;font-size:11px;font-weight:700;padding-top:1px">${k}</span><span style="flex:1;line-height:1.5;word-break:break-all">${v}</span></div>`).join('');
+  svGoStep(5);
+}
+async function svSubmit(){
+  const isSell=svCurrentMode==='sell';
+  const data=isSell?{mode:'sell',n:document.getElementById('sv-f-n').value.trim(),k:document.getElementById('sv-f-k').value.trim(),p:document.getElementById('sv-f-p').value.trim(),e:document.getElementById('sv-f-e').value.trim(),a:document.getElementById('sv-f-a').value.trim(),sp_addr:document.getElementById('sv-f-sp-addr').value.trim(),sp_type:document.getElementById('sv-f-sp-type').value,sp_area:document.getElementById('sv-f-sp-area').value,sp_reason:document.getElementById('sv-f-reason').value,sp_timing:document.getElementById('sv-f-timing-sell').value,m:document.getElementById('sv-f-ms').value.trim(),s:'査定前',pr:'低',fromSurvey:true,_submitted:new Date().toISOString().slice(0,10)}:{mode:'buy',n:document.getElementById('sv-f-n').value.trim(),k:document.getElementById('sv-f-k').value.trim(),p:document.getElementById('sv-f-p').value.trim(),e:document.getElementById('sv-f-e').value.trim(),a:document.getElementById('sv-f-a').value.trim(),t:document.getElementById('sv-f-t').value,ar:document.getElementById('sv-f-ar').value.trim(),b:document.getElementById('sv-f-b').value,l:document.getElementById('sv-f-l').value,m:[document.getElementById('sv-f-m').value.trim(),document.getElementById('sv-f-timing').value?'入居時期：'+document.getElementById('sv-f-timing').value:''].filter(Boolean).join(' / '),s:'未接触',pr:'低',fromSurvey:true,_submitted:new Date().toISOString().slice(0,10)};
+  svResultJson=JSON.stringify(data,null,2);
+  document.getElementById('sv-json-output').textContent=svResultJson;
+  try{await svSubmitToSP({...data,staff:new URLSearchParams(window.location.search).get('staff')||""});}catch(e){}
+  document.querySelectorAll('.sv-step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sv-done-screen').classList.add('active');
+  document.getElementById('sv-progress').style.width='100%';
+  window.scrollTo(0,0);
+}
+function svCopyJson(){
+  const compact=JSON.stringify(JSON.parse(svResultJson));
+  const btn=document.getElementById('sv-copy-btn');
+  try{navigator.clipboard.writeText(compact).then(()=>{btn.textContent='✅ コピーしました！アプリに貼り付けてください';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 データをコピー（アプリへ取込用）';btn.classList.remove('copied');},3000);});}
+  catch(e){const ta=document.createElement('textarea');ta.value=compact;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);btn.textContent='✅ コピーしました！';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 データをコピー（アプリへ取込用）';btn.classList.remove('copied');},3000);}
+}
+// 予算スライダー初期化
+window.addEventListener('load',()=>{
+  const el=document.getElementById('sv-f-b');
+  if(el)svUpdRange(el,'sv-f-b-val');
+});
+</script>
+</body>
+</html>
