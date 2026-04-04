@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>不動産顧客管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script>window.addEventListener("pageshow",function(e){if(e.persisted){window.location.reload();}});</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <!-- アンケート用スタイル（?surveyのとき表示） -->
 <style id="survey-style">
@@ -368,33 +370,33 @@ function spToCustomer(item) {
   return {
     _spId: item.id,
     id: parseInt(item.id),
-    mode: f.顧客種別Value || "buy",
-    staff: f.担当者 || "",
+    mode: f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "sell" : "buy",
+    staff: f["_x62c5__x5f53__x8005_"] || "",
     n: f.Title || "",
     k: f.フリガナ || "",
-    p: f.電話番号 || "",
-    e: f.メールアドレス || "",
-    a: f.住所 || "",
+    p: f["_x96fb__x8a71__x756a__x53f7_"] || "",
+    e: f["_x30e1__x30fc__x30eb__x30a2__x30"] || "",
+    a: f["_x4f4f__x6240_"] || "",
     t: f.物件種別 || "",
-    ar: f.希望エリア || "",
-    b: parseInt(f.予算) || 0,
+    ar: f["_x5e0c__x671b__x30a8__x30ea__x30"] || "",
+    b: parseInt(f["_x4e88__x7b97_"]) || 0,
     l: f.間取り || "",
-    s: f.ステータス || (f.顧客種別Value === "sell" ? "査定前" : "未接触"),
+    s: f.ステータス || (f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "査定前" : "未接触"),
     pr: f.見込み || "低",
     d: f.登録日 || "",
     ad: f.次回アクション日 || "",
     ac: f.次回アクション内容 || "",
     m: cleanMemo,
-    sp_addr: f.物件住所 || "",
+    sp_addr: f["_x7269__x4ef6__x4f4f__x6240_"] || "",
     sp_type: f.売却物件種別 || "",
     sp_area: f.専有面積 || "",
-    sp_assess: f.査定価格 || "",
+    sp_assess: f["_x67fb__x5b9a__x4fa1__x683c_"] || "",
     sp_price: f.売出価格 || "",
     sp_reason: f.売却理由 || "",
     sp_timing: f.希望売却時期 || "",
     sp_nairanCount: f.内覧回数 || "0",
     sp_nairanNote: f.内覧メモ || "",
-    fromSurvey: f.アンケート取込済み || false,
+    fromSurvey: f["_x30a2__x30f3__x30b1__x30fc__x30"] === true,
     folderUrl,
     history,
     buyers
@@ -466,6 +468,35 @@ const S={width:"100%",padding:"11px",border:"1.5px solid #E2E8F0",borderRadius:8
 const FL=({label,children,span=2})=>(<div style={{marginBottom:12,gridColumn:`span ${span}`}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:4,fontWeight:600}}>{label}</label>{children}</div>);
 const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 
+const CRM_BASE_URL = "https://masanori-onuma.github.io/fudosan-crm/FudosanCRM.html";
+
+function QRModal({name, onClose}){
+  const url=`${CRM_BASE_URL}?survey&staff=${encodeURIComponent(name)}`;
+  const ref=React.useRef(null);
+  const [copied,setCopied]=React.useState(false);
+  React.useEffect(()=>{
+    if(ref.current){
+      ref.current.innerHTML="";
+      new QRCode(ref.current,{text:url,width:200,height:200,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
+    }
+  },[]);
+  const copy=()=>{navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
+  return(<div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{background:"#fff",borderRadius:20,padding:"24px 20px",width:"100%",maxWidth:320,textAlign:"center"}}>
+      <div style={{fontSize:14,fontWeight:700,color:"#1F4E79",marginBottom:4}}>📋 アンケートQRコード</div>
+      <div style={{fontSize:12,color:"#718096",marginBottom:16}}>{name}</div>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+        <div ref={ref} style={{background:"#fff",padding:4,borderRadius:8,border:"1px solid #E2E8F0"}}></div>
+      </div>
+      <div style={{fontSize:10,color:"#718096",wordBreak:"break-all",marginBottom:14,padding:"6px 10px",background:"#F4F6F9",borderRadius:8,lineHeight:1.5}}>{url}</div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={copy} style={{flex:1,padding:"10px 0",background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{copied?"✅ コピー済み":"📋 URLをコピー"}</button>
+        <button onClick={onClose} style={{flex:1,padding:"10px 0",background:"#F4F6F9",border:"1.5px solid #E2E8F0",borderRadius:10,color:"#718096",fontSize:13,cursor:"pointer"}}>閉じる</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function LoginScreen({onLogin}){
   const [staffList,setStaffList]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -535,7 +566,7 @@ function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
 }
 
 function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
   const fetchGAS=useCallback(async()=>{setSyncing(true);setSyncMsg("同期中…");try{const customers=await loadCustomersFromSP();if(customers.length>0){setData(customers);flash("✓ 同期完了");}else{setData(SAMPLE);flash("✓ 初回データ");}}catch(e){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}setSyncing(false);setLoaded(true);},[]);
@@ -567,7 +598,7 @@ function App(){
         <div><div style={{fontSize:16,fontWeight:700}}>{isAdmin?"👑 管理者ビュー":"🏠 不動産顧客管理"}</div><div style={{fontSize:11,opacity:.7,marginTop:1}}>{isAdmin?"全担当者のデータ":`担当：${myName}`}{syncMsg&&<span style={{marginLeft:8}}>{syncMsg}</span>}</div></div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={fetchGAS} disabled={syncing} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:12,cursor:"pointer"}}>{syncing?"⟳":"🔄"}</button>
-          {!isAdmin&&<button onClick={()=>setSurveyModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>📋 取込</button>}
+          {!isAdmin&&<button onClick={()=>setSurveyModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>📋 取込</button>}{!isAdmin&&<button onClick={()=>setQrModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>🔲 QR</button>}
           <button onClick={()=>exportCSV(list,mode)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>📥</button>
           <button onClick={()=>setUser(null)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>🚪</button>
         </div>
@@ -602,7 +633,7 @@ function App(){
       {formTab==="history"&&<HistTab form={form} histForm={histForm} setHistForm={setHistForm} addHistory={addHistory} toggleDone={toggleDone} delHist={delHist}/>}
       <div style={{display:"flex",gap:10,marginTop:18}}><button onClick={closeModal} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={save} onPointerDown={e=>e.currentTarget.style.transform="scale(0.95)"} onPointerUp={e=>e.currentTarget.style.transform="scale(1)"} onPointerLeave={e=>e.currentTarget.style.transform="scale(1)"} style={{flex:2,padding:13,border:"none",background:form.mode==="sell"?"#00703C":"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700,transition:"transform 0.1s"}}>保存</button></div>
     </div></div>)}
-    {surveyModal&&(<div onClick={e=>e.target===e.currentTarget&&(setSurveyModal(false),setSurveyJson(""),setSurveyError(""))} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 18px 48px"}}>
+    {qrModal&&<QRModal name={myName} onClose={()=>setQrModal(false)}/>}{surveyModal&&(<div onClick={e=>e.target===e.currentTarget&&(setSurveyModal(false),setSurveyJson(""),setSurveyError(""))} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 18px 48px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h2 style={{fontSize:16,fontWeight:700,color:"#1F4E79",margin:0}}>📋 アンケートデータ取込</h2><button onClick={()=>{setSurveyModal(false);setSurveyJson("");setSurveyError("");}} style={{border:"none",background:"none",fontSize:20,cursor:"pointer",color:"#718096"}}>✕</button></div>
       <textarea value={surveyJson} onChange={e=>setSurveyJson(e.target.value)} placeholder='{"mode":"buy","n":"田中 太郎",...}' style={{...S,resize:"vertical",minHeight:110,fontFamily:"monospace",fontSize:12,background:"#F8FAFC"}}/>
       {surveyError&&<div style={{color:"#C0392B",fontSize:12,marginTop:6}}>⚠️ {surveyError}</div>}
