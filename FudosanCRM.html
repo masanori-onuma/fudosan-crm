@@ -584,14 +584,20 @@ function App(){
   const addHistory=()=>{if(!histForm.content.trim()){alert("内容を入力してください");return;}setForm(f=>({...f,history:[{id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment},...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};
   const toggleDone=hid=>setForm(f=>({...f,history:(f.history||[]).map(h=>h.id===hid?{...h,done:!h.done}:h)}));
   const delHist=hid=>setForm(f=>({...f,history:(f.history||[]).filter(h=>h.id!==hid)}));
-  const addBuyer=()=>{if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}setForm(f=>({...f,buyers:[...(f.buyers||[]),{id:Date.now(),...buyerForm}]}));setBuyerForm({name:"",progress:"情報収集中",note:"",date:todayStr()});};
+  const addBuyer=async()=>{
+    if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}
+    const newBuyerEntry={id:Date.now(),...buyerForm};
+    setForm(f=>({...f,buyers:[...(f.buyers||[]),newBuyerEntry]}));
+    setBuyerForm({name:"",progress:"情報収集中",note:"",date:todayStr(),phone:""});
+    // 自動でCRM登録＋物件フォルダ作成
+    await registerBuyerAndCreateFolder(newBuyerEntry);
+  };
   const delBuyer=bid=>setForm(f=>({...f,buyers:(f.buyers||[]).filter(b=>b.id!==bid)}));
   const updBuyer=(bid,k,v)=>setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===bid?{...b,[k]:v}:b)}));
 
-  // 買主候補をCRM購入顧客として登録＋物件フォルダ作成
+  // 買主候補をCRM購入顧客として登録＋物件フォルダ作成（自動実行）
   const registerBuyerAndCreateFolder=async(buyer)=>{
-    if(!form.sp_addr){alert("物件・査定タブに売却物件所在地を入力してください");return;}
-    if(!confirm(`「${buyer.name}」を購入顧客として登録し、物件フォルダを作成しますか？`))return;
+    if(!form.sp_addr){setSyncMsg("⚠️ 物件住所を入力後に再保存してください");return;}
     // 購入顧客を作成
     const newBuyer={
       id:data.length?Math.max(...data.map(x=>x.id))+1:1,
@@ -618,6 +624,16 @@ function App(){
     // GASに保存（物件フォルダ作成リクエスト含む）
     try{
       await gasPost({action:"save",customers:nd});
+      // 既に物件フォルダがある場合はスキップ
+      const existingPropertyUrl = form.propertyFolderUrl || data.find(c=>(c._spId||c.id)===(form._spId||form.id))?.propertyFolderUrl;
+      if(existingPropertyUrl){
+        // 既存フォルダURLを買主にも設定
+        const nd2=nd.map(c=>c.id===newBuyer.id?{...c,propertyFolderUrl:existingPropertyUrl}:c);
+        setData(nd2);
+        await gasPost({action:"save",customers:nd2});
+        flash("✓ 購入顧客登録完了（物件フォルダは既存のものを使用）");
+        return;
+      }
       // 物件フォルダ作成
       const res=await fetch(`${GAS_URL}?action=createPropertyFolder&sellerSpId=${sellerId}&folderName=${encodeURIComponent(folderName)}`,{redirect:"follow"});
       const json=await res.json();
@@ -652,6 +668,16 @@ function App(){
     const newBuyerEntry={id:Date.now(),name:buyerCustomer.n,progress:"情報収集中",note:"",date:todayStr(),customerId:buyerCustomer.id,registered:true};
     setForm(f=>({...f,buyers:[...(f.buyers||[]),newBuyerEntry]}));
     try{
+      // 既に物件フォルダがある場合はスキップ
+      const existingPropertyUrl = form.propertyFolderUrl || data.find(c=>(c._spId||c.id)===sellerId)?.propertyFolderUrl;
+      if(existingPropertyUrl){
+        const nd=data.map(c=>c.id===buyerCustomer.id?{...c,propertyFolderUrl:existingPropertyUrl,linkedSellerId:sellerId}:c);
+        setData(nd);
+        setForm(f=>({...f,propertyFolderUrl:existingPropertyUrl}));
+        await gasPost({action:"save",customers:nd});
+        flash("✓ 紐づけ完了（物件フォルダは既存のものを使用）");
+        return;
+      }
       const res=await fetch(`${GAS_URL}?action=createPropertyFolder&sellerSpId=${sellerId}&folderName=${encodeURIComponent(folderName)}`,{redirect:"follow"});
       const json=await res.json();
       if(json.ok&&json.data){
@@ -752,10 +778,7 @@ function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer,regis
         <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={buyerForm.date} onChange={e=>setBuyerForm(b=>({...b,date:e.target.value}))}/></div>
       </div>
       <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>メモ</label><input style={S} value={buyerForm.note} onChange={e=>setBuyerForm(b=>({...b,note:e.target.value}))} placeholder="価格交渉希望など"/></div>
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <button onClick={addBuyer} style={{flex:1,padding:"10px 0",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>追加のみ</button>
-        <button onClick={()=>{if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}addBuyer();setTimeout(()=>{const latest=form.buyers?.[form.buyers.length-1]||{id:Date.now(),...buyerForm};registerBuyerAndCreateFolder({...buyerForm,id:Date.now()});},100);}} style={{flex:2,padding:"10px 0",background:"#1F4E79",border:"none",borderRadius:8,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>📋 CRM登録＋物件フォルダ作成</button>
-      </div>
+      <button onClick={addBuyer} style={{width:"100%",padding:"11px",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:8}}>候補者を追加（CRM自動登録）</button>
       <button onClick={()=>setShowLinkModal(true)} style={{width:"100%",padding:"9px 0",background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,color:"#1F4E79",fontSize:12,fontWeight:700,cursor:"pointer"}}>🔗 既存の購入顧客と紐づける</button>
     </div>
     {(!form.buyers||form.buyers.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>🤝 買主候補はまだいません</div>:(form.buyers||[]).map(b=>{
@@ -772,7 +795,7 @@ function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer,regis
           </div>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             <span style={{background:pb,color:pc,padding:"2px 9px",borderRadius:9,fontSize:10,fontWeight:700}}>{b.progress}</span>
-            {!b.registered&&<button onClick={()=>registerBuyerAndCreateFolder(b)} style={{background:"#EBF3FB",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,cursor:"pointer",color:"#1F4E79",fontWeight:600}}>📋 登録</button>}
+
             <button onClick={()=>delBuyer(b.id)} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"4px 8px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button>
           </div>
         </div>
