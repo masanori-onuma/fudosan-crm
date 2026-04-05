@@ -360,79 +360,98 @@ async function gasPost(body) {
 // 顧客データをSharePoint形式→CRM形式に変換
 function spToCustomer(item) {
   const f = item.fields;
-  let history = [], buyers = [];
-  const memo = f.備考 || f["_x5099__x8003_"] || "";
-  try { history = JSON.parse(memo.match(/\[\[HIST\]\](.*)/s)?.[1] || "[]"); } catch(e) {}
-  try { buyers = JSON.parse(memo.match(/\[\[BUYERS\]\](.*)/s)?.[1] || "[]"); } catch(e) {}
+  let history = [], buyers = [], infoData = {}, sellInfo = {};
+  const memo = f["_x5099__x8003_"] || "";
+  try { history  = JSON.parse(memo.match(/\[\[HIST\]\]([\s\S]*)/)?.[1] || "[]"); } catch(e) {}
+  try { buyers   = JSON.parse(memo.match(/\[\[BUYERS\]\]([\s\S]*)/)?.[1] || "[]"); } catch(e) {}
+  try { infoData = JSON.parse(memo.match(/\[\[INFO\]\]([^\n]+)/)?.[1] || "{}"); } catch(e) {}
+  try { sellInfo = JSON.parse(memo.match(/\[\[SELL\]\]([^\n]+)/)?.[1] || "{}"); } catch(e) {}
   let folderUrl = "";
   try { const m = memo.match(/\[\[FOLDER\]\]([^\n]+)/); if(m) folderUrl = m[1].trim(); } catch(e) {}
-  const cleanMemo = memo.replace(/\[\[FOLDER\]\][^\n]*\n?/,"").replace(/\[\[HIST\]\].*/s,"").replace(/\[\[BUYERS\]\].*/s,"").trim();
+  const cleanMemo = infoData.m || memo
+    .replace(/\[\[FOLDER\]\][^\n]*\n?/,"")
+    .replace(/\[\[INFO\]\][^\n]*\n?/,"")
+    .replace(/\[\[SELL\]\][^\n]*\n?/,"")
+    .replace(/\[\[HIST\]\][\s\S]*/,"")
+    .replace(/\[\[BUYERS\]\][\s\S]*/,"")
+    .trim();
   return {
-    _spId: item.id,
-    id: parseInt(item.id),
-    mode: f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "sell" : "buy",
-    staff: f["_x62c5__x5f53__x8005_"] || "",
-    n: f.Title || "",
-    k: f.フリガナ || "",
-    p: f["_x96fb__x8a71__x756a__x53f7_"] || "",
-    e: f["_x30e1__x30fc__x30eb__x30a2__x30"] || "",
-    a: f["_x4f4f__x6240_"] || "",
-    t: f.物件種別 || "",
-    ar: f["_x5e0c__x671b__x30a8__x30ea__x30"] || "",
-    b: parseInt(f["_x4e88__x7b97_"]) || 0,
-    l: f.間取り || "",
-    s: f.ステータス || (f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "査定前" : "未接触"),
-    pr: f.見込み || "低",
-    d: f.登録日 || "",
-    ad: f.次回アクション日 || "",
-    ac: f.次回アクション内容 || "",
-    m: cleanMemo,
-    sp_addr: f["_x7269__x4ef6__x4f4f__x6240_"] || "",
-    sp_type: f.売却物件種別 || "",
-    sp_area: f.専有面積 || "",
-    sp_assess: f["_x67fb__x5b9a__x4fa1__x683c_"] || "",
-    sp_price: f.売出価格 || "",
-    sp_reason: f.売却理由 || "",
-    sp_timing: f.希望売却時期 || "",
-    sp_nairanCount: f.内覧回数 || "0",
-    sp_nairanNote: f.内覧メモ || "",
-    fromSurvey: f["_x30a2__x30f3__x30b1__x30fc__x30"] === true,
-    folderUrl,
-    history,
-    buyers
+    _spId          : item.id,
+    id             : parseInt(item.id),
+    mode           : f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "sell" : "buy",
+    staff          : f["_x62c5__x5f53__x8005_"] || "",
+    n              : f.Title || "",
+    p              : f["_x96fb__x8a71__x756a__x53f7_"] || "",
+    e              : f["_x30e1__x30fc__x30eb__x30a2__x30"] || "",
+    a              : f["_x4f4f__x6240_"] || "",
+    ar             : f["_x5e0c__x671b__x30a8__x30ea__x30"] || "",
+    b              : parseInt(f["_x4e88__x7b97_"]) || 0,
+    s              : infoData.s || (f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "査定前" : "未接触"),
+    pr             : infoData.pr || "低",
+    d              : infoData.d || "",
+    ad             : infoData.ad || "",
+    ac             : infoData.ac || "",
+    m              : cleanMemo,
+    sp_addr        : f["_x7269__x4ef6__x4f4f__x6240_"] || "",
+    sp_assess      : String(f["_x67fb__x5b9a__x4fa1__x683c_"] || ""),
+    sp_type        : sellInfo.sp_type || "",
+    sp_area        : sellInfo.sp_area || "",
+    sp_price       : sellInfo.sp_price || "",
+    sp_reason      : sellInfo.sp_reason || "",
+    sp_timing      : sellInfo.sp_timing || "",
+    sp_nairanCount : sellInfo.sp_nairanCount || "0",
+    sp_nairanNote  : sellInfo.sp_nairanNote || "",
+    fromSurvey     : f["_x30a2__x30f3__x30b1__x30fc__x30"] === true,
+    folderUrl      : folderUrl,
+    propertyFolderUrl : infoData.propertyFolderUrl || "",
+    linkedSellerId : infoData.linkedSellerId || null,
+    history        : history,
+    buyers         : buyers,
   };
 }
 
 // CRM形式→SharePoint形式に変換
 function customerToSp(c) {
-  let memo = c.m || "";
-  if (c.folderUrl) memo = `[[FOLDER]]${c.folderUrl}\n` + memo;
+  const infoData = {
+    s                 : c.s || "",
+    pr                : c.pr || "低",
+    d                 : c.d || "",
+    ad                : c.ad || "",
+    ac                : c.ac || "",
+    m                 : c.m || "",
+    propertyFolderUrl : c.propertyFolderUrl || "",
+    linkedSellerId    : c.linkedSellerId || null,
+  };
+  let memo = `[[INFO]]${JSON.stringify(infoData)}`;
+  if (c.folderUrl) memo += `\n[[FOLDER]]${c.folderUrl}`;
+  if (c.mode === "sell") {
+    const sellInfo = {
+      sp_type        : c.sp_type || "",
+      sp_area        : c.sp_area || "",
+      sp_price       : c.sp_price || "",
+      sp_reason      : c.sp_reason || "",
+      sp_timing      : c.sp_timing || "",
+      sp_nairanCount : c.sp_nairanCount || "0",
+      sp_nairanNote  : c.sp_nairanNote || "",
+    };
+    memo += `\n[[SELL]]${JSON.stringify(sellInfo)}`;
+  }
   if (c.history?.length) memo += `\n[[HIST]]${JSON.stringify(c.history)}`;
   if (c.buyers?.length)  memo += `\n[[BUYERS]]${JSON.stringify(c.buyers)}`;
-  const fields = {
-    Title: c.n || "",
-    担当者: c.staff || "",
-    顧客種別Value: c.mode || "buy",
-    電話番号: c.p || "",
-    メールアドレス: c.e || "",
-    住所: c.a || "",
-    予算: c.b || 0,
-    希望エリア: c.ar || "",
-    物件住所: c.sp_addr || "",
-    査定価格: c.sp_assess || "",
-    売却物件種別: c.sp_type || "",
-    専有面積: c.sp_area || "",
-    売出価格: c.sp_price || "",
-    売却理由: c.sp_reason || "",
-    希望売却時期: c.sp_timing || "",
-    内覧回数: c.sp_nairanCount || "0",
-    内覧メモ: c.sp_nairanNote || "",
-    ステータス: c.s || "",
-    見込み: c.pr || "低",
-    メモ: memo,
-    アンケート取込済み: c.fromSurvey || false,
+  return {
+    Title                     : c.n || "",
+    ["_x62c5__x5f53__x8005_"] : c.staff || "",
+    ["_x9867__x5ba2__x7a2e__x5225_"] : c.mode === "sell" ? "売却" : "購入",
+    ["_x96fb__x8a71__x756a__x53f7_"] : String(c.p || ""),
+    ["_x30e1__x30fc__x30eb__x30a2__x30"] : String(c.e || ""),
+    ["_x4f4f__x6240_"]        : String(c.a || ""),
+    ["_x4e88__x7b97_"]        : c.b ? Number(c.b) : 0,
+    ["_x5e0c__x671b__x30a8__x30ea__x30"] : String(c.ar || ""),
+    ["_x7269__x4ef6__x4f4f__x6240_"] : String(c.sp_addr || ""),
+    ["_x67fb__x5b9a__x4fa1__x683c_"] : c.sp_assess ? Number(c.sp_assess) : 0,
+    ["_x5099__x8003_"]        : memo,
+    ["_x30a2__x30f3__x30b1__x30fc__x30"] : c.fromSurvey === true,
   };
-  return fields;
 }
 
 // GAS経由で全顧客データ読み込み
