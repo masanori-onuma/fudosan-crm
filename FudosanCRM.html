@@ -672,10 +672,8 @@ function App(){
   const delBuyer=bid=>setForm(f=>({...f,buyers:(f.buyers||[]).filter(b=>b.id!==bid)}));
   const updBuyer=(bid,k,v)=>setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===bid?{...b,[k]:v}:b)}));
 
-  // 買主候補をCRM購入顧客として登録＋物件フォルダ作成（自動実行）
+  // 買主候補をCRM購入顧客として登録（物件フォルダは売主のものを引き継ぐ）
   const registerBuyerAndCreateFolder=async(buyer)=>{
-    if(!form.sp_addr){setSyncMsg("⚠️ 物件住所を入力後に再保存してください");return;}
-    // 購入顧客を作成
     const newBuyer={
       id:data.length?Math.max(...data.map(x=>x.id))+1:1,
       mode:"buy",staff:form.staff||myName,
@@ -683,92 +681,33 @@ function App(){
       t:"",ar:"",b:0,l:"",
       s:"未接触",pr:"低",d:todayStr(),ad:"",ac:"",m:"",
       history:[],fromSurvey:false,
-      linkedSellerId:form._spId||form.id, // 売主との紐づけ
+      linkedSellerId:form._spId||form.id,
+      propertyFolderUrl:form.propertyFolderUrl||"",
     };
-    const sellerId=form._spId||form.id;
-    const sellerName=form.n;
-    const spAddr=form.sp_addr;
-    // 物件フォルダ名
-    const folderName=`${sellerName}_${spAddr}（#${String(sellerId).padStart(3,"0")}）`;
-    // 売主側に物件フォルダURLを設定（GASが作成後に返す）
-    setSyncMsg("物件フォルダ作成中…");
-    // まず購入顧客を追加
     const nd=[...data,newBuyer];
-    // 買主候補にcustomerId紐づけ
     setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===buyer.id?{...b,customerId:newBuyer.id,registered:true}:b)}));
     setData(nd);
     try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
-    // GASに保存（物件フォルダ作成リクエスト含む）
     try{
       await gasPost({action:"save",customers:nd});
-      // 既に物件フォルダがある場合はスキップ
-      const existingPropertyUrl = form.propertyFolderUrl || data.find(c=>(c._spId||c.id)===(form._spId||form.id))?.propertyFolderUrl;
-      if(existingPropertyUrl){
-        // 既存フォルダURLを買主にも設定
-        const nd2=nd.map(c=>c.id===newBuyer.id?{...c,propertyFolderUrl:existingPropertyUrl}:c);
-        setData(nd2);
-        await gasPost({action:"save",customers:nd2});
-        flash("✓ 購入顧客登録完了（物件フォルダは既存のものを使用）");
-        return;
-      }
-      // 物件フォルダ作成
-      const res=await fetch(`${GAS_URL}?action=createPropertyFolder&sellerSpId=${sellerId}&folderName=${encodeURIComponent(folderName)}`,{redirect:"follow"});
-      const json=await res.json();
-      if(json.ok&&json.data){
-        const propertyFolderUrl=json.data;
-        // 売主・買主両方にpropertyFolderUrlを設定
-        const nd2=nd.map(c=>{
-          if(c.id===newBuyer.id)return{...c,propertyFolderUrl};
-          if((c._spId||c.id)===(form._spId||form.id))return{...c,propertyFolderUrl};
-          return c;
-        });
-        setForm(f=>({...f,propertyFolderUrl}));
-        setData(nd2);
-        await gasPost({action:"save",customers:nd2});
-        flash("✓ 購入顧客登録＋物件フォルダ作成完了");
-      }
+      flash("✓ 購入顧客登録完了");
     }catch(e){flash("⚠️ 保存失敗");}
   };
 
-  // 既存の購入顧客を買主候補に紐づけ＋物件フォルダ作成
+  // 既存の購入顧客を買主候補に紐づけ（物件フォルダは売主のものを引き継ぐ）
   const linkExistingBuyerAndCreateFolder=async(buyerCustomerId)=>{
-    if(!form.sp_addr){alert("物件・査定タブに売却物件所在地を入力してください");return;}
     const buyerCustomer=data.find(c=>c.id===buyerCustomerId&&c.mode==="buy");
     if(!buyerCustomer){alert("購入顧客が見つかりません");return;}
-    if(!confirm(`「${buyerCustomer.n}」を買主候補として紐づけ、物件フォルダを作成しますか？`))return;
+    if(!confirm(`「${buyerCustomer.n}」を買主候補として紐づけますか？`))return;
     const sellerId=form._spId||form.id;
-    const sellerName=form.n;
-    const spAddr=form.sp_addr;
-    const folderName=`${sellerName}_${spAddr}（#${String(sellerId).padStart(3,"0")}）`;
-    setSyncMsg("物件フォルダ作成中…");
-    // 買主候補に追加
+    const existingPropertyUrl=form.propertyFolderUrl||"";
     const newBuyerEntry={id:Date.now(),name:buyerCustomer.n,progress:"情報収集中",note:"",date:todayStr(),customerId:buyerCustomer.id,registered:true};
     setForm(f=>({...f,buyers:[...(f.buyers||[]),newBuyerEntry]}));
     try{
-      // 既に物件フォルダがある場合はスキップ
-      const existingPropertyUrl = form.propertyFolderUrl || data.find(c=>(c._spId||c.id)===sellerId)?.propertyFolderUrl;
-      if(existingPropertyUrl){
-        const nd=data.map(c=>c.id===buyerCustomer.id?{...c,propertyFolderUrl:existingPropertyUrl,linkedSellerId:sellerId}:c);
-        setData(nd);
-        setForm(f=>({...f,propertyFolderUrl:existingPropertyUrl}));
-        await gasPost({action:"save",customers:nd});
-        flash("✓ 紐づけ完了（物件フォルダは既存のものを使用）");
-        return;
-      }
-      const res=await fetch(`${GAS_URL}?action=createPropertyFolder&sellerSpId=${sellerId}&folderName=${encodeURIComponent(folderName)}`,{redirect:"follow"});
-      const json=await res.json();
-      if(json.ok&&json.data){
-        const propertyFolderUrl=json.data;
-        const nd=data.map(c=>{
-          if(c.id===buyerCustomer.id)return{...c,propertyFolderUrl,linkedSellerId:sellerId};
-          if((c._spId||c.id)===sellerId)return{...c,propertyFolderUrl};
-          return c;
-        });
-        setForm(f=>({...f,propertyFolderUrl}));
-        setData(nd);
-        await gasPost({action:"save",customers:nd});
-        flash("✓ 紐づけ＋物件フォルダ作成完了");
-      }
+      const nd=data.map(c=>c.id===buyerCustomer.id?{...c,propertyFolderUrl:existingPropertyUrl,linkedSellerId:sellerId}:c);
+      setData(nd);
+      await gasPost({action:"save",customers:nd});
+      flash("✓ 紐づけ完了");
     }catch(e){flash("⚠️ 保存失敗");}
   };
   const importSurvey=()=>{setSurveyError("");try{const p=JSON.parse(surveyJson);if(!p.n?.trim()){setSurveyError("氏名（n）は必須です");return;}const isSell=p.mode==="sell";const nc={id:data.length?Math.max(...data.map(x=>x.id))+1:1,mode:isSell?"sell":"buy",staff:myName,n:p.n,k:p.k||"",p:p.p||"",e:p.e||"",a:p.a||"",...(isSell?{sp_addr:p.sp_addr||"",sp_type:p.sp_type||"",sp_area:p.sp_area||"",sp_assess:"",sp_price:"",sp_reason:p.sp_reason||"",sp_timing:p.sp_timing||"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]}:{t:p.t||"",ar:p.ar||"",b:parseInt(p.b)||0,l:p.l||""}),s:isSell?"査定前":"未接触",pr:"低",d:todayStr(),ad:"",ac:isSell?"査定依頼":"初回ヒアリング",m:p.m||"",history:[],fromSurvey:true};persist([...data,nc]);setSurveyModal(false);setSurveyJson("");alert(`「${nc.n}」様（${isSell?"売却":"購入"}）のアンケートを取り込みました`);}catch(e){setSurveyError("JSONの形式が正しくありません。");}};
