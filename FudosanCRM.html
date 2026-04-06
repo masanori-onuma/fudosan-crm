@@ -585,12 +585,14 @@ function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
 }
 
 function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
   const fetchGAS=useCallback(async()=>{setSyncing(true);setSyncMsg("同期中…");try{const customers=await loadCustomersFromSP();if(customers.length>0){setData(customers);flash("✓ 同期完了");}else{setData(SAMPLE);flash("✓ 初回データ");}}catch(e){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}setSyncing(false);setLoaded(true);},[]);
   const saveGAS=useCallback(async(nd)=>{try{await store.set("fudo",JSON.stringify(nd));}catch(e){}setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
   useEffect(()=>{if(!user)return;fetchGAS();const t=setInterval(fetchGAS,120000);return()=>clearInterval(t);},[user]);
+  const fetchSurveyCount=useCallback(async()=>{try{const surveys=await loadSurveysFromGAS();setSurveyCount(surveys.length);}catch(e){}},[]);
+  useEffect(()=>{if(!user||isAdmin)return;fetchSurveyCount();const t=setInterval(fetchSurveyCount,600000);return()=>clearInterval(t);},[user,isAdmin]);
   const persist=useCallback(nd=>{setData(nd);clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>saveGAS(nd),1500);},[saveGAS]);
   useEffect(()=>{if(!loaded)return;const check=()=>{const ti=new Date().toISOString().slice(0,10);const mine=isAdmin?data:data.filter(c=>c.staff===myName);const hits=mine.filter(c=>c.ad===ti&&c.s!=="成約"&&c.s!=="見送り");if(hits.length>0){setAlarms(hits);if(navigator.vibrate)navigator.vibrate([300,100,300]);}};if(!alarmChecked.current){check();alarmChecked.current=true;}const t=setInterval(check,60000);return()=>clearInterval(t);},[data,loaded,isAdmin,myName]);
   const getList=useCallback(()=>{let r=data.filter(c=>c.mode===mode);if(!isAdmin)r=r.filter(c=>c.staff===myName);if(isAdmin&&staffFilter!=="all")r=r.filter(c=>c.staff===staffFilter);if(filter==="all")r=r.filter(c=>c.s!=="成約");else r=r.filter(c=>c.s===filter);if(sq){const q=sq.toLowerCase();r=r.filter(c=>[c.n,c.k,c.a,c.ar,c.m,c.p,c.sp_addr].some(v=>(v||"").toLowerCase().includes(q)));}r.sort((a,b)=>{let v=0;if(sort.k==="no")v=a.id-b.id;else if(sort.k==="name")v=(a.n||"").localeCompare(b.n||"","ja");else if(sort.k==="prospect")v=pOrd(a.pr)-pOrd(b.pr);else if(sort.k==="action")v=(a.ad||"9999").localeCompare(b.ad||"9999");else if(sort.k==="staff")v=(a.staff||"").localeCompare(b.staff||"","ja");return sort.asc?v:-v;});return r;},[data,mode,isAdmin,myName,staffFilter,filter,sq,sort]);
@@ -717,7 +719,33 @@ function App(){
       flash("✓ 紐づけ完了");
     }catch(e){flash("⚠️ 保存失敗");}
   };
-  const importSurvey=()=>{setSurveyError("");try{const p=JSON.parse(surveyJson);if(!p.n?.trim()){setSurveyError("氏名（n）は必須です");return;}const isSell=p.mode==="sell";const nc={id:data.length?Math.max(...data.map(x=>x.id))+1:1,mode:isSell?"sell":"buy",staff:myName,n:p.n,k:p.k||"",p:p.p||"",e:p.e||"",a:p.a||"",...(isSell?{sp_addr:p.sp_addr||"",sp_type:p.sp_type||"",sp_area:p.sp_area||"",sp_assess:"",sp_price:"",sp_reason:p.sp_reason||"",sp_timing:p.sp_timing||"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]}:{t:p.t||"",ar:p.ar||"",b:parseInt(p.b)||0,l:p.l||""}),s:isSell?"査定前":"未接触",pr:"低",d:todayStr(),ad:"",ac:isSell?"査定依頼":"初回ヒアリング",m:p.m||"",history:[],fromSurvey:true};persist([...data,nc]);setSurveyModal(false);setSurveyJson("");alert(`「${nc.n}」様（${isSell?"売却":"購入"}）のアンケートを取り込みました`);}catch(e){setSurveyError("JSONの形式が正しくありません。");}};
+  const importSurvey=async()=>{
+    setSyncMsg("取込中…");
+    try{
+      const surveys=await loadSurveysFromGAS();
+      if(surveys.length===0){flash("新しいアンケートはありません");return;}
+      const nd=[...data];
+      const importedIds=[];
+      surveys.forEach(p=>{
+        if(!p.n?.trim())return;
+        const isSell=p.mode==="sell";
+        const nc={
+          id:nd.length?Math.max(...nd.map(x=>x.id))+1:1,
+          mode:isSell?"sell":"buy",
+          staff:p.staff||myName,
+          n:p.n,k:p.k||"",p:p.p||"",e:p.e||"",a:p.a||"",
+          ...(isSell?{sp_addr:p.sp_addr||"",sp_type:p.sp_type||"",sp_area:p.sp_area||"",sp_assess:"",sp_price:"",sp_reason:p.sp_reason||"",sp_timing:p.sp_timing||"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]}:{t:p.t||"",ar:p.ar||"",b:parseInt(p.b)||0,l:p.l||""}),
+          s:isSell?"査定前":"未接触",pr:"低",d:todayStr(),ad:"",ac:isSell?"査定依頼":"初回ヒアリング",m:p.m||"",history:[],fromSurvey:true
+        };
+        nd.push(nc);
+        if(p._surveyId)importedIds.push(p._surveyId);
+      });
+      persist(nd);
+      if(importedIds.length>0)await gasPost({action:"markSurveyImported",ids:importedIds});
+      setSurveyCount(0);
+      flash(`✓ ${surveys.length}件取り込みました`);
+    }catch(e){flash("⚠️ 取込失敗");}
+  };
   const tog=id=>setExpanded(e=>({...e,[id]:!e[id]}));const setS=k=>setSort(s=>s.k===k?{...s,asc:!s.asc}:{k,asc:true});const sf=k=>sort.k===k?(sort.asc?" ↑":" ↓"):"";
   const list=getList();const statuses=mode==="buy"?BUY_STATUSES:SELL_STATUSES;const myData=isAdmin?data:data.filter(c=>c.staff===myName);const staffList=[...new Set(data.map(c=>c.staff).filter(Boolean))];const overdueCount=myData.filter(c=>adSt(c.ad)?.c==="overdue").length;const fTabs=form.mode==="sell"?[["info","👤 基本"],["sell","🏠 物件・査定"],["buyers","🤝 買主候補"],["history","📅 履歴"]]:[["info","👤 基本情報"],["history","📅 履歴"]];
   if(!user)return<LoginScreen onLogin={setUser}/>;
@@ -728,7 +756,7 @@ function App(){
         <div><div style={{fontSize:16,fontWeight:700}}>{isAdmin?"👑 管理者ビュー":"🏠 不動産顧客管理"}</div><div style={{fontSize:11,opacity:.7,marginTop:1}}>{isAdmin?"全担当者のデータ":`担当：${myName}`}{syncMsg&&<span style={{marginLeft:8}}>{syncMsg}</span>}</div></div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={fetchGAS} disabled={syncing} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:12,cursor:"pointer"}}>{syncing?"⟳":"🔄"}</button>
-          {!isAdmin&&<button onClick={()=>setSurveyModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>📋 取込</button>}{!isAdmin&&<button onClick={()=>setQrModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>🔲 QR</button>}
+          {!isAdmin&&<button onClick={importSurvey} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer",position:"relative"}}>📋 取込{surveyCount>0&&<span style={{position:"absolute",top:-6,right:-6,background:"#C0392B",color:"#fff",borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{surveyCount}</span>}</button>}{!isAdmin&&<button onClick={()=>setQrModal(true)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer"}}>🔲 QR</button>}
           <button onClick={()=>exportCSV(list,mode)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>📥</button>
           <button onClick={()=>setUser(null)} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:11,cursor:"pointer"}}>🚪</button>
         </div>
