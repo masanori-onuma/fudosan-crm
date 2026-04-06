@@ -905,11 +905,12 @@ async function svGetToken() {
 }
 
 async function svSubmitToSP(data) {
-  // GAS経由でSharePointに送信
+  // GAS経由でSharePointに送信（no-corsでCORSエラー回避）
   const GAS = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
   try {
     await fetch(GAS, {
       method: "POST",
+      mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "survey", survey: data }),
     });
