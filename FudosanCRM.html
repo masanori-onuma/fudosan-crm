@@ -664,10 +664,17 @@ function App(){
   const addBuyer=async()=>{
     if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}
     const newBuyerEntry={id:Date.now(),...buyerForm};
-    setForm(f=>({...f,buyers:[...(f.buyers||[]),newBuyerEntry]}));
+    const updatedBuyers=[...(form.buyers||[]),newBuyerEntry];
+    setForm(f=>({...f,buyers:updatedBuyers}));
     setBuyerForm({name:"",progress:"情報収集中",note:"",date:todayStr(),phone:""});
-    // 自動でCRM登録＋物件フォルダ作成
+    // 買主CRM登録
     await registerBuyerAndCreateFolder(newBuyerEntry);
+    // 売主データも同時保存
+    const c={...form,buyers:updatedBuyers,b:parseInt(form.b)||0,staff:form.staff||myName};
+    const nd=data.map(x=>x.id===c.id?c:x);
+    setData(nd);
+    try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
+    try{await gasPost({action:"save",customers:nd});flash("✓ 候補者追加＋保存完了");}catch(e){flash("⚠️ 保存失敗");}
   };
   const delBuyer=bid=>setForm(f=>({...f,buyers:(f.buyers||[]).filter(b=>b.id!==bid)}));
   const updBuyer=(bid,k,v)=>setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===bid?{...b,[k]:v}:b)}));
@@ -754,7 +761,7 @@ function App(){
       {formTab==="sell"&&form.mode==="sell"&&<SellTab form={form} ff={ff}/>}
       {formTab==="buyers"&&form.mode==="sell"&&<BuyersTab form={form} buyerForm={buyerForm} setBuyerForm={setBuyerForm} addBuyer={addBuyer} delBuyer={delBuyer} updBuyer={updBuyer} registerBuyerAndCreateFolder={registerBuyerAndCreateFolder} linkExistingBuyerAndCreateFolder={linkExistingBuyerAndCreateFolder} allBuyCustomers={data.filter(c=>c.mode==="buy")} onBuyerQuickStatus={(buyerId,status)=>buyerQuickStatus(form._spId||form.id,buyerId,status)}/>}
       {formTab==="history"&&<HistTab form={form} histForm={histForm} setHistForm={setHistForm} addHistory={addHistory} toggleDone={toggleDone} delHist={delHist}/>}
-      <div style={{display:"flex",gap:10,marginTop:18}}><button onClick={closeModal} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={save} onPointerDown={e=>e.currentTarget.style.transform="scale(0.95)"} onPointerUp={e=>e.currentTarget.style.transform="scale(1)"} onPointerLeave={e=>e.currentTarget.style.transform="scale(1)"} style={{flex:2,padding:13,border:"none",background:form.mode==="sell"?"#00703C":"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700,transition:"transform 0.1s"}}>保存</button></div>
+      {formTab==="buyers"?(<div style={{marginTop:18}}><button onClick={closeModal} style={{width:"100%",padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>閉じる</button></div>):(<div style={{display:"flex",gap:10,marginTop:18}}><button onClick={closeModal} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={save} onPointerDown={e=>e.currentTarget.style.transform="scale(0.95)"} onPointerUp={e=>e.currentTarget.style.transform="scale(1)"} onPointerLeave={e=>e.currentTarget.style.transform="scale(1)"} style={{flex:2,padding:13,border:"none",background:form.mode==="sell"?"#00703C":"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700,transition:"transform 0.1s"}}>保存</button></div>)}
     </div></div>)}
     {folderModal&&(<div onClick={e=>e.target===e.currentTarget&&setFolderModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
   <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 16px 40px"}}>
@@ -814,7 +821,7 @@ function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer,regis
         <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={buyerForm.date} onChange={e=>setBuyerForm(b=>({...b,date:e.target.value}))}/></div>
       </div>
       <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>メモ</label><input style={S} value={buyerForm.note} onChange={e=>setBuyerForm(b=>({...b,note:e.target.value}))} placeholder="価格交渉希望など"/></div>
-      <button onClick={addBuyer} style={{width:"100%",padding:"11px",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:8}}>候補者を追加（CRM自動登録）</button>
+      <button onClick={addBuyer} style={{width:"100%",padding:"11px",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:8}}>候補者を追加</button>
       <button onClick={()=>setShowLinkModal(true)} style={{width:"100%",padding:"9px 0",background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,color:"#1F4E79",fontSize:12,fontWeight:700,cursor:"pointer"}}>🔗 既存の購入顧客と紐づける</button>
     </div>
     {(!form.buyers||form.buyers.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>🤝 買主候補はまだいません</div>:(form.buyers||[]).map(b=>{
