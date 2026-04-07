@@ -96,17 +96,6 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .master-add input{flex:1;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid #ccc;height:28px}
 .master-add button{height:28px;padding:0 10px;font-size:12px;border-radius:6px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;cursor:pointer;white-space:nowrap}
 
-.pdf-drop{border:2px dashed #85B7EB;border-radius:8px;padding:24px;text-align:center;color:#888;font-size:13px;cursor:pointer;transition:background 0.2s}
-.pdf-drop:hover,.pdf-drop.drag-on{background:#e6f1fb;border-color:#185FA5}
-.pdf-drop input[type=file]{display:none}
-.pdf-result{margin-top:12px;background:#f8f8f8;border-radius:6px;padding:10px;font-size:12px;max-height:200px;overflow-y:auto;border:1px solid #ddd}
-.pdf-result table{width:100%;border-collapse:collapse;font-size:11px}
-.pdf-result th{background:#e8f0f8;padding:3px 6px;text-align:left;font-weight:600}
-.pdf-result td{padding:3px 6px;border-bottom:1px solid #eee}
-.api-key-row{display:flex;gap:6px;align-items:center;margin-bottom:10px}
-.api-key-row input{flex:1;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid #ccc;font-family:monospace}
-.api-key-row label{font-size:11px;color:#888;white-space:nowrap}
-.loading-msg{text-align:center;padding:20px;color:#888;font-size:13px}
 
 </style>
 </head>
@@ -123,7 +112,6 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     <button class="btn" onclick="applyRange()">適用</button>
     <button class="btn btn-primary" onclick="openSiteModal(null)">＋ 物件追加</button>
     <button class="btn" onclick="exportCSV()">CSV出力</button>
-    <button class="btn btn-primary" onclick="openPdfModal()">📄 PDF読み込み</button>
   </div>
   <div class="filter-bar">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
@@ -673,135 +661,6 @@ function delProc(siteId,procId){
   site.processes=site.processes.filter(x=>x.id!==procId);closeModal();render();
 }
 
-function openPdfModal(){
-  const savedKey = localStorage.getItem('anthropic_api_key')||'';
-  document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:480px;max-width:98vw">
-    <h3>📄 発注書PDFから工程を自動登録</h3>
-    <input type="hidden" id="apiKeyInp" value="">
-    <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfFileInp').click()"
-      ondragover="event.preventDefault();this.classList.add('drag-on')"
-      ondragleave="this.classList.remove('drag-on')"
-      ondrop="event.preventDefault();this.classList.remove('drag-on');handlePdfFiles(event.dataTransfer.files)">
-      <input type="file" id="pdfFileInp" accept="application/pdf" multiple onchange="handlePdfFiles(this.files)">
-      PDFをドロップ、またはクリックして選択<br>
-      <span style="font-size:11px;color:#aaa">複数ファイル可</span>
-    </div>
-    <div id="pdfResultArea"></div>
-    <div class="modal-btns" id="pdfModalBtns">
-      <button class="btn" onclick="closeModal()">閉じる</button>
-    </div>
-    </div></div>`;
-}
-
-async function handlePdfFiles(files){
-  if(!files||!files.length)return;
-  const apiKey='';
-
-  const area=document.getElementById('pdfResultArea');
-  area.innerHTML='<div class="loading-msg">⏳ AI解析中...</div>';
-  document.getElementById('pdfModalBtns').innerHTML='<button class="btn" onclick="closeModal()">閉じる</button>';
-
-  let allSites=[];
-  for(const file of Array.from(files)){
-    area.innerHTML=`<div class="loading-msg">⏳ ${file.name} を解析中...</div>`;
-    try{
-      const b64=await fileToBase64(file);
-      const result=await analyzePdf(apiKey,b64,file.name);
-      allSites=allSites.concat(result);
-    }catch(e){
-      area.innerHTML+=`<div style="color:#c00;font-size:12px;padding:8px">❌ ${file.name}: ${e.message}</div>`;
-    }
-  }
-
-  if(!allSites.length){
-    area.innerHTML='<div style="color:#c00;font-size:12px;padding:8px">❌ データを抽出できませんでした</div>';
-    return;
-  }
-
-  // プレビュー表示
-  let html='<div class="pdf-result">';
-  allSites.forEach((s,si)=>{
-    html+=`<div style="font-weight:600;color:#0C447C;margin-bottom:4px;margin-top:${si>0?'10px':0}">${s.name}　<span style="font-size:10px;font-weight:400;color:#888">${s.addr||''}</span></div>`;
-    html+='<table><tr><th>工事項目</th><th>業者</th><th>数量</th><th>納期</th></tr>';
-    s.processes.forEach(p=>{
-      html+=`<tr><td>${p.name}</td><td>${p.person||''}</td><td>${p.area||''}</td><td>${p.endD||'未定'}</td></tr>`;
-    });
-    html+='</table>';
-  });
-  html+='</div>';
-  area.innerHTML=html;
-
-  document.getElementById('pdfModalBtns').innerHTML=`
-    <button class="btn" onclick="closeModal()">キャンセル</button>
-    <button class="btn btn-primary" onclick="importPdfSites()">工程表に追加</button>`;
-
-  window._pdfImportData=allSites;
-}
-
-function fileToBase64(file){
-  return new Promise((resolve,reject)=>{
-    const r=new FileReader();
-    r.onload=()=>resolve(r.result.split(',')[1]);
-    r.onerror=reject;
-    r.readAsDataURL(file);
-  });
-}
-
-const GAS_PROXY_URL='https://script.google.com/macros/s/AKfycbyoN6BRpZyGjvMVZnzWYOERqySc7Iq4gxoXar4wpzir_jG8w5wqjmZsdn-DSB1r3qgy/exec';
-
-async function analyzePdf(apiKey,b64,filename){
-  const res=await fetch(GAS_PROXY_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({pdfBase64:b64,fileName:filename})
-  });
-
-  if(!res.ok){
-    throw new Error(`GASエラー: HTTP ${res.status}`);
-  }
-
-  const data=await res.json();
-  if(data.error) throw new Error(data.error);
-
-  const clean=data.result.replace(/```json|```/g,'').trim();
-  try{
-    return JSON.parse(clean);
-  }catch(e){
-    throw new Error('JSONの解析に失敗しました: '+clean.slice(0,100));
-  }
-}
-
-function importPdfSites(){
-  const data=window._pdfImportData;
-  if(!data)return;
-  data.forEach(s=>{
-    const site={
-      id:nextSid++,
-      name:s.name||'',
-      addr:s.addr||'',
-      client:s.client||'',
-      dropboxUrl:'',
-      collapsed:false,
-      koukiStart:s.koukiStart||'',
-      koukiEnd:s.koukiEnd||'',
-      processes:(s.processes||[]).map(p=>({
-        id:nextPid++,
-        name:p.name||'',
-        person:p.person||'',
-        area:p.area||'',
-        startD:p.startD||'',
-        endD:p.endD||'',
-        done:false,
-        color:p.color||PC[Math.floor(Math.random()*PC.length)]
-      }))
-    };
-    sites.push(site);
-  });
-  closeModal();
-  render();
-}
-
 function exportCSV(){
   const rows=[['物件名','所在地','元受','工程名','担当者','面積','開始日','終了日','完了']];
   sites.forEach(s=>s.processes.forEach(p=>rows.push([s.name,s.addr,s.client,p.name,p.person,p.area,p.startD,p.endD,p.done?'完了':''])));
@@ -844,6 +703,45 @@ document.addEventListener('touchend',function(e){
 loadMasters();
 loadData();
 render();
+function exportCSV(){
+  const rows=[['物件名','所在地','元受','工程名','担当者','面積','開始日','終了日','完了']];
+  sites.forEach(s=>s.processes.forEach(p=>rows.push([s.name,s.addr,s.client,p.name,p.person,p.area,p.startD,p.endD,p.done?'完了':''])));
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download='工程表_'+fmt(new Date())+'.csv';a.click();
+}
+
+
+// タッチ対応
+document.addEventListener('touchstart',function(e){
+  const procTd=e.target.closest('td.day-cell[data-proc]');
+  if(procTd){drag={active:true,type:'proc',siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),startIdx:parseInt(procTd.dataset.di),currentIdx:parseInt(procTd.dataset.di)};return;}
+  const koukiTd=e.target.closest('td.day-cell[data-kouki]');
+  if(koukiTd){drag={active:true,type:'kouki',siteId:parseInt(koukiTd.dataset.kouki),procId:null,startIdx:parseInt(koukiTd.dataset.di),currentIdx:parseInt(koukiTd.dataset.di)};return;}
+},{passive:true});
+document.addEventListener('touchmove',function(e){
+  if(!drag.active)return;
+  const t=e.touches[0];
+  const el=document.elementFromPoint(t.clientX,t.clientY);if(!el)return;
+  const sel=drag.type==='proc'?'td.day-cell[data-proc="'+drag.procId+'"]':'td.day-cell[data-kouki="'+drag.siteId+'"]';
+  const td=el.closest(sel);if(!td)return;
+  drag.currentIdx=parseInt(td.dataset.di);
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
+  document.querySelectorAll(sel).forEach(t=>{const di=parseInt(t.dataset.di);if(di>=si&&di<=ei)t.classList.add('drag-over');});
+},{passive:true});
+document.addEventListener('touchend',function(e){
+  if(!drag.active)return;
+  drag.active=false;
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
+  const days=getDays();if(si<0||ei>=days.length)return;
+  const startD=fmt(days[si]),endD=fmt(days[ei]);
+  if(drag.type==='proc'){for(const s of sites){if(s.id!==drag.siteId)continue;const p=s.processes.find(x=>x.id===drag.procId);if(p){p.startD=startD;p.endD=endD;}break;}}
+  else{const s=sites.find(x=>x.id===drag.siteId);if(s){s.koukiStart=startD;s.koukiEnd=endD;}}
+  render();
+},{passive:true});
 </script>
 </body>
+
 </html>
