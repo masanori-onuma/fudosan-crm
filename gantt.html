@@ -635,7 +635,15 @@ function openProcModal(siteId,procId){
 function openMasterModal(){
   function listHtml(arr,key){
     if(!arr.length)return `<div style="font-size:11px;color:#aaa;padding:4px 0">未登録</div>`;
-    return arr.map((v,i)=>`<div class="master-item"><span>${esc(v)}</span><button onclick="delMaster('${key}',${i})">削除</button></div>`).join('');
+    return arr.map((v,i)=>`<div class="master-item" draggable="true"
+      ondragstart="masterDragStart(event,'${key}',${i})"
+      ondragover="event.preventDefault();this.style.borderTop='2px solid #4A90D9'"
+      ondragleave="this.style.borderTop=''"
+      ondrop="masterDrop(event,'${key}',${i});this.style.borderTop=''">
+      <span style="cursor:grab;color:#bbb;padding-right:4px">⠿</span>
+      <span>${esc(v)}</span>
+      <button onclick="delMaster('${key}',${i})">削除</button>
+    </div>`).join('');
   }
   document.getElementById('modalEl').innerHTML=`
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:400px">
@@ -654,6 +662,20 @@ function openMasterModal(){
     </div>
     <div class="modal-btns"><button class="btn" onclick="closeModal()">閉じる</button></div>
     </div></div>`;
+}
+
+let _masterDrag={key:null,fromIdx:null};
+function masterDragStart(e,key,idx){
+  _masterDrag={key,fromIdx:idx};
+  e.dataTransfer.effectAllowed='move';
+}
+function masterDrop(e,key,toIdx){
+  if(_masterDrag.key!==key||_masterDrag.fromIdx===null)return;
+  const arr=masters[key];
+  const [moved]=arr.splice(_masterDrag.fromIdx,1);
+  arr.splice(toIdx,0,moved);
+  saveMasters();
+  openMasterModal();
 }
 
 function addMaster(key,inputId){
