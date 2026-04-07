@@ -65,11 +65,14 @@ td.day-cell{width:26px;min-width:26px;padding:1px}
 .proc-meta{font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;flex-shrink:0}
 
 /* バー */
-.bar{height:18px;border-radius:0;display:block;width:100%;cursor:pointer}
+.bar{height:18px;border-radius:0;display:block;width:100%;cursor:grab}
 .bar:hover{opacity:0.8}
 .bar-s{border-radius:4px 0 0 4px}
 .bar-e{border-radius:0 4px 4px 0}
 .bar-se{border-radius:4px}
+td.day-cell{position:relative}
+td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
+.drag-preview{position:absolute;top:6px;height:18px;background:rgba(74,144,217,0.4);border:2px dashed #4A90D9;border-radius:4px;pointer-events:none;z-index:50}
 
 /* モーダル */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000}
@@ -255,6 +258,10 @@ function render(){
           const td=document.createElement('td');
           const wk=isWk(day),tod=isToday(day);
           td.className='day-cell'+(proc.done?' wk-cell':wk?' wk-cell':tod?' tod-cell':'');
+          td.dataset.proc=proc.id;
+          td.dataset.site=site.id;
+          td.dataset.di=di;
+          td.style.cursor='crosshair';
           if(has){
             const dn=toN(day);
             if(dn>=psN&&dn<=peN){
@@ -284,6 +291,67 @@ function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.col
 function toggleDone(pid){for(const s of sites)for(const p of s.processes)if(p.id===pid){p.done=!p.done;break;}render();}
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
 function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';render();}
+
+// ドラッグでバーを引く
+let drag={active:false,siteId:null,procId:null,startIdx:null,currentIdx:null,preview:null};
+
+function getDayFromCell(td){return td.dataset.day?parseInt(td.dataset.day):null;}
+
+document.addEventListener('mousedown',function(e){
+  const td=e.target.closest('td.day-cell[data-proc]');
+  if(!td)return;
+  // 既存バーのクリックは編集モーダルに任せる
+  if(e.target.closest('.bar'))return;
+  e.preventDefault();
+  drag.active=true;
+  drag.siteId=parseInt(td.dataset.site);
+  drag.procId=parseInt(td.dataset.proc);
+  drag.startIdx=parseInt(td.dataset.di);
+  drag.currentIdx=drag.startIdx;
+  updateDragPreview(td);
+});
+
+document.addEventListener('mousemove',function(e){
+  if(!drag.active)return;
+  const td=e.target.closest('td.day-cell[data-proc]');
+  if(!td)return;
+  if(parseInt(td.dataset.proc)!==drag.procId)return;
+  drag.currentIdx=parseInt(td.dataset.di);
+  updateDragPreview(td);
+});
+
+document.addEventListener('mouseup',function(e){
+  if(!drag.active)return;
+  drag.active=false;
+  if(drag.preview){drag.preview.remove();drag.preview=null;}
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+
+  const si=Math.min(drag.startIdx,drag.currentIdx);
+  const ei=Math.max(drag.startIdx,drag.currentIdx);
+  const days=getDays();
+  if(si<0||ei>=days.length)return;
+  const startD=fmt(days[si]),endD=fmt(days[ei]);
+
+  // 対象工程を更新
+  for(const s of sites){
+    if(s.id!==drag.siteId)continue;
+    const p=s.processes.find(x=>x.id===drag.procId);
+    if(p){p.startD=startD;p.endD=endD;}
+    break;
+  }
+  render();
+});
+
+function updateDragPreview(currentTd){
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx);
+  const ei=Math.max(drag.startIdx,drag.currentIdx);
+  // ハイライト
+  document.querySelectorAll(`td.day-cell[data-proc="${drag.procId}"]`).forEach(td=>{
+    const di=parseInt(td.dataset.di);
+    if(di>=si&&di<=ei)td.classList.add('drag-over');
+  });
+}
 
 function openSiteModal(id){
   const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:''};
