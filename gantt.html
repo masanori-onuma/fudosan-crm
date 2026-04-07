@@ -132,8 +132,12 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <div id="modalEl"></div>
 
 <script>
-const PC=['#4A90D9','#27AE60','#E74C3C','#8E44AD','#E67E22','#16A085','#2980B9','#7F8C8D'];
-const CNAMES=['青','緑','赤','紫','オレンジ','深緑','水色','グレー'];
+const PC=['#4A90D9','#27AE60','#E74C3C','#8E44AD','#E67E22','#16A085','#2980B9','#7F8C8D',
+  '#F39C12','#1ABC9C','#C0392B','#9B59B6','#2ECC71','#E91E63','#00BCD4','#FF5722',
+  '#607D8B','#795548','#3F51B5','#009688'];
+const CNAMES=['青','緑','赤','紫','オレンジ','深緑','水色','グレー',
+  '黄','エメラルド','濃赤','薄紫','ライム','ピンク','シアン','朱',
+  'スレート','ブラウン','インディゴ','ティール'];
 const SITE_H=40, ROW_H=26, DAY_W=26;
 
 function toN(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
