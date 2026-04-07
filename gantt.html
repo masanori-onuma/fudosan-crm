@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リフォーム工程表</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:13px;background:#f8f8f8;color:#111}
+header{background:#fff;border-bottom:1px solid #ddd;padding:10px 16px;display:flex;align-items:center;gap:12px}
+header h1{font-size:15px;font-weight:600;color:#0C447C}
+header a{font-size:12px;color:#888;text-decoration:none;margin-left:auto}
+header a:hover{color:#185FA5}
+.container{padding:12px 16px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 10px 0;border-bottom:1px solid #ddd;margin-bottom:8px}
+.toolbar label{font-size:12px;color:#888}
+.toolbar input[type=date]{font-size:12px;height:30px;padding:0 6px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#111}
+.btn{height:28px;padding:0 12px;font-size:12px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer}
+.btn:hover{background:#f0f0f0}
+.btn-sm{height:22px;padding:0 8px;font-size:11px}
+.btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
+.btn-primary:hover{background:#d0e8f8}
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px 0;border-bottom:1px solid #ddd;margin-bottom:8px}
+.filter-bar label{font-size:11px;color:#888}
+.filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
+.gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
+.gantt-body{display:flex}
+.left-col{flex-shrink:0;width:280px;border-right:1px solid #ccc;overflow:hidden}
+.right-col{flex:1;overflow-x:auto;overflow-y:hidden}
+canvas{display:block}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:12px;border:1px solid #ddd;padding:1.5rem;width:380px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:14px;color:#111}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:#888;margin-bottom:3px}
+.field input,.field select{width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid #ccc;background:#fff;color:#111}
+.field input:focus,.field select:focus{outline:none;border-color:#85B7EB}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.btn-danger{color:#c00;border-color:#ecc}
+.btn-danger:hover{background:#fff0f0}
+</style>
+</head>
+<body>
+<header>
+  <h1>リフォーム工程表</h1>
+  <a href="FudosanCRM.html">← CRMへ戻る</a>
+</header>
+<div class="container">
+  <div class="toolbar">
+    <label>表示開始</label><input type="date" id="startDate">
+    <label>終了</label><input type="date" id="endDate">
+    <button class="btn" onclick="applyRange()">適用</button>
+    <button class="btn btn-primary" onclick="openSiteModal(null)">＋ 物件追加</button>
+    <button class="btn" onclick="exportCSV()">CSV出力</button>
+    <button class="btn" onclick="saveData()">💾 保存</button>
+  </div>
+  <div class="filter-bar">
+    <label>元受</label><select id="filterClient" onchange="redraw()"><option value="">すべて</option></select>
+    <label>担当者</label><select id="filterPerson" onchange="redraw()"><option value="">すべて</option></select>
+    <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
+  </div>
+  <div class="gantt-outer">
+    <div class="gantt-body">
+      <div class="left-col"><canvas id="leftCanvas"></canvas></div>
+      <div class="right-col" id="rightScroll"><canvas id="rightCanvas"></canvas></div>
+    </div>
+  </div>
+</div>
+<div id="modalEl"></div>
+
+<script>
+const DPR = window.devicePixelRatio || 1;
+const PC=['#4A90D9','#27AE60','#E74C3C','#8E44AD','#E67E22','#16A085','#2980B9','#7F8C8D'];
+const CNAMES=['青','緑','赤','紫','オレンジ','深緑','水色','グレー'];
+const ROW_H=32, SITE_H=40, HEAD_H=38, LEFT_W=280, DAY_W=28;
+const GRID='#c0c0c0', GRID_L='#e0e0e0';
+
+function toN(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function parseD(s){if(!s)return null;let p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
+function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(d,n){let r=new Date(d);r.setDate(r.getDate()+n);return r}
+function isWk(d){return d.getDay()===0||d.getDay()===6}
+function isToday(d){return toN(d)===toN(new Date())}
+
+let viewStart,viewEnd;
+(function(){
+  let n=new Date(),y=n.getFullYear(),m=n.getMonth();
+  viewStart=new Date(y,m,1);viewEnd=new Date(y,m+2,0);
+  document.getElementById('startDate').value=fmt(viewStart);
+  document.getElementById('endDate').value=fmt(viewEnd);
+})();
+
+let sites=[];
+let nextSid=100,nextPid=1000,hitAreas=[];
+
+// LocalStorageから読み込み
+function loadData(){
+  try{
+    const d=localStorage.getItem('gantt_sites');
+    if(d){sites=JSON.parse(d);nextSid=Math.max(nextSid,...sites.map(s=>s.id))+1;nextPid=Math.max(nextPid,...sites.flatMap(s=>s.processes.map(p=>p.id)))+1;}
+  }catch(e){}
+  if(!sites.length)sites=[
+    {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,processes:[
+      {id:101,name:'クロス 148m²',person:'秀力内装',area:'148m²',startD:'2026-04-03',endD:'2026-04-07',done:false,color:PC[0]},
+      {id:102,name:'畳表替え',person:'岩瀬畳店',area:'',startD:'2026-04-05',endD:'2026-04-10',done:false,color:PC[1]},
+      {id:103,name:'エアコン新設',person:'大川龍真',area:'',startD:'2026-04-09',endD:'2026-04-09',done:true,color:PC[2]},
+      {id:104,name:'クリーニング',person:'Eサービス',area:'3DK',startD:'',endD:'',done:false,color:PC[5]},
+    ]},
+    {id:2,name:'ラバネストヒル2号館 203',addr:'埼玉県和光市南1-26-25',client:'有限会社彩建',collapsed:false,processes:[
+      {id:201,name:'クロス貼替',person:'有限会社彩建',area:'100m²',startD:'2026-04-07',endD:'2026-04-14',done:false,color:PC[0]},
+      {id:202,name:'コーキング',person:'大川龍真',area:'',startD:'2026-04-15',endD:'2026-04-17',done:false,color:PC[4]},
+      {id:203,name:'雑工事',person:'',area:'',startD:'',endD:'',done:false,color:PC[7]},
+    ]},
+  ];
+}
+
+function saveData(){
+  localStorage.setItem('gantt_sites',JSON.stringify(sites));
+  alert('保存しました');
+}
+
+function getRows(){
+  let fc=document.getElementById('filterClient').value;
+  let fp=document.getElementById('filterPerson').value;
+  let rows=[];
+  sites.filter(s=>{
+    if(fc&&s.client!==fc)return false;
+    if(fp&&!s.processes.some(p=>p.person===fp))return false;
+    return true;
+  }).forEach(site=>{
+    let procs=site.processes.filter(p=>fp?p.person===fp:true);
+    rows.push({type:'site',site,procs});
+    if(!site.collapsed)procs.forEach(proc=>rows.push({type:'proc',site,proc}));
+  });
+  return rows;
+}
+
+function getDays(){
+  let days=[],d=new Date(viewStart);
+  while(toN(d)<=toN(viewEnd)){days.push(new Date(d));d=addDays(d,1);}
+  return days;
+}
+
+function makeCanvas(canvas,cssW,cssH){
+  canvas.width=Math.round(cssW*DPR);
+  canvas.height=Math.round(cssH*DPR);
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  return ctx;
+}
+
+function hl(ctx,y,x1,x2,col){ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x1,y+0.5);ctx.lineTo(x2,y+0.5);ctx.stroke();}
+function vl(ctx,x,y1,y2,col){ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+0.5,y1);ctx.lineTo(x+0.5,y2);ctx.stroke();}
+
+function rr(ctx,x,y,w,h,r,tl=true,tr=true,bl=true,br=true){
+  let a=tl?r:0,b=tr?r:0,c=br?r:0,dd=bl?r:0;
+  ctx.beginPath();
+  ctx.moveTo(x+a,y);
+  ctx.lineTo(x+w-b,y);if(b)ctx.arcTo(x+w,y,x+w,y+b,b);
+  ctx.lineTo(x+w,y+h-c);if(c)ctx.arcTo(x+w,y+h,x+w-c,y+h,c);
+  ctx.lineTo(x+dd,y+h);if(dd)ctx.arcTo(x,y+h,x,y+h-dd,dd);
+  ctx.lineTo(x,y+a);if(a)ctx.arcTo(x,y,x+a,y,a);
+  ctx.closePath();
+}
+
+function drawBtn(ctx,x,y,w,h,label,primary){
+  ctx.fillStyle=primary?'#ddeeff':'#f5f5f5';
+  ctx.strokeStyle=primary?'#85B7EB':'#bbb';ctx.lineWidth=1;
+  rr(ctx,x,y,w,h,4);ctx.fill();ctx.stroke();
+  ctx.fillStyle=primary?'#185FA5':'#444';
+  ctx.font='11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(label,x+w/2,y+h/2);
+  ctx.textAlign='left';
+}
+
+function clip(ctx,text,maxW){
+  if(!text)return '';
+  if(ctx.measureText(text).width<=maxW)return text;
+  while(text.length>0&&ctx.measureText(text+'…').width>maxW)text=text.slice(0,-1);
+  return text+'…';
+}
+
+function rebuildSelects(){
+  const fc=document.getElementById('filterClient'),fp=document.getElementById('filterPerson');
+  const cv=fc.value,pv=fp.value;
+  fc.innerHTML='<option value="">すべて</option>'+[...new Set(sites.map(s=>s.client).filter(Boolean))].sort().map(c=>`<option value="${c}">${c}</option>`).join('');
+  fp.innerHTML='<option value="">すべて</option>'+[...new Set(sites.flatMap(s=>s.processes.map(p=>p.person)).filter(Boolean))].sort().map(p=>`<option value="${p}">${p}</option>`).join('');
+  fc.value=cv;fp.value=pv;
+}
+
+function redraw(){
+  rebuildSelects();
+  const rows=getRows(),days=getDays();
+  const totalH=HEAD_H+rows.reduce((s,r)=>s+(r.type==='site'?SITE_H:ROW_H),0);
+  const rightCssW=days.length*DAY_W;
+  const L=makeCanvas(document.getElementById('leftCanvas'),LEFT_W,totalH);
+  const R=makeCanvas(document.getElementById('rightCanvas'),rightCssW,totalH);
+  hitAreas=[];
+  drawLeft(L,rows);
+  drawRight(R,rows,days,rightCssW);
+}
+
+function drawLeft(ctx,rows){
+  ctx.fillStyle='#f0f0ee';ctx.fillRect(0,0,LEFT_W,HEAD_H);
+  hl(ctx,HEAD_H,0,LEFT_W,GRID);
+  ctx.fillStyle='#555';ctx.font='500 12px sans-serif';ctx.textBaseline='middle';
+  ctx.fillText('物件 / 工程',8,HEAD_H/2);
+  let y=HEAD_H;
+  rows.forEach(row=>{
+    const h=row.type==='site'?SITE_H:ROW_H;
+    ctx.fillStyle=row.type==='site'?'#dce8f5':(row.proc.done?'#f5f5f3':'#fff');
+    ctx.fillRect(0,y,LEFT_W,h);
+    hl(ctx,y+h,0,LEFT_W,GRID);
+    if(row.type==='site'){
+      const s=row.site,nd=row.procs.filter(p=>!p.startD).length;
+      ctx.fillStyle='#444';ctx.font='13px sans-serif';ctx.textBaseline='middle';
+      ctx.fillText(s.collapsed?'▶':'▼',5,y+SITE_H/2-6);
+      hitAreas.push({x:0,y,w:18,h,action:'toggleSite',id:s.id});
+      ctx.fillStyle='#0C447C';ctx.font='500 12px sans-serif';
+      ctx.fillText(clip(ctx,s.name,LEFT_W-95),20,y+14);
+      if(nd>0){
+        ctx.fillStyle='#FAEEDA';rr(ctx,LEFT_W-58,y+5,52,16,8);ctx.fill();
+        ctx.fillStyle='#854F0B';ctx.font='10px sans-serif';ctx.textBaseline='middle';
+        ctx.fillText('未定'+nd,LEFT_W-54,y+14);
+      }
+      ctx.fillStyle='#185FA5';ctx.font='10px sans-serif';
+      ctx.fillText(clip(ctx,s.addr+(s.client?'　'+s.client:''),LEFT_W-24),20,y+h-10);
+      drawBtn(ctx,LEFT_W-114,y+h/2-11,54,22,'編集',false);
+      drawBtn(ctx,LEFT_W-56,y+h/2-11,50,22,'＋',true);
+      hitAreas.push({x:LEFT_W-114,y:y+h/2-11,w:54,h:22,action:'editSite',id:s.id});
+      hitAreas.push({x:LEFT_W-56,y:y+h/2-11,w:50,h:22,action:'addProc',id:s.id});
+    }else{
+      const p=row.proc;
+      ctx.strokeStyle=p.done?'#1D9E75':'#bbb';ctx.lineWidth=1.5;
+      ctx.strokeRect(13,y+h/2-7,14,14);
+      if(p.done){ctx.fillStyle='#1D9E75';ctx.fillRect(13,y+h/2-7,14,14);ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textBaseline='middle';ctx.fillText('✓',16,y+h/2);}
+      hitAreas.push({x:13,y:y+h/2-7,w:14,h:14,action:'toggleDone',id:p.id});
+      ctx.fillStyle=p.done?'#aaa':'#222';ctx.font='12px sans-serif';ctx.textBaseline='middle';
+      const nw=LEFT_W-34-86;
+      ctx.fillText(clip(ctx,p.name,nw),32,y+h/2);
+      if(!p.startD){
+        ctx.fillStyle='#FAEEDA';rr(ctx,LEFT_W-114,y+h/2-8,40,16,8);ctx.fill();
+        ctx.fillStyle='#854F0B';ctx.font='10px sans-serif';ctx.textBaseline='middle';ctx.fillText('未定',LEFT_W-110,y+h/2);
+      }else{
+        const meta=[p.person,p.area].filter(Boolean).join('·');
+        ctx.fillStyle='#999';ctx.font='10px sans-serif';ctx.textBaseline='middle';ctx.fillText(clip(ctx,meta,66),LEFT_W-114,y+h/2);
+      }
+      drawBtn(ctx,LEFT_W-56,y+h/2-10,50,20,'編集',false);
+      hitAreas.push({x:LEFT_W-56,y:y+h/2-10,w:50,h:20,action:'editProc',siteId:row.site.id,id:p.id});
+    }
+    y+=h;
+  });
+}
+
+function drawRight(ctx,rows,days,cssW){
+  ctx.fillStyle='#f0f0ee';ctx.fillRect(0,0,cssW,HEAD_H);
+  days.forEach((day,di)=>{
+    const x=di*DAY_W,wk=isWk(day),tod=isToday(day);
+    if(tod){ctx.fillStyle='rgba(55,138,221,0.12)';ctx.fillRect(x,0,DAY_W,HEAD_H);}
+    const wd=['日','月','火','水','木','金','土'][day.getDay()];
+    ctx.fillStyle=tod?'#378ADD':wk?'#E24B4A':'#555';
+    ctx.font='500 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(day.getDate(),x+DAY_W/2,HEAD_H/2-5);
+    ctx.font='10px sans-serif';ctx.fillText(wd,x+DAY_W/2,HEAD_H/2+7);
+    ctx.textAlign='left';
+    vl(ctx,x+DAY_W,0,HEAD_H,GRID_L);
+  });
+  hl(ctx,HEAD_H,0,cssW,GRID);
+  let y=HEAD_H;
+  rows.forEach(row=>{
+    const h=row.type==='site'?SITE_H:ROW_H;
+    days.forEach((day,di)=>{
+      const x=di*DAY_W,wk=isWk(day),tod=isToday(day);
+      let bg=row.type==='site'?'#dce8f5':(row.proc&&row.proc.done?'#f5f5f3':'#fff');
+      if(wk)bg=row.type==='site'?'#ccd6e8':(row.proc&&row.proc.done?'#f2f2f0':'#f5f5f2');
+      if(tod)bg='rgba(55,138,221,0.07)';
+      ctx.fillStyle=bg;ctx.fillRect(x,y,DAY_W,h);
+      vl(ctx,x+DAY_W,y,y+h,GRID_L);
+    });
+    hl(ctx,y+h,0,cssW,GRID);
+    if(row.type==='proc'){
+      const p=row.proc;
+      if(p.startD&&p.endD){
+        const psN=toN(parseD(p.startD)),peN=toN(parseD(p.endD));
+        let si=-1,ei=-1;
+        days.forEach((d,i)=>{const n=toN(d);if(n===psN)si=i;if(n===peN)ei=i;});
+        if(si<0&&toN(days[0])>psN)si=0;
+        if(ei<0&&toN(days[days.length-1])<peN)ei=days.length-1;
+        if(si>=0&&ei>=0){
+          const lR=psN>=toN(days[0]),rR=peN<=toN(days[days.length-1]);
+          const bx=si*DAY_W+(lR?2:0),bw=(ei+1)*DAY_W-bx-(rR?2:0);
+          ctx.fillStyle=p.done?'#bbb':p.color;
+          rr(ctx,bx,y+(h-18)/2,bw,18,4,lR,rR,rR,lR);ctx.fill();
+        }
+      }
+    }
+    y+=h;
+  });
+}
+
+document.getElementById('leftCanvas').addEventListener('click',function(e){
+  const rect=this.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  for(let a of hitAreas){
+    if(mx>=a.x&&mx<=a.x+a.w&&my>=a.y&&my<=a.y+a.h){
+      if(a.action==='toggleSite'){const s=sites.find(x=>x.id===a.id);if(s)s.collapsed=!s.collapsed;redraw();}
+      else if(a.action==='toggleDone'){for(const s of sites)for(const p of s.processes)if(p.id===a.id){p.done=!p.done;break;}redraw();}
+      else if(a.action==='editSite')openSiteModal(a.id);
+      else if(a.action==='addProc')openProcModal(a.id,null);
+      else if(a.action==='editProc')openProcModal(a.siteId,a.id);
+      break;
+    }
+  }
+});
+
+document.getElementById('rightScroll').addEventListener('scroll',function(){
+  document.getElementById('leftCanvas').style.marginTop=(-this.scrollTop)+'px';
+});
+
+function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);redraw();}}
+function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';redraw();}
+
+function openSiteModal(id){
+  const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:''};
+  const isNew=!id;
+  document.getElementById('modalEl').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${isNew?'物件を追加':'物件を編集'}</h3>
+    <div class="field"><label>物件名</label><input id="s_name" value="${esc(s.name||'')}"></div>
+    <div class="field"><label>所在地</label><input id="s_addr" value="${esc(s.addr||'')}"></div>
+    <div class="field"><label>元受会社</label><input id="s_client" value="${esc(s.client||'')}"></div>
+    <div class="modal-btns">
+      ${!isNew?`<button class="btn btn-danger" onclick="delSite(${id})">削除</button>`:''}
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveSite(${id||'null'})">${isNew?'追加':'保存'}</button>
+    </div>
+  </div></div>`;
+}
+
+function openProcModal(siteId,procId){
+  const site=sites.find(x=>x.id===siteId);
+  const p=procId?site.processes.find(x=>x.id===procId):{name:'',person:'',area:'',startD:'',endD:'',color:PC[0]};
+  const isNew=!procId;
+  const copts=PC.map((c,i)=>`<option value="${c}"${c===p.color?' selected':''}>${CNAMES[i]}</option>`).join('');
+  document.getElementById('modalEl').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${isNew?'工程を追加':'工程を編集'}</h3>
+    <div class="field"><label>工程名</label><input id="p_name" value="${esc(p.name||'')}"></div>
+    <div class="row2">
+      <div class="field"><label>担当者・業者</label><input id="p_person" value="${esc(p.person||'')}"></div>
+      <div class="field"><label>面積・数量</label><input id="p_area" value="${esc(p.area||'')}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>開始日（未定なら空欄）</label><input type="date" id="p_start" value="${p.startD||''}"></div>
+      <div class="field"><label>終了日</label><input type="date" id="p_end" value="${p.endD||''}"></div>
+    </div>
+    <div class="field"><label>色</label><select id="p_color">${copts}</select></div>
+    <div class="modal-btns">
+      ${!isNew?`<button class="btn btn-danger" onclick="delProc(${siteId},${procId})">削除</button>`:''}
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveProc(${siteId},${procId||'null'})">${isNew?'追加':'保存'}</button>
+    </div>
+  </div></div>`;
+}
+
+function closeModal(){document.getElementById('modalEl').innerHTML='';}
+function esc(s){return s.replace(/"/g,'&quot;');}
+
+function saveSite(id){
+  const name=document.getElementById('s_name').value.trim();if(!name)return;
+  const addr=document.getElementById('s_addr').value.trim();
+  const client=document.getElementById('s_client').value.trim();
+  if(id===null)sites.push({id:nextSid++,name,addr,client,collapsed:false,processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client});}
+  closeModal();redraw();
+}
+function delSite(id){if(!confirm('この物件を削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();redraw();}
+
+function saveProc(siteId,procId){
+  const name=document.getElementById('p_name').value.trim();if(!name)return;
+  const person=document.getElementById('p_person').value.trim();
+  const area=document.getElementById('p_area').value.trim();
+  const startD=document.getElementById('p_start').value;
+  const endD=document.getElementById('p_end').value;
+  const color=document.getElementById('p_color').value;
+  const site=sites.find(x=>x.id===siteId);if(!site)return;
+  if(procId===null)site.processes.push({id:nextPid++,name,person,area,startD,endD,done:false,color});
+  else{const p=site.processes.find(x=>x.id===procId);if(p)Object.assign(p,{name,person,area,startD,endD,color});}
+  closeModal();redraw();
+}
+function delProc(siteId,procId){
+  const site=sites.find(x=>x.id===siteId);if(!site)return;
+  site.processes=site.processes.filter(x=>x.id!==procId);closeModal();redraw();
+}
+
+function exportCSV(){
+  const rows=[['物件名','所在地','元受','工程名','担当者','面積','開始日','終了日','完了']];
+  sites.forEach(s=>s.processes.forEach(p=>rows.push([s.name,s.addr,s.client,p.name,p.person,p.area,p.startD,p.endD,p.done?'完了':''])));
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download='工程表_'+fmt(new Date())+'.csv';a.click();
+}
+
+loadData();
+redraw();
+</script>
+</body>
+</html>
