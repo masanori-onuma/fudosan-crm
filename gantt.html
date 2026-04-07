@@ -631,6 +631,45 @@ function openProcModal(siteId,procId){
     </div></div></div>`;
 }
 
+
+function openMasterModal(){
+  function listHtml(arr,key){
+    if(!arr.length)return `<div style="font-size:11px;color:#aaa;padding:4px 0">未登録</div>`;
+    return arr.map((v,i)=>`<div class="master-item"><span>${esc(v)}</span><button onclick="delMaster('${key}',${i})">削除</button></div>`).join('');
+  }
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:400px">
+    <h3>マスター設定</h3>
+    <div class="master-section"><h4>元受会社</h4>
+      <div class="master-list">${listHtml(masters.clients,'clients')}</div>
+      <div class="master-add"><input id="mi_client" placeholder="会社名を追加"><button onclick="addMaster('clients','mi_client')">追加</button></div>
+    </div>
+    <div class="master-section"><h4>担当者・業者</h4>
+      <div class="master-list">${listHtml(masters.persons,'persons')}</div>
+      <div class="master-add"><input id="mi_person" placeholder="担当者・業者名を追加"><button onclick="addMaster('persons','mi_person')">追加</button></div>
+    </div>
+    <div class="master-section"><h4>工事項目</h4>
+      <div class="master-list">${listHtml(masters.procNames,'procNames')}</div>
+      <div class="master-add"><input id="mi_procName" placeholder="工事項目を追加"><button onclick="addMaster('procNames','mi_procName')">追加</button></div>
+    </div>
+    <div class="modal-btns"><button class="btn" onclick="closeModal()">閉じる</button></div>
+    </div></div>`;
+}
+
+function addMaster(key,inputId){
+  const v=document.getElementById(inputId).value.trim();
+  if(!v)return;
+  if(!masters[key].includes(v))masters[key].push(v);
+  saveMasters();
+  openMasterModal();
+}
+
+function delMaster(key,idx){
+  masters[key].splice(idx,1);
+  saveMasters();
+  openMasterModal();
+}
+
 function closeModal(){document.getElementById('modalEl').innerHTML='';}
 
 function saveSite(id){
