@@ -753,60 +753,23 @@ function fileToBase64(file){
   });
 }
 
+const GAS_PROXY_URL='https://script.google.com/macros/s/AKfycbyoN6BRpZyGjvMVZnzWYOERqySc7Iq4gxoXar4wpzir_jG8w5wqjmZsdn-DSB1r3qgy/exec';
+
 async function analyzePdf(apiKey,b64,filename){
-  const today=new Date();
-  const yyyy=today.getFullYear();
-
-  const prompt=`以下は不動産リフォームの発注書・指示書・見積書PDFです。
-このPDFから下記の情報をJSONで抽出してください。
-
-抽出ルール：
-- 物件名は「マンション名 部屋番号」の形式で抽出（例: プリマヴェラ101号室）
-- 住所は施工場所・物件住所を抽出
-- 元受会社名を抽出（発注先として記載されている会社名）
-- 着工日・完工日・工期がわかれば koukiStart, koukiEnd に YYYY-MM-DD 形式で入れる
-- 工事項目は各工事・作業を個別に抽出する
-- 納期・完了日がある場合は endD に YYYY-MM-DD 形式（年が省略されている場合は ${yyyy}年とする）
-- 着工日がある場合は startD に入れる、なければ空文字
-- 業者名・担当会社がわかれば person に入れる
-- 数量・面積があれば area に入れる（例: 109m²、3DK、1式）
-- 工程のcolorは常に空文字でよい
-
-必ずJSON配列のみを返してください（コードブロック不要）。形式：
-[
-  {
-    "name": "物件名",
-    "addr": "住所",
-    "client": "元受会社名",
-    "koukiStart": "YYYY-MM-DD or ''",
-    "koukiEnd": "YYYY-MM-DD or ''",
-    "processes": [
-      {"name":"工事項目名","person":"業者名","area":"数量","startD":"YYYY-MM-DD or ''","endD":"YYYY-MM-DD or ''","color":""}
-    ]
-  }
-]`;
-
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+  const res=await fetch(GAS_PROXY_URL,{
     method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-    body:JSON.stringify({
-      model:'claude-opus-4-6',
-      max_tokens:4096,
-      messages:[{role:'user',content:[
-        {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
-        {type:'text',text:prompt}
-      ]}]
-    })
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({pdfBase64:b64,fileName:filename})
   });
 
   if(!res.ok){
-    const err=await res.json().catch(()=>({}));
-    throw new Error(err.error?.message||`HTTP ${res.status}`);
+    throw new Error(`GASエラー: HTTP ${res.status}`);
   }
 
   const data=await res.json();
-  const text=data.content.map(c=>c.text||'').join('');
-  const clean=text.replace(/```json|```/g,'').trim();
+  if(data.error) throw new Error(data.error);
+
+  const clean=data.result.replace(/```json|```/g,'').trim();
   try{
     return JSON.parse(clean);
   }catch(e){
