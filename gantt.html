@@ -2,7 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="工程表">
+<meta name="mobile-web-app-capable" content="yes">
 <title>リフォーム工程表</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -15,7 +19,7 @@ header a:hover{color:#185FA5}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
 .toolbar label{font-size:12px;color:#888}
 .toolbar input[type=date]{font-size:12px;height:30px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111}
-.btn{height:28px;padding:0 12px;font-size:12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;white-space:nowrap}
+.btn{height:28px;padding:0 12px;font-size:12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;white-space:nowrap;touch-action:manipulation}
 .btn:hover{background:#f0f0f0}
 .btn-sm{height:22px;padding:0 7px;font-size:11px}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
@@ -23,8 +27,6 @@ header a:hover{color:#185FA5}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
 .filter-bar label{font-size:11px;color:#888}
 .filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
-
-/* ガントチャート本体 */
 .gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
 .gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
@@ -34,47 +36,47 @@ thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px s
 thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
 thead th.wk{color:#E24B4A}
 thead th.tod{color:#378ADD;font-weight:700}
-
-/* 行スタイル */
 tr.row-site td{background:#dce8f5}
 tr.row-proc td{background:#fff}
 tr.row-proc.done td{background:#f5f5f3}
+tr.row-kouki td{background:#f9f5ee}
+tr.row-kouki td.wk-cell{background:#f4eedf}
 tr.row-site td.wk-cell{background:#ccd6e8}
 tr.row-proc td.wk-cell{background:#f5f5f2}
-tr.row-proc.done td.wk-cell{background:#f0f0ee}
 td.tod-cell{background:rgba(55,138,221,0.07)!important}
-
+.badge-warn{font-size:10px;background:#FCEBEB;color:#A32D2D;border:1px solid #E24B4A;border-radius:10px;padding:1px 6px;font-weight:600;flex-shrink:0}
+.badge-procwarn{font-size:10px;background:#FCEBEB;color:#A32D2D;border:1px solid #E24B4A;border-radius:10px;padding:1px 6px;font-weight:600;flex-shrink:0}
+tr.site-warn td{background:#fff5f5!important}
+tr.site-warn td.wk-cell{background:#ffe8e8!important}
+tr.site-warn .col-info{border-left:3px solid #E24B4A!important}
+tr.proc-warn td{background:#fff5f5!important}
+tr.proc-warn td.wk-cell{background:#ffe8e8!important}
+tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
+.sort-handle{font-size:13px;color:#bbb;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
+.sort-handle:hover{color:#888}
+.sort-handle-site{font-size:14px;color:#7aabcf;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
+.sort-handle-site:hover{color:#185FA5}
+tr.row-proc.sort-dragging td{background:#e8f4ff!important;opacity:0.6}
+tr.row-proc.sort-over td{border-top:2px solid #4A90D9!important}
+tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.6}
+tr.row-site.site-drag-over td{border-top:3px solid #0C447C!important}
 td{padding:0;border-bottom:1px solid #ddd;border-right:1px solid #e8e8e8;vertical-align:middle;overflow:hidden}
 td.col-info{border-right:1px solid #bbb;padding:0}
-td.day-cell{width:26px;min-width:26px;padding:1px}
-
-/* 左カラム内レイアウト */
+td.day-cell{width:26px;min-width:26px;padding:0;position:relative}
+td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .site-inner{display:flex;flex-direction:column;justify-content:center;padding:0 6px 0 4px;height:100%;gap:1px}
 .site-top{display:flex;align-items:center;gap:3px;line-height:1}
 .toggle{cursor:pointer;font-size:12px;color:#555;user-select:none;flex-shrink:0;width:14px;text-align:center}
 .site-name{font-weight:600;color:#0C447C;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;cursor:pointer}
 .site-sub{font-size:10px;color:#185FA5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:16px}
 .badge-nd{font-size:10px;background:#FAEEDA;color:#854F0B;border-radius:10px;padding:1px 5px;flex-shrink:0}
-
-.proc-inner{display:flex;align-items:center;gap:4px;padding:0 4px 0 14px;height:100%;overflow:hidden}
-.chk{width:14px;height:14px;border-radius:3px;border:1.5px solid #bbb;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent}
+.proc-inner{display:flex;align-items:center;gap:4px;padding:0 4px 0 8px;height:100%;overflow:hidden}
+.chk{width:22px;height:22px;border-radius:4px;border:1.5px solid #bbb;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;touch-action:manipulation}
 .chk.done{background:#1D9E75;border-color:#1D9E75;color:#fff}
 .proc-name{font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .proc-name.done{text-decoration:line-through;color:#aaa}
 .badge-nodate{font-size:10px;background:#FAEEDA;color:#854F0B;border-radius:10px;padding:0 5px;flex-shrink:0}
 .proc-meta{font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;flex-shrink:0}
-
-/* バー */
-.bar{height:18px;border-radius:0;display:block;width:100%;cursor:grab}
-.bar:hover{opacity:0.8}
-.bar-s{border-radius:4px 0 0 4px}
-.bar-e{border-radius:0 4px 4px 0}
-.bar-se{border-radius:4px}
-td.day-cell{position:relative}
-td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
-.drag-preview{position:absolute;top:6px;height:18px;background:rgba(74,144,217,0.4);border:2px dashed #4A90D9;border-radius:4px;pointer-events:none;z-index:50}
-
-/* モーダル */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000}
 .modal{background:#fff;border-radius:12px;padding:1.5rem;width:380px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
 .modal h3{font-size:15px;font-weight:600;margin-bottom:14px}
@@ -84,12 +86,35 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .field input:focus,.field select:focus{outline:none;border-color:#85B7EB}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.master-section{margin-bottom:14px}
+.master-section h4{font-size:12px;font-weight:600;color:#555;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eee}
+.master-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;margin-bottom:6px}
+.master-item{display:flex;align-items:center;gap:6px;font-size:12px}
+.master-item span{flex:1}
+.master-item button{height:20px;padding:0 6px;font-size:10px;border-radius:4px;border:1px solid #ecc;background:#fff;color:#c00;cursor:pointer}
+.master-add{display:flex;gap:6px}
+.master-add input{flex:1;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid #ccc;height:28px}
+.master-add button{height:28px;padding:0 10px;font-size:12px;border-radius:6px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;cursor:pointer;white-space:nowrap}
+
+.pdf-drop{border:2px dashed #85B7EB;border-radius:8px;padding:24px;text-align:center;color:#888;font-size:13px;cursor:pointer;transition:background 0.2s}
+.pdf-drop:hover,.pdf-drop.drag-on{background:#e6f1fb;border-color:#185FA5}
+.pdf-drop input[type=file]{display:none}
+.pdf-result{margin-top:12px;background:#f8f8f8;border-radius:6px;padding:10px;font-size:12px;max-height:200px;overflow-y:auto;border:1px solid #ddd}
+.pdf-result table{width:100%;border-collapse:collapse;font-size:11px}
+.pdf-result th{background:#e8f0f8;padding:3px 6px;text-align:left;font-weight:600}
+.pdf-result td{padding:3px 6px;border-bottom:1px solid #eee}
+.api-key-row{display:flex;gap:6px;align-items:center;margin-bottom:10px}
+.api-key-row input{flex:1;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid #ccc;font-family:monospace}
+.api-key-row label{font-size:11px;color:#888;white-space:nowrap}
+.loading-msg{text-align:center;padding:20px;color:#888;font-size:13px}
+
 </style>
 </head>
 <body>
 <header>
   <h1>リフォーム工程表</h1>
-  <a href="FudosanCRM.html">← CRMへ戻る</a>
+  <button class="btn btn-sm" onclick="openMasterModal()" style="margin-left:auto">⚙ マスター</button>
+  <a href="FudosanCRM.html" style="font-size:12px;color:#888;text-decoration:none">← CRM</a>
 </header>
 <div class="container">
   <div class="toolbar">
@@ -98,12 +123,17 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     <button class="btn" onclick="applyRange()">適用</button>
     <button class="btn btn-primary" onclick="openSiteModal(null)">＋ 物件追加</button>
     <button class="btn" onclick="exportCSV()">CSV出力</button>
-    <button class="btn" onclick="saveData()">💾 保存</button>
+    <button class="btn btn-primary" onclick="openPdfModal()">📄 PDF読み込み</button>
   </div>
   <div class="filter-bar">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
     <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
+    <span style="margin-left:8px;border-left:1px solid #ddd;padding-left:12px;display:flex;align-items:center;gap:6px">
+      <label style="color:#c0392b;font-weight:500">⚠ 完成</label>
+      <input type="number" id="warnDays" value="3" min="1" max="30" style="width:48px;height:26px;font-size:12px;border:1px solid #ccc;border-radius:6px;padding:0 6px;text-align:center" onchange="render()">
+      <label style="color:#c0392b">日以内で未発注工程あり</label>
+    </span>
   </div>
   <div class="gantt-outer">
     <div class="gantt-scroll" id="ganttScroll">
@@ -116,15 +146,19 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <script>
 const PC=['#4A90D9','#27AE60','#E74C3C','#8E44AD','#E67E22','#16A085','#2980B9','#7F8C8D'];
 const CNAMES=['青','緑','赤','紫','オレンジ','深緑','水色','グレー'];
-const SITE_H=38, ROW_H=30;
+const SITE_H=40, ROW_H=26, DAY_W=26;
 
 function toN(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
 function parseD(s){if(!s)return null;let p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
 function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmtD(s){if(!s)return'';const d=parseD(s);return(d.getMonth()+1)+'/'+d.getDate();}
 function addDays(d,n){let r=new Date(d);r.setDate(r.getDate()+n);return r}
 function isWk(d){return d.getDay()===0||d.getDay()===6}
 function isToday(d){return toN(d)===toN(new Date())}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+function hexToRgb(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return[r,g,b];}
+function lighten(hex,amt){const[r,g,b]=hexToRgb(hex);return 'rgb('+Math.min(255,r+amt)+','+Math.min(255,g+amt)+','+Math.min(255,b+amt)+')';}
+function darken(hex,amt){const[r,g,b]=hexToRgb(hex);return 'rgb('+Math.max(0,r-amt)+','+Math.max(0,g-amt)+','+Math.max(0,b-amt)+')';}
 
 let viewStart,viewEnd;
 (function(){
@@ -137,6 +171,39 @@ let viewStart,viewEnd;
 let sites=[];
 let nextSid=100,nextPid=1000;
 
+
+let masters = {clients:[], persons:[], procNames:[]};
+
+function loadMasters(){
+  try{
+    const d=localStorage.getItem('gantt_masters');
+    if(d) masters=JSON.parse(d);
+  }catch(e){}
+  if(!masters.clients.length) masters.clients=['有限会社彩建'];
+  if(!masters.persons.length) masters.persons=['秀力内装','岩瀬畳店','大川龍真','Eサービス'];
+  if(!masters.procNames.length) masters.procNames=['クロス','畳表替え','フローリング','クリーニング','エアコン新設','コーキング','雑工事','水回り'];
+}
+function saveMasters(){localStorage.setItem('gantt_masters',JSON.stringify(masters));}
+
+function masterOpts(arr, val){
+  let opts = arr.map(v=>'<option value="'+esc(v)+'"'+(v===val?' selected':'')+'>'+esc(v)+'</option>').join('');
+  opts += '<option value="__custom__"'+(arr.includes(val)||!val?'':' selected')+'>（直接入力）</option>';
+  return opts;
+}
+
+function handleSelectChange(selectId, inputId){
+  const sel=document.getElementById(selectId);
+  const inp=document.getElementById(inputId);
+  if(sel.value==='__custom__'){inp.style.display='';inp.focus();}
+  else{inp.style.display='none';inp.value='';}
+}
+
+function getFieldValue(selectId, inputId){
+  const sel=document.getElementById(selectId);
+  if(sel.value==='__custom__') return document.getElementById(inputId).value.trim();
+  return sel.value;
+}
+
 function loadData(){
   try{
     const d=localStorage.getItem('gantt_sites');
@@ -148,13 +215,13 @@ function loadData(){
     }
   }catch(e){}
   if(!sites.length)sites=[
-    {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,processes:[
+    {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
       {id:101,name:'クロス 148m²',person:'秀力内装',area:'148m²',startD:'2026-04-03',endD:'2026-04-07',done:false,color:PC[0]},
       {id:102,name:'畳表替え',person:'岩瀬畳店',area:'',startD:'2026-04-05',endD:'2026-04-10',done:false,color:PC[1]},
       {id:103,name:'エアコン新設',person:'大川龍真',area:'',startD:'2026-04-09',endD:'2026-04-09',done:true,color:PC[2]},
       {id:104,name:'クリーニング',person:'Eサービス',area:'3DK',startD:'',endD:'',done:false,color:PC[5]},
     ]},
-    {id:2,name:'ラバネストヒル2号館 203',addr:'埼玉県和光市南1-26-25',client:'有限会社彩建',collapsed:false,processes:[
+    {id:2,name:'ラバネストヒル2号館 203',addr:'埼玉県和光市南1-26-25',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-07',koukiEnd:'2026-04-18',dropboxUrl:'',processes:[
       {id:201,name:'クロス貼替',person:'有限会社彩建',area:'100m²',startD:'2026-04-07',endD:'2026-04-14',done:false,color:PC[0]},
       {id:202,name:'コーキング',person:'大川龍真',area:'',startD:'2026-04-15',endD:'2026-04-17',done:false,color:PC[4]},
       {id:203,name:'雑工事',person:'',area:'',startD:'',endD:'',done:false,color:PC[7]},
@@ -162,7 +229,7 @@ function loadData(){
   ];
 }
 
-function saveData(){localStorage.setItem('gantt_sites',JSON.stringify(sites));alert('保存しました');}
+function saveData(){localStorage.setItem('gantt_sites',JSON.stringify(sites));}
 
 function getDays(){
   let days=[],d=new Date(viewStart);
@@ -173,8 +240,8 @@ function getDays(){
 function rebuildSelects(){
   const fc=document.getElementById('filterClient'),fp=document.getElementById('filterPerson');
   const cv=fc.value,pv=fp.value;
-  fc.innerHTML='<option value="">すべて</option>'+[...new Set(sites.map(s=>s.client).filter(Boolean))].sort().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  fp.innerHTML='<option value="">すべて</option>'+[...new Set(sites.flatMap(s=>s.processes.map(p=>p.person)).filter(Boolean))].sort().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  fc.innerHTML='<option value="">すべて</option>'+[...new Set(sites.map(s=>s.client).filter(Boolean))].sort().map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+  fp.innerHTML='<option value="">すべて</option>'+[...new Set(sites.flatMap(s=>s.processes.map(p=>p.person)).filter(Boolean))].sort().map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
   fc.value=cv;fp.value=pv;
 }
 
@@ -184,18 +251,19 @@ function render(){
   const fp=document.getElementById('filterPerson').value;
   const days=getDays();
 
-  // thead
   let headHtml='<tr><th class="col-info" style="height:36px">物件 / 工程</th>';
   days.forEach(day=>{
     const wk=isWk(day),tod=isToday(day);
     const wd=['日','月','火','水','木','金','土'][day.getDay()];
-    headHtml+=`<th class="day-col${wk?' wk':tod?' tod':''}" style="height:36px">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
+    const wkCls=wk?' wk':tod?' tod':'';
+    headHtml+='<th class="day-col'+wkCls+'" style="height:36px">'+day.getDate()+'<br><span style="font-size:9px">'+wd+'</span></th>';
   });
   headHtml+='</tr>';
   document.getElementById('ganttHead').innerHTML=headHtml;
 
-  // tbody - フラグメントで一括構築
   const frag=document.createDocumentFragment();
+  const warnDays=parseInt(document.getElementById('warnDays').value)||3;
+  const todayN=toN(new Date());
 
   sites.filter(site=>{
     if(fc&&site.client!==fc)return false;
@@ -204,27 +272,34 @@ function render(){
   }).forEach(site=>{
     const procs=site.processes.filter(p=>fp?p.person===fp:true);
     const nd=procs.filter(p=>!p.startD).length;
-    const mapUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.addr)}`;
+    const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr);
 
-    // 物件行
+    const hasUnset=site.processes.some(p=>!p.startD||!p.endD);
+    const koukiEndN=site.koukiEnd?toN(parseD(site.koukiEnd)):null;
+    const isWarn=hasUnset&&koukiEndN!==null&&koukiEndN>=todayN&&koukiEndN<=toN(addDays(new Date(),warnDays));
+
     const siteRow=document.createElement('tr');
-    siteRow.className='row-site';
+    siteRow.className='row-site'+(isWarn?' site-warn':'');
     siteRow.style.height=SITE_H+'px';
 
     const siteTd=document.createElement('td');
     siteTd.className='col-info';
-    siteTd.innerHTML=`<div class="site-inner">
-      <div class="site-top">
-        <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
-        <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
-        ${nd>0?`<span class="badge-nd">未定${nd}</span>`:''}
-        <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
-        <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
-      </div>
-      <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${site.client?`　${esc(site.client)}`:''}</div>
-    </div>`;
+    const ndBadge=nd>0?'<span class="badge-nd">未定'+nd+'</span>':'';
+    const warnBadge=isWarn?'<span class="badge-warn">⚠ 発注未完了</span>':'';
+    const dropboxBtn=site.dropboxUrl?'<a href="'+site.dropboxUrl+'" target="_blank" class="btn btn-sm" style="flex-shrink:0;text-decoration:none" title="Dropboxを開く">📁</a>':'';
+    const clientStr=site.client?'　'+esc(site.client):'';
+    siteTd.innerHTML='<div class="site-inner">'
+      +'<div class="site-top">'
+      +'<span class="sort-handle-site" data-site="'+site.id+'" title="ドラッグで並び替え">⠿</span>'
+      +'<span class="toggle" onclick="toggleSite('+site.id+')">'+(site.collapsed?'▶':'▼')+'</span>'
+      +'<span class="site-name" onclick="toggleSite('+site.id+')">'+esc(site.name)+'</span>'
+      +ndBadge+warnBadge+dropboxBtn
+      +'<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal('+site.id+')">編集</button>'
+      +'<button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal('+site.id+',null)">＋</button>'
+      +'</div>'
+      +'<div class="site-sub">'+esc(site.addr)+'<a href="'+mapUrl+'" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>'+clientStr+'</div>'
+      +'</div>';
     siteRow.appendChild(siteTd);
-
     days.forEach(day=>{
       const td=document.createElement('td');
       td.className='day-cell'+(isWk(day)?' wk-cell':isToday(day)?' tod-cell':'');
@@ -232,51 +307,130 @@ function render(){
     });
     frag.appendChild(siteRow);
 
+    const koukiRow=document.createElement('tr');
+    koukiRow.className='row-kouki';
+    koukiRow.style.height=ROW_H+'px';
+    const koukiTd=document.createElement('td');
+    koukiTd.className='col-info';
+    const ks=site.koukiStart,ke=site.koukiEnd;
+    const koukiDateStr=(ks&&ke)?fmtD(ks)+' 〜 '+fmtD(ke):'未設定';
+    koukiTd.innerHTML='<div class="proc-inner" style="padding-left:8px">'
+      +'<span style="font-size:11px;color:#555;font-weight:500">工期</span>'
+      +'<span style="font-size:10px;color:#888;margin-left:6px">'+koukiDateStr+'</span>'
+      +'</div>';
+    koukiRow.appendChild(koukiTd);
+    days.forEach((day,di)=>{
+      const td=document.createElement('td');
+      td.className='day-cell'+(isWk(day)?' wk-cell':isToday(day)?' tod-cell':'');
+      td.dataset.kouki=site.id;
+      td.dataset.di=di;
+      td.style.cursor='crosshair';
+      koukiRow.appendChild(td);
+    });
+    if(ks&&ke){
+      const ksN=toN(parseD(ks)),keN=toN(parseD(ke));
+      const si=days.findIndex(d=>toN(d)===ksN);
+      const ei=days.findIndex(d=>toN(d)===keN);
+      const actualSi=si>=0?si:(toN(days[0])>ksN?0:-1);
+      const actualEi=ei>=0?ei:(toN(days[days.length-1])<keN?days.length-1:-1);
+      if(actualSi>=0&&actualEi>=0){
+        const cells=koukiRow.querySelectorAll('td.day-cell');
+        const startCell=cells[actualSi];
+        const spanCount=actualEi-actualSi+1;
+        if(startCell){
+          startCell.style.position='relative';
+          startCell.style.overflow='visible';
+          const bar=document.createElement('div');
+          bar.style.position='absolute';bar.style.top='1px';bar.style.bottom='1px';
+          bar.style.left='0';bar.style.width=(spanCount*DAY_W)+'px';
+          bar.style.zIndex='2';bar.style.cursor='grab';
+          bar.style.overflow='hidden';bar.style.display='flex';bar.style.alignItems='center';
+          bar.style.background='linear-gradient(to bottom,#ff8c42 0%,#e05c00 45%,#b54400 55%,#7a2d00 100%)';
+          bar.style.boxShadow='inset 0 0 0 2px #f5c800';
+          const lbl=document.createElement('span');
+          lbl.style.fontSize='11px';lbl.style.fontWeight='500';lbl.style.color='#fff';
+          lbl.style.paddingLeft='6px';lbl.style.whiteSpace='nowrap';lbl.style.overflow='hidden';
+          lbl.style.textOverflow='ellipsis';lbl.style.textShadow='0 1px 1px rgba(0,0,0,0.4)';
+          lbl.style.pointerEvents='none';lbl.textContent='工期';
+          bar.appendChild(lbl);
+          bar.onclick=()=>openKoukiModal(site.id);
+          startCell.appendChild(bar);
+        }
+      }
+    }
+    frag.appendChild(koukiRow);
+
     if(!site.collapsed){
       procs.forEach(proc=>{
         const has=proc.startD&&proc.endD;
         const psN=has?toN(parseD(proc.startD)):null;
         const peN=has?toN(parseD(proc.endD)):null;
         const meta=[proc.person,proc.area].filter(Boolean).join('·');
+        const procWarn=isWarn&&!has;
 
         const procRow=document.createElement('tr');
-        procRow.className='row-proc'+(proc.done?' done':'');
+        procRow.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'');
         procRow.style.height=ROW_H+'px';
 
         const procTd=document.createElement('td');
         procTd.className='col-info';
-        procTd.innerHTML=`<div class="proc-inner">
-          <div class="chk${proc.done?' done':''}" onclick="toggleDone(${proc.id})">${proc.done?'✓':''}</div>
-          <span class="proc-name${proc.done?' done':''}">${esc(proc.name)}</span>
-          ${!has?'<span class="badge-nodate">未定</span>':''}
-          <span class="proc-meta">${esc(meta)}</span>
-          <button class="btn btn-sm" style="flex-shrink:0" onclick="openProcModal(${site.id},${proc.id})">編集</button>
-        </div>`;
+        const chkCls='chk'+(proc.done?' done':'');
+        const nameCls='proc-name'+(proc.done?' done':'');
+        const nodateBadge=procWarn?'<span class="badge-procwarn">⚠ 未発注</span>':(!has?'<span class="badge-nodate">未定</span>':'');
+        procTd.innerHTML='<div class="proc-inner">'
+          +'<span class="sort-handle" data-proc="'+proc.id+'" data-site="'+site.id+'" title="ドラッグで並び替え">⠿</span>'
+          +'<div class="'+chkCls+'" onclick="toggleDone('+proc.id+')">'+(proc.done?'✓':'')+'</div>'
+          +'<span class="'+nameCls+'">'+esc(proc.name)+'</span>'
+          +nodateBadge
+          +'<span class="proc-meta">'+esc(meta)+'</span>'
+          +'<button class="btn btn-sm" style="flex-shrink:0" onclick="openProcModal('+site.id+','+proc.id+')">編集</button>'
+          +'</div>';
         procRow.appendChild(procTd);
 
         days.forEach((day,di)=>{
           const td=document.createElement('td');
           const wk=isWk(day),tod=isToday(day);
           td.className='day-cell'+(proc.done?' wk-cell':wk?' wk-cell':tod?' tod-cell':'');
-          td.dataset.proc=proc.id;
-          td.dataset.site=site.id;
-          td.dataset.di=di;
+          td.dataset.proc=proc.id;td.dataset.site=site.id;td.dataset.di=di;
           td.style.cursor='crosshair';
-          if(has){
-            const dn=toN(day);
-            if(dn>=psN&&dn<=peN){
-              const isS=dn===psN,isE=dn===peN;
-              const barCls='bar'+(isS&&isE?' bar-se':isS?' bar-s':isE?' bar-e':'');
-              const col=proc.done?'#bbb':proc.color;
-              const bar=document.createElement('div');
-              bar.className=barCls;
-              bar.style.background=col;
-              bar.onclick=()=>openProcModal(site.id,proc.id);
-              td.appendChild(bar);
-            }
-          }
           procRow.appendChild(td);
         });
+
+        if(has){
+          const si=days.findIndex(d=>toN(d)===psN);
+          const ei=days.findIndex(d=>toN(d)===peN);
+          const actualSi=si>=0?si:(toN(days[0])>psN?0:-1);
+          const actualEi=ei>=0?ei:(toN(days[days.length-1])<peN?days.length-1:-1);
+          if(actualSi>=0&&actualEi>=0){
+            const cells=procRow.querySelectorAll('td.day-cell');
+            const startCell=cells[actualSi];
+            const spanCount=actualEi-actualSi+1;
+            if(startCell){
+              startCell.style.position='relative';startCell.style.overflow='visible';
+              const col=proc.done?'#999':proc.color;
+              const bar=document.createElement('div');
+              bar.style.position='absolute';bar.style.top='1px';bar.style.bottom='1px';
+              bar.style.left='0';bar.style.width=(spanCount*DAY_W)+'px';
+              bar.style.zIndex='2';bar.style.cursor='grab';
+              bar.style.overflow='hidden';bar.style.display='flex';bar.style.alignItems='center';
+              if(proc.done){
+                bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
+                bar.style.boxShadow='inset 0 0 0 2px #888';
+              }else{
+                bar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
+                bar.style.boxShadow='inset 0 0 0 2px #f5c800';
+              }
+              const lbl=document.createElement('span');
+              lbl.style.fontSize='11px';lbl.style.fontWeight='500';lbl.style.color='#fff';
+              lbl.style.paddingLeft='6px';lbl.style.whiteSpace='nowrap';lbl.style.overflow='hidden';
+              lbl.style.textOverflow='ellipsis';lbl.style.textShadow='0 1px 1px rgba(0,0,0,0.35)';
+              lbl.style.pointerEvents='none';lbl.textContent=proc.name;
+              bar.appendChild(lbl);
+              bar.onclick=()=>openProcModal(site.id,proc.id);
+              startCell.appendChild(bar);
+            }
+          }
+        }
         frag.appendChild(procRow);
       });
     }
@@ -285,6 +439,7 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.innerHTML='';
   tbody.appendChild(frag);
+  saveData();
 }
 
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
@@ -292,81 +447,153 @@ function toggleDone(pid){for(const s of sites)for(const p of s.processes)if(p.id
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
 function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';render();}
 
-// ドラッグでバーを引く
-let drag={active:false,siteId:null,procId:null,startIdx:null,currentIdx:null,preview:null};
-
-function getDayFromCell(td){return td.dataset.day?parseInt(td.dataset.day):null;}
+let drag={active:false,type:'proc',siteId:null,procId:null,startIdx:null,currentIdx:null};
+let sortDrag={active:false,siteId:null,procId:null,overProcId:null};
+let siteDrag={active:false,siteId:null,overSiteId:null};
 
 document.addEventListener('mousedown',function(e){
-  const td=e.target.closest('td.day-cell[data-proc]');
-  if(!td)return;
-  // 既存バーのクリックは編集モーダルに任せる
+  const siteHandle=e.target.closest('.sort-handle-site');
+  if(siteHandle){
+    e.preventDefault();
+    siteDrag={active:true,siteId:parseInt(siteHandle.dataset.site),overSiteId:null};
+    const row=siteHandle.closest('tr');if(row)row.classList.add('site-dragging');
+    return;
+  }
+  const handle=e.target.closest('.sort-handle');
+  if(handle){
+    e.preventDefault();
+    sortDrag={active:true,siteId:parseInt(handle.dataset.site),procId:parseInt(handle.dataset.proc),overProcId:null};
+    const row=handle.closest('tr');if(row)row.classList.add('sort-dragging');
+    return;
+  }
   if(e.target.closest('.bar'))return;
-  e.preventDefault();
-  drag.active=true;
-  drag.siteId=parseInt(td.dataset.site);
-  drag.procId=parseInt(td.dataset.proc);
-  drag.startIdx=parseInt(td.dataset.di);
-  drag.currentIdx=drag.startIdx;
-  updateDragPreview(td);
+  const procTd=e.target.closest('td.day-cell[data-proc]');
+  if(procTd){
+    e.preventDefault();
+    drag={active:true,type:'proc',siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),startIdx:parseInt(procTd.dataset.di),currentIdx:parseInt(procTd.dataset.di)};
+    return;
+  }
+  const koukiTd=e.target.closest('td.day-cell[data-kouki]');
+  if(koukiTd){
+    e.preventDefault();
+    drag={active:true,type:'kouki',siteId:parseInt(koukiTd.dataset.kouki),procId:null,startIdx:parseInt(koukiTd.dataset.di),currentIdx:parseInt(koukiTd.dataset.di)};
+    return;
+  }
 });
 
 document.addEventListener('mousemove',function(e){
+  if(siteDrag.active){
+    document.querySelectorAll('tr.site-drag-over').forEach(r=>r.classList.remove('site-drag-over'));
+    const handle=e.target.closest('.sort-handle-site');
+    if(handle){
+      const sid=parseInt(handle.dataset.site);
+      if(sid!==siteDrag.siteId){siteDrag.overSiteId=sid;handle.closest('tr').classList.add('site-drag-over');}
+    }
+    return;
+  }
+  if(sortDrag.active){
+    document.querySelectorAll('tr.sort-over').forEach(r=>r.classList.remove('sort-over'));
+    const handle=e.target.closest('.sort-handle[data-site="'+sortDrag.siteId+'"]');
+    if(handle){
+      const pid=parseInt(handle.dataset.proc);
+      if(pid!==sortDrag.procId){sortDrag.overProcId=pid;handle.closest('tr').classList.add('sort-over');}
+    }
+    return;
+  }
   if(!drag.active)return;
-  const td=e.target.closest('td.day-cell[data-proc]');
-  if(!td)return;
-  if(parseInt(td.dataset.proc)!==drag.procId)return;
+  const sel=drag.type==='proc'?'td.day-cell[data-proc="'+drag.procId+'"]':'td.day-cell[data-kouki="'+drag.siteId+'"]';
+  const td=e.target.closest(sel);if(!td)return;
   drag.currentIdx=parseInt(td.dataset.di);
-  updateDragPreview(td);
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
+  document.querySelectorAll(sel).forEach(t=>{const di=parseInt(t.dataset.di);if(di>=si&&di<=ei)t.classList.add('drag-over');});
 });
 
 document.addEventListener('mouseup',function(e){
+  if(siteDrag.active){
+    document.querySelectorAll('tr.site-dragging,tr.site-drag-over').forEach(r=>{r.classList.remove('site-dragging');r.classList.remove('site-drag-over');});
+    if(siteDrag.overSiteId!==null&&siteDrag.overSiteId!==siteDrag.siteId){
+      const fromIdx=sites.findIndex(x=>x.id===siteDrag.siteId);
+      const toIdx=sites.findIndex(x=>x.id===siteDrag.overSiteId);
+      if(fromIdx>=0&&toIdx>=0){const[moved]=sites.splice(fromIdx,1);sites.splice(toIdx,0,moved);}
+      render();
+    }
+    siteDrag={active:false,siteId:null,overSiteId:null};
+    return;
+  }
+  if(sortDrag.active){
+    document.querySelectorAll('tr.sort-dragging,tr.sort-over').forEach(r=>{r.classList.remove('sort-dragging');r.classList.remove('sort-over');});
+    if(sortDrag.overProcId!==null&&sortDrag.overProcId!==sortDrag.procId){
+      const site=sites.find(x=>x.id===sortDrag.siteId);
+      if(site){
+        const procs=site.processes;
+        const fromIdx=procs.findIndex(p=>p.id===sortDrag.procId);
+        const toIdx=procs.findIndex(p=>p.id===sortDrag.overProcId);
+        if(fromIdx>=0&&toIdx>=0){const[moved]=procs.splice(fromIdx,1);procs.splice(toIdx,0,moved);}
+      }
+      render();
+    }
+    sortDrag={active:false,siteId:null,procId:null,overProcId:null};
+    return;
+  }
   if(!drag.active)return;
   drag.active=false;
-  if(drag.preview){drag.preview.remove();drag.preview=null;}
   document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
-
-  const si=Math.min(drag.startIdx,drag.currentIdx);
-  const ei=Math.max(drag.startIdx,drag.currentIdx);
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
   const days=getDays();
   if(si<0||ei>=days.length)return;
   const startD=fmt(days[si]),endD=fmt(days[ei]);
-
-  // 対象工程を更新
-  for(const s of sites){
-    if(s.id!==drag.siteId)continue;
-    const p=s.processes.find(x=>x.id===drag.procId);
-    if(p){p.startD=startD;p.endD=endD;}
-    break;
+  if(drag.type==='proc'){
+    for(const s of sites){if(s.id!==drag.siteId)continue;const p=s.processes.find(x=>x.id===drag.procId);if(p){p.startD=startD;p.endD=endD;}break;}
+  }else{
+    const s=sites.find(x=>x.id===drag.siteId);if(s){s.koukiStart=startD;s.koukiEnd=endD;}
   }
   render();
 });
 
-function updateDragPreview(currentTd){
-  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
-  const si=Math.min(drag.startIdx,drag.currentIdx);
-  const ei=Math.max(drag.startIdx,drag.currentIdx);
-  // ハイライト
-  document.querySelectorAll(`td.day-cell[data-proc="${drag.procId}"]`).forEach(td=>{
-    const di=parseInt(td.dataset.di);
-    if(di>=si&&di<=ei)td.classList.add('drag-over');
-  });
+function openKoukiModal(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  document.getElementById('modalEl').innerHTML=
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">'
+    +'<h3>工期を編集</h3>'
+    +'<div class="row2">'
+    +'<div class="field"><label>着工日</label><input type="date" id="k_start" value="'+(s.koukiStart||'')+'"></div>'
+    +'<div class="field"><label>完成日</label><input type="date" id="k_end" value="'+(s.koukiEnd||'')+'"></div>'
+    +'</div>'
+    +'<div class="modal-btns">'
+    +'<button class="btn" onclick="clearKouki('+siteId+')">工期クリア</button>'
+    +'<button class="btn" onclick="closeModal()">キャンセル</button>'
+    +'<button class="btn btn-primary" onclick="saveKouki('+siteId+')">保存</button>'
+    +'</div></div></div>';
 }
+function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();render();}
+function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';closeModal();render();}
 
 function openSiteModal(id){
-  const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:''};
+  const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:'',dropboxUrl:''};
   const isNew=!id;
-  document.getElementById('modalEl').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+  const delBtn=!isNew?`<button class="btn btn-danger" onclick="delSite(${id})">削除</button>`:'';
+  const cval=s.client||'';
+  const cInList=masters.clients.includes(cval);
+  const cOpts=masters.clients.map(v=>`<option value="${esc(v)}"${v===cval?' selected':''}>${esc(v)}</option>`).join('')
+    +`<option value="__custom__"${!cInList&&cval?' selected':''}>（直接入力）</option>`;
+  const cInpStyle=(!cInList&&cval)?'':'display:none';
+  const cInpVal=(!cInList&&cval)?esc(cval):'';
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isNew?'物件を追加':'物件を編集'}</h3>
     <div class="field"><label>物件名</label><input id="s_name" value="${esc(s.name||'')}"></div>
     <div class="field"><label>所在地</label><input id="s_addr" value="${esc(s.addr||'')}"></div>
-    <div class="field"><label>元受会社</label><input id="s_client" value="${esc(s.client||'')}"></div>
+    <div class="field"><label>元受会社</label>
+      <select id="s_client_sel" onchange="document.getElementById('s_client_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${cOpts}</select>
+      <input id="s_client_inp" placeholder="直接入力" value="${cInpVal}" style="${cInpStyle}">
+    </div>
+    <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
     <div class="modal-btns">
-      ${!isNew?`<button class="btn btn-danger" onclick="delSite(${id})">削除</button>`:''}
+      ${delBtn}
       <button class="btn" onclick="closeModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="saveSite(${id||'null'})">${isNew?'追加':'保存'}</button>
-    </div>
-  </div></div>`;
+    </div></div></div>`;
 }
 
 function openProcModal(siteId,procId){
@@ -374,11 +601,34 @@ function openProcModal(siteId,procId){
   const p=procId?site.processes.find(x=>x.id===procId):{name:'',person:'',area:'',startD:'',endD:'',color:PC[0]};
   const isNew=!procId;
   const copts=PC.map((c,i)=>`<option value="${c}"${c===p.color?' selected':''}>${CNAMES[i]}</option>`).join('');
-  document.getElementById('modalEl').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+  const delBtn=!isNew?`<button class="btn btn-danger" onclick="delProc(${siteId},${procId})">削除</button>`:'';
+
+  const nval=p.name||'';
+  const nInList=masters.procNames.includes(nval);
+  const nOpts=masters.procNames.map(v=>`<option value="${esc(v)}"${v===nval?' selected':''}>${esc(v)}</option>`).join('')
+    +`<option value="__custom__"${!nInList&&nval?' selected':''}>（直接入力）</option>`;
+  const nInpStyle=(!nInList&&nval)?'':'display:none';
+  const nInpVal=(!nInList&&nval)?esc(nval):'';
+
+  const pval=p.person||'';
+  const pInList=masters.persons.includes(pval);
+  const pOpts=masters.persons.map(v=>`<option value="${esc(v)}"${v===pval?' selected':''}>${esc(v)}</option>`).join('')
+    +`<option value="__custom__"${!pInList&&pval?' selected':''}>（直接入力）</option>`;
+  const pInpStyle=(!pInList&&pval)?'':'display:none';
+  const pInpVal=(!pInList&&pval)?esc(pval):'';
+
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isNew?'工程を追加':'工程を編集'}</h3>
-    <div class="field"><label>工程名</label><input id="p_name" value="${esc(p.name||'')}"></div>
+    <div class="field"><label>工程名</label>
+      <select id="p_name_sel" onchange="document.getElementById('p_name_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${nOpts}</select>
+      <input id="p_name_inp" placeholder="直接入力" value="${nInpVal}" style="${nInpStyle}">
+    </div>
     <div class="row2">
-      <div class="field"><label>担当者・業者</label><input id="p_person" value="${esc(p.person||'')}"></div>
+      <div class="field"><label>担当者・業者</label>
+        <select id="p_person_sel" onchange="document.getElementById('p_person_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${pOpts}</select>
+        <input id="p_person_inp" placeholder="直接入力" value="${pInpVal}" style="${pInpStyle}">
+      </div>
       <div class="field"><label>面積・数量</label><input id="p_area" value="${esc(p.area||'')}"></div>
     </div>
     <div class="row2">
@@ -387,11 +637,10 @@ function openProcModal(siteId,procId){
     </div>
     <div class="field"><label>色</label><select id="p_color">${copts}</select></div>
     <div class="modal-btns">
-      ${!isNew?`<button class="btn btn-danger" onclick="delProc(${siteId},${procId})">削除</button>`:''}
+      ${delBtn}
       <button class="btn" onclick="closeModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="saveProc(${siteId},${procId||'null'})">${isNew?'追加':'保存'}</button>
-    </div>
-  </div></div>`;
+    </div></div></div>`;
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';}
@@ -399,16 +648,17 @@ function closeModal(){document.getElementById('modalEl').innerHTML='';}
 function saveSite(id){
   const name=document.getElementById('s_name').value.trim();if(!name)return;
   const addr=document.getElementById('s_addr').value.trim();
-  const client=document.getElementById('s_client').value.trim();
-  if(id===null)sites.push({id:nextSid++,name,addr,client,collapsed:false,processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client});}
+  const client=getFieldValue('s_client_sel','s_client_inp');
+  const dropboxUrl=document.getElementById('s_dropbox').value.trim();
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,collapsed:false,koukiStart:'',koukiEnd:'',processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl});}
   closeModal();render();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();render();}
 
 function saveProc(siteId,procId){
-  const name=document.getElementById('p_name').value.trim();if(!name)return;
-  const person=document.getElementById('p_person').value.trim();
+  const name=getFieldValue('p_name_sel','p_name_inp');if(!name)return;
+  const person=getFieldValue('p_person_sel','p_person_inp');
   const area=document.getElementById('p_area').value.trim();
   const startD=document.getElementById('p_start').value;
   const endD=document.getElementById('p_end').value;
@@ -423,6 +673,177 @@ function delProc(siteId,procId){
   site.processes=site.processes.filter(x=>x.id!==procId);closeModal();render();
 }
 
+function openPdfModal(){
+  const savedKey = localStorage.getItem('anthropic_api_key')||'';
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:480px;max-width:98vw">
+    <h3>📄 発注書PDFから工程を自動登録</h3>
+    <div class="api-key-row">
+      <label>APIキー</label>
+      <input type="password" id="apiKeyInp" placeholder="sk-ant-..." value="${savedKey}" autocomplete="off">
+      <button class="btn btn-sm" onclick="localStorage.setItem('anthropic_api_key',document.getElementById('apiKeyInp').value.trim());alert('保存しました')">保存</button>
+    </div>
+    <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfFileInp').click()"
+      ondragover="event.preventDefault();this.classList.add('drag-on')"
+      ondragleave="this.classList.remove('drag-on')"
+      ondrop="event.preventDefault();this.classList.remove('drag-on');handlePdfFiles(event.dataTransfer.files)">
+      <input type="file" id="pdfFileInp" accept="application/pdf" multiple onchange="handlePdfFiles(this.files)">
+      PDFをドロップ、またはクリックして選択<br>
+      <span style="font-size:11px;color:#aaa">複数ファイル可</span>
+    </div>
+    <div id="pdfResultArea"></div>
+    <div class="modal-btns" id="pdfModalBtns">
+      <button class="btn" onclick="closeModal()">閉じる</button>
+    </div>
+    </div></div>`;
+}
+
+async function handlePdfFiles(files){
+  if(!files||!files.length)return;
+  const apiKey=document.getElementById('apiKeyInp').value.trim();
+  if(!apiKey){alert('APIキーを入力してください');return;}
+
+  const area=document.getElementById('pdfResultArea');
+  area.innerHTML='<div class="loading-msg">⏳ AI解析中...</div>';
+  document.getElementById('pdfModalBtns').innerHTML='<button class="btn" onclick="closeModal()">閉じる</button>';
+
+  let allSites=[];
+  for(const file of Array.from(files)){
+    area.innerHTML=`<div class="loading-msg">⏳ ${file.name} を解析中...</div>`;
+    try{
+      const b64=await fileToBase64(file);
+      const result=await analyzePdf(apiKey,b64,file.name);
+      allSites=allSites.concat(result);
+    }catch(e){
+      area.innerHTML+=`<div style="color:#c00;font-size:12px;padding:8px">❌ ${file.name}: ${e.message}</div>`;
+    }
+  }
+
+  if(!allSites.length){
+    area.innerHTML='<div style="color:#c00;font-size:12px;padding:8px">❌ データを抽出できませんでした</div>';
+    return;
+  }
+
+  // プレビュー表示
+  let html='<div class="pdf-result">';
+  allSites.forEach((s,si)=>{
+    html+=`<div style="font-weight:600;color:#0C447C;margin-bottom:4px;margin-top:${si>0?'10px':0}">${s.name}　<span style="font-size:10px;font-weight:400;color:#888">${s.addr||''}</span></div>`;
+    html+='<table><tr><th>工事項目</th><th>業者</th><th>数量</th><th>納期</th></tr>';
+    s.processes.forEach(p=>{
+      html+=`<tr><td>${p.name}</td><td>${p.person||''}</td><td>${p.area||''}</td><td>${p.endD||'未定'}</td></tr>`;
+    });
+    html+='</table>';
+  });
+  html+='</div>';
+  area.innerHTML=html;
+
+  document.getElementById('pdfModalBtns').innerHTML=`
+    <button class="btn" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="importPdfSites()">工程表に追加</button>`;
+
+  window._pdfImportData=allSites;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result.split(',')[1]);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function analyzePdf(apiKey,b64,filename){
+  const today=new Date();
+  const yyyy=today.getFullYear();
+
+  const prompt=`以下は不動産リフォームの発注書・指示書・見積書PDFです。
+このPDFから下記の情報をJSONで抽出してください。
+
+抽出ルール：
+- 物件名は「マンション名 部屋番号」の形式で抽出（例: プリマヴェラ101号室）
+- 住所は施工場所・物件住所を抽出
+- 元受会社名を抽出（発注先として記載されている会社名）
+- 着工日・完工日・工期がわかれば koukiStart, koukiEnd に YYYY-MM-DD 形式で入れる
+- 工事項目は各工事・作業を個別に抽出する
+- 納期・完了日がある場合は endD に YYYY-MM-DD 形式（年が省略されている場合は ${yyyy}年とする）
+- 着工日がある場合は startD に入れる、なければ空文字
+- 業者名・担当会社がわかれば person に入れる
+- 数量・面積があれば area に入れる（例: 109m²、3DK、1式）
+- 工程のcolorは常に空文字でよい
+
+必ずJSON配列のみを返してください（コードブロック不要）。形式：
+[
+  {
+    "name": "物件名",
+    "addr": "住所",
+    "client": "元受会社名",
+    "koukiStart": "YYYY-MM-DD or ''",
+    "koukiEnd": "YYYY-MM-DD or ''",
+    "processes": [
+      {"name":"工事項目名","person":"業者名","area":"数量","startD":"YYYY-MM-DD or ''","endD":"YYYY-MM-DD or ''","color":""}
+    ]
+  }
+]`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({
+      model:'claude-opus-4-6',
+      max_tokens:4096,
+      messages:[{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+        {type:'text',text:prompt}
+      ]}]
+    })
+  });
+
+  if(!res.ok){
+    const err=await res.json().catch(()=>({}));
+    throw new Error(err.error?.message||`HTTP ${res.status}`);
+  }
+
+  const data=await res.json();
+  const text=data.content.map(c=>c.text||'').join('');
+  const clean=text.replace(/```json|```/g,'').trim();
+  try{
+    return JSON.parse(clean);
+  }catch(e){
+    throw new Error('JSONの解析に失敗しました: '+clean.slice(0,100));
+  }
+}
+
+function importPdfSites(){
+  const data=window._pdfImportData;
+  if(!data)return;
+  data.forEach(s=>{
+    const site={
+      id:nextSid++,
+      name:s.name||'',
+      addr:s.addr||'',
+      client:s.client||'',
+      dropboxUrl:'',
+      collapsed:false,
+      koukiStart:s.koukiStart||'',
+      koukiEnd:s.koukiEnd||'',
+      processes:(s.processes||[]).map(p=>({
+        id:nextPid++,
+        name:p.name||'',
+        person:p.person||'',
+        area:p.area||'',
+        startD:p.startD||'',
+        endD:p.endD||'',
+        done:false,
+        color:p.color||PC[Math.floor(Math.random()*PC.length)]
+      }))
+    };
+    sites.push(site);
+  });
+  closeModal();
+  render();
+}
+
 function exportCSV(){
   const rows=[['物件名','所在地','元受','工程名','担当者','面積','開始日','終了日','完了']];
   sites.forEach(s=>s.processes.forEach(p=>rows.push([s.name,s.addr,s.client,p.name,p.person,p.area,p.startD,p.endD,p.done?'完了':''])));
@@ -431,6 +852,38 @@ function exportCSV(){
   a.download='工程表_'+fmt(new Date())+'.csv';a.click();
 }
 
+
+// タッチ対応
+document.addEventListener('touchstart',function(e){
+  const procTd=e.target.closest('td.day-cell[data-proc]');
+  if(procTd){drag={active:true,type:'proc',siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),startIdx:parseInt(procTd.dataset.di),currentIdx:parseInt(procTd.dataset.di)};return;}
+  const koukiTd=e.target.closest('td.day-cell[data-kouki]');
+  if(koukiTd){drag={active:true,type:'kouki',siteId:parseInt(koukiTd.dataset.kouki),procId:null,startIdx:parseInt(koukiTd.dataset.di),currentIdx:parseInt(koukiTd.dataset.di)};return;}
+},{passive:true});
+document.addEventListener('touchmove',function(e){
+  if(!drag.active)return;
+  const t=e.touches[0];
+  const el=document.elementFromPoint(t.clientX,t.clientY);if(!el)return;
+  const sel=drag.type==='proc'?'td.day-cell[data-proc="'+drag.procId+'"]':'td.day-cell[data-kouki="'+drag.siteId+'"]';
+  const td=el.closest(sel);if(!td)return;
+  drag.currentIdx=parseInt(td.dataset.di);
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
+  document.querySelectorAll(sel).forEach(t=>{const di=parseInt(t.dataset.di);if(di>=si&&di<=ei)t.classList.add('drag-over');});
+},{passive:true});
+document.addEventListener('touchend',function(e){
+  if(!drag.active)return;
+  drag.active=false;
+  document.querySelectorAll('td.drag-over').forEach(t=>t.classList.remove('drag-over'));
+  const si=Math.min(drag.startIdx,drag.currentIdx),ei=Math.max(drag.startIdx,drag.currentIdx);
+  const days=getDays();if(si<0||ei>=days.length)return;
+  const startD=fmt(days[si]),endD=fmt(days[ei]);
+  if(drag.type==='proc'){for(const s of sites){if(s.id!==drag.siteId)continue;const p=s.processes.find(x=>x.id===drag.procId);if(p){p.startD=startD;p.endD=endD;}break;}}
+  else{const s=sites.find(x=>x.id===drag.siteId);if(s){s.koukiStart=startD;s.koukiEnd=endD;}}
+  render();
+},{passive:true});
+
+loadMasters();
 loadData();
 render();
 </script>
