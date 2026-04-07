@@ -641,7 +641,8 @@ function openMasterModal(){
       ondragleave="this.style.borderTop=''"
       ondrop="masterDrop(event,'${key}',${i});this.style.borderTop=''">
       <span style="cursor:grab;color:#bbb;padding-right:4px">⠿</span>
-      <span>${esc(v)}</span>
+      <input value="${esc(v)}" style="flex:1;font-size:12px;padding:2px 6px;border-radius:4px;border:1px solid #ccc;height:24px"
+        onchange="editMaster('${key}',${i},this.value)">
       <button onclick="delMaster('${key}',${i})">削除</button>
     </div>`).join('');
   }
@@ -676,6 +677,13 @@ function masterDrop(e,key,toIdx){
   arr.splice(toIdx,0,moved);
   saveMasters();
   openMasterModal();
+}
+
+function editMaster(key,idx,val){
+  val=val.trim();
+  if(!val)return;
+  masters[key][idx]=val;
+  saveMasters();
 }
 
 function addMaster(key,inputId){
