@@ -143,12 +143,15 @@ function getDays(){
 }
 
 function makeCanvas(canvas,cssW,cssH){
-  canvas.width=Math.round(cssW*DPR);
-  canvas.height=Math.round(cssH*DPR);
-  canvas.style.width=cssW+'px';
-  canvas.style.height=cssH+'px';
+  const pw=Math.round(cssW*DPR);
+  const ph=Math.round(cssH*DPR);
+  canvas.width=pw;
+  canvas.height=ph;
+  // CSSサイズを物理ピクセルと同じにしてブラウザ補間を完全に排除
+  canvas.style.width=pw+'px';
+  canvas.style.height=ph+'px';
   const ctx=canvas.getContext('2d');
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.scale(DPR,DPR);
   return ctx;
 }
 
