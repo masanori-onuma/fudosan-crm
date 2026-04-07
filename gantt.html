@@ -609,13 +609,13 @@ function openProcModal(siteId,procId){
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isNew?'工程を追加':'工程を編集'}</h3>
     <div class="field"><label>工程名</label>
-      <select id="p_name_sel" onchange="document.getElementById('p_name_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${nOpts}</select>
-      <input id="p_name_inp" placeholder="直接入力" value="${nInpVal}" style="${nInpStyle}">
+      <select id="p_name_sel" onchange="document.getElementById('p_name_inp').value=this.value==='__custom__'?'':this.value" style="margin-bottom:4px">${nOpts}</select>
+      <input id="p_name_inp" placeholder="工程名を編集" value="${nval?esc(nval):''}" style="">
     </div>
     <div class="row2">
       <div class="field"><label>担当者・業者</label>
-        <select id="p_person_sel" onchange="document.getElementById('p_person_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${pOpts}</select>
-        <input id="p_person_inp" placeholder="直接入力" value="${pInpVal}" style="${pInpStyle}">
+        <select id="p_person_sel" onchange="document.getElementById('p_person_inp').value=this.value==='__custom__'?'':this.value" style="margin-bottom:4px">${pOpts}</select>
+        <input id="p_person_inp" placeholder="担当者・業者名を編集" value="${pval?esc(pval):''}">
       </div>
       <div class="field"><label>面積・数量</label><input id="p_area" value="${esc(p.area||'')}"></div>
     </div>
@@ -714,8 +714,8 @@ function saveSite(id){
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();render();}
 
 function saveProc(siteId,procId){
-  const name=getFieldValue('p_name_sel','p_name_inp');if(!name)return;
-  const person=getFieldValue('p_person_sel','p_person_inp');
+  const name=document.getElementById('p_name_inp').value.trim();if(!name)return;
+  const person=document.getElementById('p_person_inp').value.trim();
   const area=document.getElementById('p_area').value.trim();
   const startD=document.getElementById('p_start').value;
   const endD=document.getElementById('p_end').value;
