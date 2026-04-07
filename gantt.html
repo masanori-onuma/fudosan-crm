@@ -86,6 +86,11 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .field input:focus,.field select:focus{outline:none;border-color:#85B7EB}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.color-palette{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
+.color-swatch{width:28px;height:28px;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:transform 0.1s}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.selected{border-color:#333;transform:scale(1.15)}
+
 .master-section{margin-bottom:14px}
 .master-section h4{font-size:12px;font-weight:600;color:#555;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eee}
 .master-list{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;margin-bottom:6px}
@@ -627,7 +632,12 @@ function openProcModal(siteId,procId){
       <div class="field"><label>開始日（未定なら空欄）</label><input type="date" id="p_start" value="${p.startD||''}"></div>
       <div class="field"><label>終了日</label><input type="date" id="p_end" value="${p.endD||''}"></div>
     </div>
-    <div class="field"><label>色</label><select id="p_color">${copts}</select></div>
+    <div class="field"><label>色</label>
+      <div class="color-palette" id="colorPalette">
+        ${PC.map(c=>`<div class="color-swatch${c===p.color?' selected':''}" style="background:${c}" onclick="selectColor('${c}')" title="${c}"></div>`).join('')}
+      </div>
+      <input type="hidden" id="p_color" value="${p.color||PC[0]}">
+    </div>
     <div class="modal-btns">
       ${delBtn}
       <button class="btn" onclick="closeModal()">キャンセル</button>
@@ -704,6 +714,13 @@ function delMaster(key,idx){
   openMasterModal();
 }
 
+
+function selectColor(c){
+  document.getElementById('p_color').value=c;
+  document.querySelectorAll('.color-swatch').forEach(el=>{
+    el.classList.toggle('selected', el.style.background===c || el.style.backgroundColor===c);
+  });
+}
 function closeModal(){document.getElementById('modalEl').innerHTML='';}
 
 function saveSite(id){
