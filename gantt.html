@@ -425,6 +425,11 @@ function render(){
               bar.appendChild(lbl);
               bar.onclick=()=>openProcModal(site.id,proc.id);
               startCell.appendChild(bar);
+              // バーが短い場合は右外にラベルを表示
+              const outerLbl=document.createElement('div');
+              outerLbl.style.cssText='position:absolute;top:3px;left:'+(spanCount*DAY_W+3)+'px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3';
+              outerLbl.textContent=spanCount<=3?proc.name:'';
+              startCell.appendChild(outerLbl);
             }
           }
         }
