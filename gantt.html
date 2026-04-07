@@ -678,11 +678,7 @@ function openPdfModal(){
   document.getElementById('modalEl').innerHTML=`
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:480px;max-width:98vw">
     <h3>📄 発注書PDFから工程を自動登録</h3>
-    <div class="api-key-row">
-      <label>APIキー</label>
-      <input type="password" id="apiKeyInp" placeholder="sk-ant-..." value="${savedKey}" autocomplete="off">
-      <button class="btn btn-sm" onclick="localStorage.setItem('anthropic_api_key',document.getElementById('apiKeyInp').value.trim());alert('保存しました')">保存</button>
-    </div>
+    <input type="hidden" id="apiKeyInp" value="">
     <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfFileInp').click()"
       ondragover="event.preventDefault();this.classList.add('drag-on')"
       ondragleave="this.classList.remove('drag-on')"
@@ -700,8 +696,7 @@ function openPdfModal(){
 
 async function handlePdfFiles(files){
   if(!files||!files.length)return;
-  const apiKey=document.getElementById('apiKeyInp').value.trim();
-  if(!apiKey){alert('APIキーを入力してください');return;}
+  const apiKey='';
 
   const area=document.getElementById('pdfResultArea');
   area.innerHTML='<div class="loading-msg">⏳ AI解析中...</div>';
