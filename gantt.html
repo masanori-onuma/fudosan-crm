@@ -108,6 +108,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <header>
   <h1>リフォーム工程表</h1>
   <button class="btn btn-sm" onclick="openMasterModal()" style="margin-left:auto">⚙ マスター</button>
+  <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap"></span>
   <a href="FudosanCRM.html" style="font-size:12px;color:#888;text-decoration:none">← CRM</a>
 </header>
 <div class="container">
@@ -165,39 +166,93 @@ let viewStart,viewEnd;
   document.getElementById('endDate').value=fmt(viewEnd);
 })();
 
+// ★ デプロイ後にGASのウェブアプリURLをここに貼り付けてください
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxOI40LdSvyva9VFC8J04qpvqlCqqkf1eMx3QlDY0ecjjrWCDbEUEtpe-UHjapoqI0/exec';
+
 let sites=[];
 let nextSid=100,nextPid=1000,nextCid=10000;
 let masters={clients:[],persons:[],procNames:[]};
+let _saving=false; // 多重保存防止
 
+// ---- GAS通信ユーティリティ ----
+async function gasLoad(key){
+  try{
+    const res=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));
+    const json=await res.json();
+    return json.ok?json.value:null;
+  }catch(e){return null;}
+}
+async function gasSave(key,value){
+  if(!GAS_URL||GAS_URL==='YOUR_GAS_URL')return false;
+  try{
+    const body=new URLSearchParams({action:'save',key,value:JSON.stringify(value)});
+    const res=await fetch(GAS_URL,{method:'POST',body});
+    const json=await res.json();
+    return json.ok;
+  }catch(e){return false;}
+}
+
+// ---- マスター ----
 function loadMasters(){
   try{const d=localStorage.getItem('gantt_masters');if(d)masters=JSON.parse(d);}catch(e){}
+  if(!masters.clients)masters.clients=[];
+  if(!masters.persons)masters.persons=[];
+  if(!masters.procNames)masters.procNames=[];
   if(!masters.clients.length)masters.clients=['有限会社彩建'];
   if(!masters.persons.length)masters.persons=['秀力内装','岩瀬畳店','大川龍真','Eサービス'];
   if(!masters.procNames.length)masters.procNames=['クロス','畳表替え','フローリング','クリーニング','エアコン新設','コーキング','雑工事','水回り'];
+  // GASから非同期で上書き
+  if(GAS_URL&&GAS_URL!=='YOUR_GAS_URL'){
+    gasLoad('gantt_masters').then(v=>{
+      if(v){try{masters=JSON.parse(v);}catch(e){}}
+    });
+  }
 }
-function saveMasters(){localStorage.setItem('gantt_masters',JSON.stringify(masters));}
+function saveMasters(){
+  localStorage.setItem('gantt_masters',JSON.stringify(masters));
+  if(GAS_URL&&GAS_URL!=='YOUR_GAS_URL')gasSave('gantt_masters',masters);
+}
 
-function loadData(){
+// ---- データ互換変換 ----
+function normalizeSites(raw){
+  raw.forEach(s=>s.processes.forEach(p=>{
+    if(!p.periods){
+      p.periods=[];
+      if(p.startD||p.endD)p.periods.push({startD:p.startD||'',endD:p.endD||''});
+      delete p.startD;delete p.endD;
+    }
+    if(!p.children)p.children=[];
+  }));
+  nextSid=Math.max(nextSid,...raw.map(s=>s.id))+1;
+  const pids=raw.flatMap(s=>s.processes.map(p=>p.id));
+  if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
+  const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id)));
+  if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
+  return raw;
+}
+
+async function loadData(){
+  // まずlocalStorageで即表示
   try{
     const d=localStorage.getItem('gantt_sites');
-    if(d){
-      sites=JSON.parse(d);
-      // 旧データ互換: startD/endD → periods配列に変換
-      sites.forEach(s=>s.processes.forEach(p=>{
-        if(!p.periods){
-          p.periods=[];
-          if(p.startD||p.endD)p.periods.push({startD:p.startD||'',endD:p.endD||''});
-          delete p.startD;delete p.endD;
-        }
-        if(!p.children)p.children=[];
-      }));
-      nextSid=Math.max(nextSid,...sites.map(s=>s.id))+1;
-      const pids=sites.flatMap(s=>s.processes.map(p=>p.id));
-      if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
-      const cids=sites.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id)));
-      if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
-    }
+    if(d){sites=normalizeSites(JSON.parse(d));render();}
   }catch(e){}
+
+  // GASから取得して上書き
+  if(GAS_URL&&GAS_URL!=='YOUR_GAS_URL'){
+    showSyncStatus('読み込み中…');
+    const v=await gasLoad('gantt_sites');
+    if(v){
+      try{
+        sites=normalizeSites(JSON.parse(v));
+        localStorage.setItem('gantt_sites',v); // ローカルも更新
+        render();
+        showSyncStatus('✓ 同期済み',2000);
+      }catch(e){showSyncStatus('読込エラー',3000);}
+    }else{
+      showSyncStatus('（オフライン：ローカルデータを使用）',3000);
+    }
+  }
   if(!sites.length)sites=[
     {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
       {id:101,name:'内装工事',person:'秀力内装',area:'',periods:[{startD:'2026-04-03',endD:'2026-04-07'}],done:false,color:PC[0],children:[
@@ -216,7 +271,16 @@ function loadData(){
     ]},
   ];
 }
-function saveData(){localStorage.setItem('gantt_sites',JSON.stringify(sites));}
+function saveData(){
+  const json=JSON.stringify(sites);
+  localStorage.setItem('gantt_sites',json);
+  if(GAS_URL&&GAS_URL!=='YOUR_GAS_URL'){
+    showSyncStatus('保存中…');
+    gasSave('gantt_sites',sites).then(ok=>{
+      showSyncStatus(ok?'✓ 保存済み':'保存失敗（ローカルに保存）',2000);
+    });
+  }
+}
 
 function getDays(){
   let days=[],d=new Date(viewStart);
@@ -1012,9 +1076,18 @@ document.addEventListener('touchend',function(e){
   }
 },{passive:true});
 
+let _syncTimer=null;
+function showSyncStatus(msg,clearAfter){
+  const el=document.getElementById('syncStatus');
+  if(el)el.textContent=msg;
+  if(_syncTimer)clearTimeout(_syncTimer);
+  if(clearAfter)_syncTimer=setTimeout(()=>{if(el)el.textContent='';},clearAfter);
+}
+
 loadMasters();
 loadData();
-render();
+// loadDataが非同期のためrenderはloadData内で呼ぶが、GAS未設定時の初期描画はここで
+if(!GAS_URL||GAS_URL==='YOUR_GAS_URL')render();
 </script>
 </body>
 
