@@ -31,7 +31,7 @@ header a:hover{color:#185FA5}
 .gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 .col-info{width:300px;min-width:300px;position:sticky;left:0;z-index:10}
-@media(max-width:768px){.col-info{width:140px;min-width:140px}.day-col{width:36px;min-width:36px}.site-name{font-size:11px}.proc-name{font-size:11px}.site-sub{display:none}.proc-meta{display:none}}
+@media(max-width:768px){.col-info{width:120px;min-width:120px}.day-col{width:36px;min-width:36px}.site-name{font-size:11px}.proc-name{font-size:11px}.site-sub{display:none}.proc-meta{display:none}.btn-sm{display:none}.badge-nd{display:none}.badge-warn{display:none}.badge-procwarn{display:none}.sort-handle{display:none}.sort-handle-site{display:none}.chk{display:none!important}}
 .day-col{width:26px;min-width:26px}
 thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px solid #bbb;border-right:1px solid #ddd;padding:2px 0;text-align:center;font-weight:500;color:#555;white-space:nowrap}
 thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
@@ -495,6 +495,7 @@ function render(){
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
           const bar=makeBar(col,span,proc.name,proc.done,span<=3);
+          bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
           bar.onclick=(e)=>{if(e.target.dataset.handle)return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
             if(e.target.dataset.handle)return;
@@ -703,7 +704,6 @@ function toggleChildren(procId){
   render();
 }
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
-function toggleDone(pid){for(const s of sites)for(const p of s.processes)if(p.id===pid){p.done=!p.done;break;}render();}
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
 function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';render();}
 
@@ -1065,17 +1065,75 @@ function exportCSV(){
 }
 
 // タッチ対応
+let _longPressTimer=null;
+let _longPressProc=null;
+let _touchMoved=false;
+
 document.addEventListener('touchstart',function(e){
+  _touchMoved=false;
+  const bar=e.target.closest('[data-proc-id]');
+  if(bar){
+    const procId=parseInt(bar.dataset.procId);
+    const siteId=parseInt(bar.dataset.siteId);
+    _longPressProc={procId,siteId};
+    _longPressTimer=setTimeout(()=>{
+      if(!_touchMoved)showDonePopup(siteId,procId,e.touches[0].clientX,e.touches[0].clientY);
+    },500);
+  }
   const procTd=e.target.closest('td.day-cell[data-proc]');
   if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};return;}
 },{passive:true});
+
+document.addEventListener('touchmove',function(){
+  _touchMoved=true;
+  if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+},{passive:true});
+
 document.addEventListener('touchend',function(e){
+  if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
   if(barDrag.active){
     barDrag.active=false;
     barDrag.isNew=false;
     saveData();
   }
 },{passive:true});
+
+function showDonePopup(siteId,procId,cx,cy){
+  const site=sites.find(s=>s.id===siteId);
+  const proc=site&&site.processes.find(p=>p.id===procId);
+  if(!proc)return;
+  const existing=document.getElementById('donePopup');
+  if(existing)existing.remove();
+  const popup=document.createElement('div');
+  popup.id='donePopup';
+  popup.style.cssText=`position:fixed;z-index:2000;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);padding:8px 0;min-width:180px;left:${Math.min(cx,window.innerWidth-200)}px;top:${Math.min(cy,window.innerHeight-120)}px`;
+  popup.innerHTML=`
+    <div style="padding:8px 16px 6px;font-size:12px;color:#888;border-bottom:1px solid #eee">${proc.name}</div>
+    ${!proc.done?`<div onclick="toggleDone(${siteId},${procId})" style="padding:12px 16px;font-size:14px;cursor:pointer;color:#1D9E75">✓ 完了にする</div>`:''}
+    ${proc.done?`<div onclick="toggleDone(${siteId},${procId})" style="padding:12px 16px;font-size:14px;cursor:pointer;color:#E74C3C">↩ 未完了に戻す</div>`:''}
+    <div onclick="document.getElementById('donePopup').remove()" style="padding:10px 16px;font-size:13px;cursor:pointer;color:#aaa;border-top:1px solid #eee">キャンセル</div>
+  `;
+  document.body.appendChild(popup);
+  setTimeout(()=>document.addEventListener('touchstart',()=>{const p=document.getElementById('donePopup');if(p)p.remove();},{once:true}),100);
+}
+
+function toggleDone(siteIdOrPid,procId){
+  // PC用（引数1つ: procIdのみ）とスマホ用（引数2つ: siteId, procId）に対応
+  let proc=null;
+  if(procId===undefined){
+    // PC用：第1引数がprocId
+    for(const s of sites)for(const p of s.processes)if(p.id===siteIdOrPid){proc=p;break;}
+  }else{
+    const site=sites.find(s=>s.id===siteIdOrPid);
+    proc=site&&site.processes.find(p=>p.id===procId);
+  }
+  if(!proc)return;
+  proc.done=!proc.done;
+  saveData();
+  const popup=document.getElementById('donePopup');
+  if(popup)popup.remove();
+  render();
+}
 
 let _syncTimer=null;
 function showSyncStatus(msg,clearAfter){
