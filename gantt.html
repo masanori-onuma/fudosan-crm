@@ -450,6 +450,24 @@ function render(){
             e.preventDefault();e.stopPropagation();
             barDrag={active:true,type:'right',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};
           };
+          // PCホバーで子項目ツールチップ
+          if(children.length>0){
+            bar.addEventListener('mouseenter',function(ev){
+              let tip=document.getElementById('childTip');
+              if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
+              tip.innerHTML='<div style="font-weight:600;color:#0C447C;margin-bottom:4px">'+esc(proc.name)+'</div>'+children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('');
+              tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';
+              tip.style.top=Math.max(ev.clientY-20,4)+'px';
+              tip.style.display='block';
+            });
+            bar.addEventListener('mousemove',function(ev){
+              const tip=document.getElementById('childTip');
+              if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';tip.style.top=Math.max(ev.clientY-20,4)+'px';}
+            });
+            bar.addEventListener('mouseleave',function(){
+              const tip=document.getElementById('childTip');if(tip)tip.style.display='none';
+            });
+          }
           sc.appendChild(bar);
         });
 
@@ -486,10 +504,42 @@ function render(){
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
-            days.forEach(day=>{
+            const childDayCells=[];
+            days.forEach((day,di)=>{
               const td=document.createElement('td');
               td.className='day-cell'+(proc.done?' wk-cell':isWk(day)?' wk-cell':isToday(day)?' tod-cell':'');
               childRow.appendChild(td);
+              childDayCells.push(td);
+            });
+            // 子項目バー（親工程と同じperiodでバーを表示）
+            periods.forEach((period,pi)=>{
+              if(!period.startD||!period.endD)return;
+              const psN=toN(parseD(period.startD));
+              const peN=toN(parseD(period.endD));
+              const si=days.findIndex(d=>toN(d)===psN);
+              const ei=days.findIndex(d=>toN(d)===peN);
+              const asi=si>=0?si:(toN(days[0])>psN?0:-1);
+              const aei=ei>=0?ei:(toN(days[days.length-1])<peN?days.length-1:-1);
+              if(asi<0||aei<0)return;
+              const sc=childDayCells[asi];
+              if(!sc)return;
+              sc.style.position='relative';sc.style.overflow='visible';
+              const span=aei-asi+1;
+              const col=proc.done?'#999':proc.color;
+              const cbar=document.createElement('div');
+              cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;pointer-events:none;`;
+              if(proc.done){
+                cbar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
+                cbar.style.boxShadow='inset 0 0 0 2px #888';
+              }else{
+                cbar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
+                cbar.style.boxShadow='inset 0 0 0 1px #f5c800';
+              }
+              const clbl=document.createElement('span');
+              clbl.style.cssText='font-size:9px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
+              clbl.textContent=child.name+(child.area?' '+child.area:'');
+              cbar.appendChild(clbl);
+              sc.appendChild(cbar);
             });
             frag.appendChild(childRow);
           });
@@ -1028,7 +1078,14 @@ function showDonePopup(sid,pid,cx,cy){
   const pop=document.createElement('div');
   pop.id='donePopup';
   pop.style.cssText='position:fixed;z-index:2000;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);padding:8px 0;min-width:180px;left:'+Math.min(cx,window.innerWidth-200)+'px;top:'+Math.min(cy,window.innerHeight-120)+'px';
-  const nm=document.createElement('div');nm.style.cssText='padding:8px 16px 6px;font-size:12px;color:#888;border-bottom:1px solid #eee';nm.textContent=proc.name;pop.appendChild(nm);
+  const nm=document.createElement('div');nm.style.cssText='padding:8px 16px 6px;font-size:12px;font-weight:600;color:#0C447C;border-bottom:1px solid #eee';nm.textContent=proc.name;pop.appendChild(nm);
+  // 子項目一覧
+  const ch=proc.children||[];
+  if(ch.length>0){
+    const cl2=document.createElement('div');cl2.style.cssText='padding:6px 16px;border-bottom:1px solid #eee';
+    cl2.innerHTML=ch.map(c=>'<div style="font-size:11px;color:#555;padding:2px 0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('');
+    pop.appendChild(cl2);
+  }
   if(!proc.done){const d=document.createElement('div');d.style.cssText='padding:12px 16px;font-size:14px;cursor:pointer;color:#1D9E75';d.textContent='✓ 完了にする';d.onclick=()=>toggleDone(pid);pop.appendChild(d);}
   if(proc.done){const d=document.createElement('div');d.style.cssText='padding:12px 16px;font-size:14px;cursor:pointer;color:#E74C3C';d.textContent='↩ 未完了に戻す';d.onclick=()=>toggleDone(pid);pop.appendChild(d);}
   const cl=document.createElement('div');cl.style.cssText='padding:10px 16px;font-size:13px;cursor:pointer;color:#aaa;border-top:1px solid #eee';cl.textContent='キャンセル';cl.onclick=()=>pop.remove();pop.appendChild(cl);
@@ -1040,7 +1097,18 @@ function showDonePopup(sid,pid,cx,cy){
 // スマホ判定（実デバイス幅で判定、プレビューに影響しない）
 if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   const sp=document.createElement('style');
-  sp.textContent='.col-info{width:100px!important;min-width:100px!important}.day-col{width:34px!important;min-width:34px!important}.btn-sm{display:none!important}.chk{display:none!important}.sort-handle{display:none!important}.sort-handle-site{display:none!important}.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}.site-sub{display:none!important}.site-name{font-size:10px}.proc-name{font-size:10px}.proc-meta{max-width:100%!important;font-size:9px}';
+  sp.textContent=
+    '.col-info{width:100px!important;min-width:100px!important}'+
+    '.day-col{width:34px!important;min-width:34px!important}'+
+    '.btn-sm{display:none!important}'+
+    '.chk{display:none!important}'+
+    '.sort-handle{display:none!important}'+
+    '.sort-handle-site{display:none!important}'+
+    '.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}'+
+    '.site-sub{display:none!important}'+
+    '.site-name{font-size:10px}'+
+    '.proc-name{font-size:10px}'+
+    '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}';
   document.head.appendChild(sp);
 }
 loadMasters();
