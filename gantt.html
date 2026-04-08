@@ -166,7 +166,7 @@ let viewStart,viewEnd;
 })();
 
 let sites=[];
-let nextSid=100,nextPid=1000;
+let nextSid=100,nextPid=1000,nextCid=10000;
 let masters={clients:[],persons:[],procNames:[]};
 
 function loadMasters(){
@@ -189,18 +189,25 @@ function loadData(){
           if(p.startD||p.endD)p.periods.push({startD:p.startD||'',endD:p.endD||''});
           delete p.startD;delete p.endD;
         }
+        if(!p.children)p.children=[];
       }));
       nextSid=Math.max(nextSid,...sites.map(s=>s.id))+1;
       const pids=sites.flatMap(s=>s.processes.map(p=>p.id));
       if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
+      const cids=sites.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id)));
+      if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
     }
   }catch(e){}
   if(!sites.length)sites=[
     {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
-      {id:101,name:'クロス 148m²',person:'秀力内装',area:'148m²',periods:[{startD:'2026-04-03',endD:'2026-04-07'}],done:false,color:PC[0]},
-      {id:102,name:'畳表替え',person:'岩瀬畳店',area:'',periods:[{startD:'2026-04-05',endD:'2026-04-10'}],done:false,color:PC[1]},
-      {id:103,name:'エアコン新設',person:'大川龍真',area:'',periods:[{startD:'2026-04-09',endD:'2026-04-09'}],done:true,color:PC[2]},
-      {id:104,name:'クリーニング',person:'Eサービス',area:'3DK',periods:[],done:false,color:PC[5]},
+      {id:101,name:'内装工事',person:'秀力内装',area:'',periods:[{startD:'2026-04-03',endD:'2026-04-07'}],done:false,color:PC[0],children:[
+        {id:1011,name:'クロス貼替',area:'148m²'},
+        {id:1012,name:'CF貼替',area:'32m²'},
+        {id:1013,name:'ソフト巾木',area:'30m'},
+      ]},
+      {id:102,name:'畳表替え',person:'岩瀬畳店',area:'',periods:[{startD:'2026-04-05',endD:'2026-04-10'}],done:false,color:PC[1],children:[]},
+      {id:103,name:'エアコン新設',person:'大川龍真',area:'',periods:[{startD:'2026-04-09',endD:'2026-04-09'}],done:true,color:PC[2],children:[]},
+      {id:104,name:'クリーニング',person:'Eサービス',area:'3DK',periods:[],done:false,color:PC[5],children:[]},
     ]},
     {id:2,name:'ラバネストヒル2号館 203',addr:'埼玉県和光市南1-26-25',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-07',koukiEnd:'2026-04-18',dropboxUrl:'',processes:[
       {id:201,name:'クロス貼替',person:'有限会社彩建',area:'100m²',periods:[{startD:'2026-04-07',endD:'2026-04-14'}],done:false,color:PC[0]},
@@ -226,7 +233,7 @@ function rebuildSelects(){
 }
 
 // ドラッグ状態
-let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false};
+let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 
 function makeBar(col,spanCount,label,isDone,isShort){
   const bar=document.createElement('div');
@@ -382,13 +389,19 @@ function render(){
         procTd.className='col-info';
         const meta=[proc.person,proc.area].filter(Boolean).join('·');
         const nodateBadge=procWarn?'<span class="badge-procwarn">⚠ 未発注</span>':(!hasPeriod?'<span class="badge-nodate">未定</span>':'');
+        const children=proc.children||[];
+        const hasChildren=children.length>0;
+        const childCollapsed=proc.childCollapsed||false;
+        const toggleIcon=hasChildren?(childCollapsed?'▶':'▼'):'';
         procTd.innerHTML=`<div class="proc-inner">
           <span class="sort-handle" data-proc="${proc.id}" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
           <div class="chk${proc.done?' done':''}" onclick="toggleDone(${proc.id})">${proc.done?'✓':''}</div>
+          ${hasChildren?`<span style="cursor:pointer;font-size:11px;color:#888;flex-shrink:0;width:12px" onclick="toggleChildren(${proc.id})">${toggleIcon}</span>`:'<span style="width:12px;flex-shrink:0"></span>'}
           <span class="proc-name${proc.done?' done':''}">${esc(proc.name)}</span>
           ${nodateBadge}
           <span class="proc-meta">${esc(meta)}</span>
           <button class="btn btn-sm" style="flex-shrink:0" onclick="openProcModal(${site.id},${proc.id})">編集</button>
+          <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openChildModal(${site.id},${proc.id},null)" title="子項目追加">＋</button>
           </div>`;
         procRow.appendChild(procTd);
 
@@ -437,19 +450,47 @@ function render(){
           sc.appendChild(bar);
         });
 
-        // 空きセルクリックで新しいperiod追加
+        // 空きセルのmousedownで新しいperiodのドラッグ開始
         dayCells.forEach((td,di)=>{
-          td.ondblclick=()=>{
+          td.onmousedown=(e)=>{
+            if(e.target.closest('[data-handle]')||e.target.closest('.bar'))return;
+            e.preventDefault();
+            const d=days[di];
+            barDrag={active:true,type:'right',isKouki:false,isNew:true,
+              siteId:site.id,procId:proc.id,periodIdx:-1,
+              startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
+            // 仮periodを追加
             const site2=sites.find(x=>x.id===site.id);
             const proc2=site2&&site2.processes.find(x=>x.id===proc.id);
-            if(!proc2)return;
-            const d=days[di];
-            proc2.periods.push({startD:fmt(d),endD:fmt(d)});
-            saveData();render();
+            if(proc2){proc2.periods.push({startD:fmt(d),endD:fmt(d)});barDrag.periodIdx=proc2.periods.length-1;}
+            render();
           };
         });
 
         frag.appendChild(procRow);
+
+        // 子項目行
+        if(!proc.childCollapsed&&children.length>0){
+          children.forEach(child=>{
+            const childRow=document.createElement('tr');
+            childRow.className='row-proc'+(proc.done?' done':'');
+            childRow.style.height='22px';
+            const childTd=document.createElement('td');
+            childTd.className='col-info';
+            childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
+              <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
+              <span style="font-size:11px;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}</span>
+              <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
+              </div>`;
+            childRow.appendChild(childTd);
+            days.forEach(day=>{
+              const td=document.createElement('td');
+              td.className='day-cell'+(proc.done?' wk-cell':isWk(day)?' wk-cell':isToday(day)?' tod-cell':'');
+              childRow.appendChild(td);
+            });
+            frag.appendChild(childRow);
+          });
+        }
       });
     }
   });
@@ -521,7 +562,11 @@ document.addEventListener('mousemove',function(e){
 });
 
 document.addEventListener('mouseup',function(e){
-  if(barDrag.active){barDrag.active=false;saveData();}
+  if(barDrag.active){
+    barDrag.active=false;
+    barDrag.isNew=false;
+    saveData();
+  }
 });
 
 // 物件・工程の並び替え
@@ -588,6 +633,10 @@ document.addEventListener('mouseup',function(e){
   }
 },true);
 
+function toggleChildren(procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
+  render();
+}
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
 function toggleDone(pid){for(const s of sites)for(const p of s.processes)if(p.id===pid){p.done=!p.done;break;}render();}
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
@@ -641,45 +690,59 @@ function openSiteModal(id){
 
 function openProcModal(siteId,procId){
   const site=sites.find(x=>x.id===siteId);
-  const p=procId?site.processes.find(x=>x.id===procId):{name:'',person:'',area:'',periods:[],done:false,color:PC[0]};
+  const p=procId?site.processes.find(x=>x.id===procId):{name:'',person:'',area:'',periods:[],done:false,color:PC[0],children:[]};
   const isNew=!procId;
   const delBtn=!isNew?`<button class="btn btn-danger" onclick="delProc(${siteId},${procId})">削除</button>`:'';
   const nval=p.name||'';
-  const nInList=masters.procNames.includes(nval);
-  const nOpts=masters.procNames.map(v=>`<option value="${esc(v)}"${v===nval?' selected':''}>${esc(v)}</option>`).join('')
-    +`<option value="__custom__"${!nInList&&nval?' selected':''}>（直接入力）</option>`;
   const pval=p.person||'';
-  const pInList=masters.persons.includes(pval);
-  const pOpts=masters.persons.map(v=>`<option value="${esc(v)}"${v===pval?' selected':''}>${esc(v)}</option>`).join('')
-    +`<option value="__custom__"${!pInList&&pval?' selected':''}>（直接入力）</option>`;
-  const copts=PC.map((c,i)=>`<option value="${c}"${c===p.color?' selected':''}>${CNAMES[i]}</option>`).join('');
 
-  // 期間リスト
+  const nOpts=`<option value=""${!nval?' selected':''}>-- 選択 --</option>`+masters.procNames.map(v=>`<option value="${esc(v)}"${v===nval?' selected':''}>${esc(v)}</option>`).join('');
+  const pOpts=`<option value=""${!pval?' selected':''}>-- 選択 --</option>`+masters.persons.map(v=>`<option value="${esc(v)}"${v===pval?' selected':''}>${esc(v)}</option>`).join('');
+
   const periods=p.periods||[];
   const periodRows=periods.map((pd,i)=>`
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
       <input type="date" value="${pd.startD||''}" onchange="updatePeriod(${procId||'null'},${i},'startD',this.value)" style="flex:1;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
       <span style="font-size:11px;color:#888">〜</span>
       <input type="date" value="${pd.endD||''}" onchange="updatePeriod(${procId||'null'},${i},'endD',this.value)" style="flex:1;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <button class="btn btn-sm btn-danger" onclick="delPeriod(${procId||'null'},${i})">×</button>
+      <button class="btn btn-sm btn-danger" onclick="delPeriod(${procId||'null'},${i})" style="flex-shrink:0">×</button>
     </div>`).join('');
 
+  const children=p.children||[];
+  const selOpts=`<option value="">-- 選択 --</option>`+masters.procNames.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const childRows=children.map((c,i)=>`
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+      <span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
+      <select style="width:110px;flex-shrink:0;font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:4px" onchange="updateChildFromSel(this,${procId||'null'},${i})">
+        <option value="">-- 選択 --</option>
+        ${masters.procNames.map(v=>`<option value="${esc(v)}"${v===c.name?' selected':''}>${esc(v)}</option>`).join('')}
+      </select>
+      <input value="${esc(c.name||'')}" placeholder="工事項目名" onchange="updateChild(${procId||'null'},${i},'name',this.value)" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:60px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <button class="btn btn-sm btn-danger" onclick="delChildInModal(${procId||'null'},${i})" style="flex-shrink:0">×</button>
+    </div>`).join('');
+
+  const hasChildren=children.length>0;
+
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:440px;max-width:98vw">
     <h3>${isNew?'工程を追加':'工程を編集'}</h3>
     <div class="field"><label>工程名</label>
-      <select id="p_name_sel" onchange="document.getElementById('p_name_inp').value=this.value==='__custom__'?'':this.value" style="margin-bottom:4px">${nOpts}</select>
-      <input id="p_name_inp" placeholder="工程名を編集" value="${esc(nval)}">
+      <select id="p_name_sel" onchange="document.getElementById('p_name_inp').value=this.value" style="width:100%;font-size:13px;padding:5px 6px;border:1px solid #ccc;border-radius:6px">${nOpts}</select>
+      <input type="hidden" id="p_name_inp" value="${esc(nval)}">
     </div>
-    <div class="row2">
-      <div class="field"><label>担当者・業者</label>
-        <select id="p_person_sel" onchange="document.getElementById('p_person_inp').value=this.value==='__custom__'?'':this.value" style="margin-bottom:4px">${pOpts}</select>
-        <input id="p_person_inp" placeholder="担当者・業者名を編集" value="${esc(pval)}">
-      </div>
-      <div class="field"><label>面積・数量</label><input id="p_area" value="${esc(p.area||'')}"></div>
+    <div class="field"><label>工事項目 <span style="font-size:10px;color:#888">（任意・複数可）</span></label>
+      <div id="childList">${childRows}</div>
+      <button class="btn btn-sm btn-primary" style="margin-top:4px" onclick="addChildInModal(${procId||'null'})">＋ 工事項目を追加</button>
     </div>
-    <div class="field">
-      <label>期間 <span style="font-size:10px;color:#888">（ガントチャートのバー右ダブルクリックでも追加可）</span></label>
+    <div class="field" id="areaField" style="${hasChildren?'display:none':''}"><label>面積・数量 <span style="font-size:10px;color:#888">（工事項目なしの場合）</span></label>
+      <input id="p_area" value="${esc(p.area||'')}">
+    </div>
+    <div class="field"><label>担当者・業者</label>
+      <select id="p_person_sel" onchange="document.getElementById('p_person_inp').value=this.value" style="width:100%;font-size:13px;padding:5px 6px;border:1px solid #ccc;border-radius:6px;margin-bottom:4px">${pOpts}</select>
+      <input id="p_person_inp" placeholder="または直接入力" value="${esc(pval)}" style="${pval?'':'display:none'}">
+    </div>
+    <div class="field"><label>期間 <span style="font-size:10px;color:#888">（ガントチャートでドラッグでも追加可）</span></label>
       <div id="periodList">${periodRows}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:4px" onclick="addPeriodInModal(${procId||'null'})">＋ 期間を追加</button>
     </div>
@@ -701,6 +764,60 @@ function openProcModal(siteId,procId){
     </div></div></div>`;
 }
 
+
+function updateChildFromSel(sel,procId,idx){
+  const val=sel.value;
+  if(!val)return;
+  // 対応するテキスト入力にセット
+  const row=sel.closest('div');
+  const inp=row.querySelector('input[placeholder="工事項目名"]');
+  if(inp)inp.value=val;
+  updateChild(procId,idx,'name',val);
+}
+
+function updateChild(procId,idx,key,val){
+  if(procId===null){
+    const rows=document.querySelectorAll('#childList > div');
+    return;
+  }
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    if(p.children[idx])p.children[idx][key]=val;break;
+  }
+  saveData();
+}
+function delChildInModal(procId,idx){
+  if(procId===null){
+    document.querySelectorAll('#childList > div')[idx]&&document.querySelectorAll('#childList > div')[idx].remove();
+    return;
+  }
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.splice(idx,1);break;}
+  saveData();
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  if(site)openProcModal(site.id,procId);
+}
+function addChildInModal(procId){
+  const selOpts='<option value="">-- 選択 --</option>'+masters.procNames.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(procId===null){
+    const list=document.getElementById('childList');
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
+    div.innerHTML=`<span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
+      <select style="width:110px;flex-shrink:0;font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:4px" onchange="const inp=this.nextElementSibling;if(inp&&this.value)inp.value=this.value">
+        ${selOpts}
+      </select>
+      <input placeholder="工事項目名" class="new-child-name" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <input placeholder="数量" class="new-child-area" style="width:60px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <button class="btn btn-sm btn-danger" onclick="this.parentNode.remove()" style="flex-shrink:0">×</button>`;
+    list.appendChild(div);
+    const areaField=document.getElementById('areaField');
+    if(areaField)areaField.style.display='none';
+    return;
+  }
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.push({id:nextCid++,name:'',area:''});break;}
+  saveData();
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  if(site)openProcModal(site.id,procId);
+}
 function updatePeriod(procId,idx,key,val){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods[idx][key]=val;break;}
   saveData();
@@ -739,6 +856,43 @@ function selectColor(c){
   });
 }
 
+function openChildModal(siteId,procId,childId){
+  const site=sites.find(x=>x.id===siteId);
+  const proc=site&&site.processes.find(x=>x.id===procId);
+  if(!proc)return;
+  const child=childId?proc.children.find(x=>x.id===childId):{name:'',area:''};
+  const isNew=!childId;
+  const delBtn=!isNew?`<button class="btn btn-danger" onclick="delChild(${procId},${childId})">削除</button>`:'';
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>${isNew?'子項目を追加':'子項目を編集'}</h3>
+    <div class="field"><label>項目名</label><input id="c_name" value="${esc(child.name||'')}"></div>
+    <div class="field"><label>数量・面積</label><input id="c_area" value="${esc(child.area||'')}"></div>
+    <div class="modal-btns">
+      ${delBtn}
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveChild(${procId},${childId||'null'})">${isNew?'追加':'保存'}</button>
+    </div></div></div>`;
+}
+
+function saveChild(procId,childId){
+  const name=document.getElementById('c_name').value.trim();if(!name)return;
+  const area=document.getElementById('c_area').value.trim();
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    if(childId===null){p.children.push({id:nextCid++,name,area});}
+    else{const c=p.children.find(x=>x.id===childId);if(c)Object.assign(c,{name,area});}
+    break;
+  }
+  closeModal();
+}
+
+function delChild(procId,childId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    p.children=p.children.filter(x=>x.id!==childId);break;
+  }
+  closeModal();
+}
+
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
 
 function saveSite(id){
@@ -753,24 +907,33 @@ function saveSite(id){
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();}
 
 function saveProc(siteId,procId){
-  const name=document.getElementById('p_name_inp').value.trim();if(!name)return;
-  const person=document.getElementById('p_person_inp').value.trim();
+  const name=(document.getElementById('p_name_sel').value||document.getElementById('p_name_inp').value).trim();if(!name)return;
+  const person=(document.getElementById('p_person_inp').value||document.getElementById('p_person_sel').value).trim();
   const area=document.getElementById('p_area').value.trim();
   const color=document.getElementById('p_color').value;
   const site=sites.find(x=>x.id===siteId);if(!site)return;
 
-  let periods=[];
+  // 新規子項目をchildListから収集
+  const newChildren=[];
+  document.querySelectorAll('#childList > div').forEach(row=>{
+    const nm=row.querySelector('.new-child-name');
+    const ar=row.querySelector('.new-child-area');
+    if(nm&&nm.value.trim())newChildren.push({id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():''});
+  });
+
   if(procId===null){
-    // 新規：periodListから収集
+    const periods=[];
     document.querySelectorAll('#periodList > div').forEach(row=>{
-      const s=row.querySelector('.new-period-start, input[type=date]:first-child');
-      const e=row.querySelector('.new-period-end, input[type=date]:last-of-type');
-      if(s&&e)periods.push({startD:s.value,endD:e.value});
+      const inputs=row.querySelectorAll('input[type=date]');
+      if(inputs.length>=2)periods.push({startD:inputs[0].value,endD:inputs[1].value});
     });
-    site.processes.push({id:nextPid++,name,person,area,periods,done:false,color});
+    site.processes.push({id:nextPid++,name,person,area,periods,done:false,color,children:newChildren});
   }else{
     const p=site.processes.find(x=>x.id===procId);
-    if(p)Object.assign(p,{name,person,area,color});
+    if(p){
+      Object.assign(p,{name,person,area,color});
+      if(newChildren.length>0)p.children=[...p.children,...newChildren];
+    }
   }
   closeModal();
 }
@@ -842,7 +1005,11 @@ document.addEventListener('touchstart',function(e){
   if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};return;}
 },{passive:true});
 document.addEventListener('touchend',function(e){
-  if(barDrag.active){barDrag.active=false;saveData();}
+  if(barDrag.active){
+    barDrag.active=false;
+    barDrag.isNew=false;
+    saveData();
+  }
 },{passive:true});
 
 loadMasters();
