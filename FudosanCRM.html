@@ -657,8 +657,22 @@ function App(){
     try{await gasPost({action:"save",customers:nd});flash(`✓ ${newStatus==="成約"?"成約":"見送り（購入リストに残ります）"}`);}catch(e){flash("⚠️ 保存失敗");}
   };
   const del=async()=>{if(!confirm(`「${form.n}」を削除しますか？`))return;if(form._spId){try{await gasPost({action:"deleteCustomer",spId:form._spId});}catch(e){}}const nd=data.filter(x=>x.id!==form.id);setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();};
-  const addHistory=()=>{if(!histForm.content.trim()){alert("内容を入力してください");return;}setForm(f=>({...f,history:[{id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment},...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};
-  const toggleDone=hid=>setForm(f=>({...f,history:(f.history||[]).map(h=>h.id===hid?{...h,done:!h.done}:h)}));
+  const addHistory=async()=>{if(!histForm.content.trim()){alert("内容を入力してください");return;}const newEntry={id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment};
+    // Googleカレンダーにイベント登録
+    try{
+      const datetime=histForm.date+"T09:00:00";
+      const res=await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName})});
+      const json=await res.json();
+      if(json.ok&&json.data)newEntry.calEventId=json.data;
+    }catch(e){console.log("カレンダー登録失敗",e);}
+    setForm(f=>({...f,history:[newEntry,...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};;
+  const toggleDone=async(hid)=>{
+    const h=form.history?.find(x=>x.id===hid);
+    if(h&&!h.done&&h.calEventId){
+      try{await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"deleteCalEvent",eventId:h.calEventId})});}catch(e){}
+    }
+    setForm(f=>({...f,history:(f.history||[]).map(x=>x.id===hid?{...x,done:!x.done}:x)}));
+  };
   const delHist=hid=>setForm(f=>({...f,history:(f.history||[]).filter(h=>h.id!==hid)}));
   const addBuyer=async()=>{
     if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}
