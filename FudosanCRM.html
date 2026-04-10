@@ -328,7 +328,7 @@ input,select,textarea,button{font-family:'Noto Sans JP',sans-serif}
 const { useState, useEffect, useCallback, useRef } = React;
 
 // ═══ GAS経由SharePoint設定 ═══
-const GAS_URL   = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
+const GAS_URL   = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
 const ADMIN_PASS = "admin1234";
 
 // GAS GET リクエスト
@@ -903,7 +903,7 @@ async function svGetToken() {
 
 async function svSubmitToSP(data) {
   // GAS経由でSharePointに送信（no-corsでCORSエラー回避）
-  const GAS = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
+  const GAS = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
   try {
     await fetch(GAS, {
       method: "POST",
