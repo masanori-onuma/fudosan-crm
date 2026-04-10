@@ -661,7 +661,8 @@ function App(){
     // Googleカレンダーにイベント登録
     try{
       const datetime=histForm.date+"T09:00:00";
-      const res=await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName})});
+      const params=new URLSearchParams({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName});
+      const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
       const json=await res.json();
       if(json.ok&&json.data)newEntry.calEventId=json.data;
     }catch(e){console.log("カレンダー登録失敗",e);}
@@ -669,7 +670,7 @@ function App(){
   const toggleDone=async(hid)=>{
     const h=form.history?.find(x=>x.id===hid);
     if(h&&!h.done&&h.calEventId){
-      try{await fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"deleteCalEvent",eventId:h.calEventId})});}catch(e){}
+      try{await fetch(`${GAS_URL}?action=deleteCalEvent&eventId=${encodeURIComponent(h.calEventId)}`,{redirect:"follow"});}catch(e){}
     }
     setForm(f=>({...f,history:(f.history||[]).map(x=>x.id===hid?{...x,done:!x.done}:x)}));
   };
