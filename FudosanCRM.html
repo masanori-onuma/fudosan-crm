@@ -594,21 +594,21 @@ function App(){
   useEffect(()=>{if(!loaded)return;const check=()=>{const ti=new Date().toISOString().slice(0,10);const mine=isAdmin?data:data.filter(c=>c.staff===myName);const hits=mine.filter(c=>c.ad===ti&&c.s!=="成約"&&c.s!=="見送り");if(hits.length>0){setAlarms(hits);if(navigator.vibrate)navigator.vibrate([300,100,300]);}};if(!alarmChecked.current){check();alarmChecked.current=true;}const t=setInterval(check,60000);return()=>clearInterval(t);},[data,loaded,isAdmin,myName]);
   const getList=useCallback(()=>{let r=data.filter(c=>c.mode===mode);if(!isAdmin)r=r.filter(c=>c.staff===myName);if(isAdmin&&staffFilter!=="all")r=r.filter(c=>c.staff===staffFilter);if(filter==="all")r=r.filter(c=>c.s!=="成約");else r=r.filter(c=>c.s===filter);if(sq){const q=sq.toLowerCase();r=r.filter(c=>[c.n,c.k,c.a,c.ar,c.m,c.p,c.sp_addr].some(v=>(v||"").toLowerCase().includes(q)));}r.sort((a,b)=>{let v=0;if(sort.k==="no")v=a.id-b.id;else if(sort.k==="name")v=(a.n||"").localeCompare(b.n||"","ja");else if(sort.k==="prospect")v=pOrd(a.pr)-pOrd(b.pr);else if(sort.k==="action")v=(a.ad||"9999").localeCompare(b.ad||"9999");else if(sort.k==="staff")v=(a.staff||"").localeCompare(b.staff||"","ja");return sort.asc?v:-v;});return r;},[data,mode,isAdmin,myName,staffFilter,filter,sq,sort]);
   const ff=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const openNew=()=>{const base={mode,staff:myName,s:mode==="buy"?"未接触":"査定前",pr:"",d:"",ad:"",ac:"",n:"",k:"",p:"",e:"",a:"",m:"",history:[]};const ex=mode==="buy"?{t:"",ar:"",b:"",l:""}:{sp_addr:"",sp_type:"",sp_area:"",sp_assess:"",sp_price:"",sp_reason:"",sp_timing:"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]};setForm({...base,...ex});setFormTab("info");setModal("new");};
+  const openNew=()=>{const base={mode,staff:myName,s:mode==="buy"?"未接触":"査定前",pr:"",d:"",ad:"",at:"",ate:"",ac:"",al:"",aa:[],am:"",n:"",k:"",p:"",e:"",a:"",m:"",history:[]};const ex=mode==="buy"?{t:"",ar:"",b:"",l:""}:{sp_addr:"",sp_type:"",sp_area:"",sp_assess:"",sp_price:"",sp_reason:"",sp_timing:"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]};setForm({...base,...ex});setFormTab("info");setModal("new");};
   const openEdit=c=>{setForm({...c});setFormTab("info");setModal("edit");};
   const closeModal=()=>setModal(null);
-  const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}let currentForm={...form};
-    if(histForm.content.trim()){
-      const newEntry={id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment};
+  const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}if(form.ad&&!form.at){alert("開始時間を入力してください");return;}let currentForm={...form};
+    // 次回アクションがあればカレンダーに登録
+    if(form.ad&&form.at&&form.ac){
       try{
-        const datetime=histForm.date+"T09:00:00";
-        const params=new URLSearchParams({action:"createCalEvent",title:histForm.content,datetime,staffName:currentForm.staff||myName});
+        const datetime=form.ad+"T"+form.at+":00";
+        const endtime=form.ate?form.ad+"T"+form.ate+":00":"";
+        const alarms=JSON.stringify(form.aa||[]);
+        const params=new URLSearchParams({action:"createCalEvent",title:form.ac,datetime,endtime,location:form.al||"",description:form.am||"",alarms,staffName:form.staff||myName});
         const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
         const json=await res.json();
-        if(json.ok&&json.data)newEntry.calEventId=json.data;
+        if(json.ok&&json.data)currentForm={...currentForm,calEventId:json.data};
       }catch(e){console.log("カレンダー登録失敗",e);}
-      currentForm={...currentForm,history:[newEntry,...(currentForm.history||[])]};
-      setHistForm({date:todayStr(),content:"",comment:""});
     }
     const c={...currentForm,b:parseInt(currentForm.b)||0,staff:currentForm.staff||myName};let nd;if(modal==="edit"){nd=data.map(x=>x.id===c.id?c:x);}else{c.id=data.length?Math.max(...data.map(x=>x.id))+1:1;nd=[...data,c];}setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ 保存失敗");}};
   // カードから直接ステータス変更して即保存
@@ -681,10 +681,6 @@ function App(){
     }catch(e){console.log("カレンダー登録失敗",e);}
     setForm(f=>({...f,history:[newEntry,...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};;
   const toggleDone=async(hid)=>{
-    const h=form.history?.find(x=>x.id===hid);
-    if(h&&!h.done&&h.calEventId){
-      try{await fetch(`${GAS_URL}?action=deleteCalEvent&eventId=${encodeURIComponent(h.calEventId)}`,{redirect:"follow"});}catch(e){}
-    }
     setForm(f=>({...f,history:(f.history||[]).map(x=>x.id===hid?{...x,done:!x.done}:x)}));
   };
   const delHist=hid=>setForm(f=>({...f,history:(f.history||[]).filter(h=>h.id!==hid)}));
@@ -845,7 +841,47 @@ function App(){
   </div>);
 }
 
-function InfoTab({form,ff,statuses}){return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><FL label="氏名 *" span={1}><input style={S} value={form.n||""} onChange={e=>ff("n",e.target.value)} placeholder="田中 太郎"/></FL><FL label="フリガナ" span={1}><input style={S} value={form.k||""} onChange={e=>ff("k",e.target.value)} placeholder="タナカ タロウ"/></FL><FL label="📞 電話番号" span={1}><input style={S} value={form.p||""} onChange={e=>ff("p",e.target.value)} placeholder="090-1234-5678"/></FL><FL label="✉️ メール" span={1}><input style={S} value={form.e||""} onChange={e=>ff("e",e.target.value)} placeholder="example@email.com"/></FL><FL label="現住所"><input style={S} value={form.a||""} onChange={e=>ff("a",e.target.value)} placeholder="東京都〇〇区"/></FL>{form.mode==="buy"&&<><FL label="希望種別" span={1}><select style={S} value={form.t||""} onChange={e=>ff("t",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望エリア" span={1}><input style={S} value={form.ar||""} onChange={e=>ff("ar",e.target.value)} placeholder="渋谷・恵比寿"/></FL><FL label="予算（万円）" span={1}><input style={S} value={form.b||""} onChange={e=>ff("b",e.target.value)} placeholder="5000"/></FL><FL label="間取り" span={1}><input style={S} value={form.l||""} onChange={e=>ff("l",e.target.value)} placeholder="2LDK"/></FL></>}<FL label="ステータス" span={1}><select style={S} value={form.s||statuses[0]} onChange={e=>ff("s",e.target.value)}>{statuses.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="見込み度" span={1}><select style={S} value={form.pr||""} onChange={e=>ff("pr",e.target.value)}><option value="">選択</option>{["高","中","低"].map(v=><option key={v}>{v}</option>)}</select></FL><FL label="初回接触日" span={1}><input style={S} type="date" value={form.d||""} onChange={e=>ff("d",e.target.value)}/></FL><FL label="⏰ 次回アクション日" span={1}><input style={S} type="date" value={form.ad||""} onChange={e=>ff("ad",e.target.value)}/></FL><FL label="アクション内容"><input style={S} value={form.ac||""} onChange={e=>ff("ac",e.target.value)} placeholder="内覧予約確認"/></FL><FL label="メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.m||""} onChange={e=>ff("m",e.target.value)} placeholder="特記事項"/></FL></div>);}
+function InfoTab({form,ff,statuses}){
+  const alarmUnits=[["分前","min"],["時間前","hour"],["日前","day"]];
+  const addAlarm=()=>ff("aa",[...(form.aa||[]),{id:Date.now(),value:30,unit:"min"}]);
+  const updAlarm=(id,k,v)=>ff("aa",(form.aa||[]).map(a=>a.id===id?{...a,[k]:v}:a));
+  const delAlarm=id=>ff("aa",(form.aa||[]).filter(a=>a.id!==id));
+  return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+    <FL label="氏名 *" span={1}><input style={S} value={form.n||""} onChange={e=>ff("n",e.target.value)} placeholder="田中 太郎"/></FL>
+    <FL label="フリガナ" span={1}><input style={S} value={form.k||""} onChange={e=>ff("k",e.target.value)} placeholder="タナカ タロウ"/></FL>
+    <FL label="📞 電話番号" span={1}><input style={S} value={form.p||""} onChange={e=>ff("p",e.target.value)} placeholder="090-1234-5678"/></FL>
+    <FL label="✉️ メール" span={1}><input style={S} value={form.e||""} onChange={e=>ff("e",e.target.value)} placeholder="example@email.com"/></FL>
+    <FL label="現住所"><input style={S} value={form.a||""} onChange={e=>ff("a",e.target.value)} placeholder="東京都〇〇区"/></FL>
+    {form.mode==="buy"&&<><FL label="希望種別" span={1}><select style={S} value={form.t||""} onChange={e=>ff("t",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望エリア" span={1}><input style={S} value={form.ar||""} onChange={e=>ff("ar",e.target.value)} placeholder="渋谷・恵比寿"/></FL><FL label="予算（万円）" span={1}><input style={S} value={form.b||""} onChange={e=>ff("b",e.target.value)} placeholder="5000"/></FL><FL label="間取り" span={1}><input style={S} value={form.l||""} onChange={e=>ff("l",e.target.value)} placeholder="2LDK"/></FL></>}
+    <FL label="ステータス" span={1}><select style={S} value={form.s||statuses[0]} onChange={e=>ff("s",e.target.value)}>{statuses.map(v=><option key={v}>{v}</option>)}</select></FL>
+    <FL label="見込み度" span={1}><select style={S} value={form.pr||""} onChange={e=>ff("pr",e.target.value)}><option value="">選択</option>{["高","中","低"].map(v=><option key={v}>{v}</option>)}</select></FL>
+    <FL label="初回接触日" span={1}><input style={S} type="date" value={form.d||""} onChange={e=>ff("d",e.target.value)}/></FL>
+    <FL label="メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.m||""} onChange={e=>ff("m",e.target.value)} placeholder="特記事項"/></FL>
+    <FL label="⏰ 次回アクション" span={2}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付 *</label><input style={S} type="date" value={form.ad||""} onChange={e=>ff("ad",e.target.value)}/></div>
+        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>開始時間 *</label><input style={S} type="time" value={form.at||""} onChange={e=>ff("at",e.target.value)}/></div>
+        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>終了時間</label><input style={S} type="time" value={form.ate||""} onChange={e=>ff("ate",e.target.value)}/></div>
+      </div>
+      <input style={{...S,marginBottom:8}} value={form.ac||""} onChange={e=>ff("ac",e.target.value)} placeholder="タイトル（例：内覧立会い）"/>
+      <input style={{...S,marginBottom:8}} value={form.al||""} onChange={e=>ff("al",e.target.value)} placeholder="📍 場所（任意）"/>
+      <textarea style={{...S,resize:"vertical",minHeight:60,marginBottom:8}} value={form.am||""} onChange={e=>ff("am",e.target.value)} placeholder="説明（任意）"/>
+      <div style={{marginBottom:6}}>
+        {(form.aa||[]).map(a=>(
+          <div key={a.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:12,color:"#718096",flexShrink:0}}>🔔</span>
+            <input style={{...S,width:70,flex:"none"}} type="number" min={1} value={a.value} onChange={e=>updAlarm(a.id,"value",e.target.value)}/>
+            <select style={{...S,flex:1}} value={a.unit} onChange={e=>updAlarm(a.id,"unit",e.target.value)}>
+              {alarmUnits.map(([l,v])=><option key={v} value={v}>{l}</option>)}
+            </select>
+            <span style={{fontSize:11,color:"#718096",flexShrink:0}}>前</span>
+            <button onClick={()=>delAlarm(a.id)} style={{background:"#FFF5F5",border:"none",borderRadius:6,padding:"5px 8px",fontSize:11,cursor:"pointer",color:"#C0392B",flexShrink:0}}>✕</button>
+          </div>
+        ))}
+        <button onClick={addAlarm} style={{background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#1F4E79",fontWeight:700,cursor:"pointer"}}>＋ 通知を追加</button>
+      </div>
+    </FL>
+  </div>);}
 function SellTab({form,ff}){return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><FL label="売却物件所在地"><input style={S} value={form.sp_addr||""} onChange={e=>ff("sp_addr",e.target.value)} placeholder="東京都〇〇区〇〇1-2-3"/></FL><FL label="種別" span={1}><select style={S} value={form.sp_type||""} onChange={e=>ff("sp_type",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="専有面積（㎡）" span={1}><input style={S} value={form.sp_area||""} onChange={e=>ff("sp_area",e.target.value)} placeholder="68"/></FL><FL label="査定額（万円）" span={1}><input style={S} value={form.sp_assess||""} onChange={e=>ff("sp_assess",e.target.value)} placeholder="2800"/></FL><FL label="売出価格（万円）" span={1}><input style={S} value={form.sp_price||""} onChange={e=>ff("sp_price",e.target.value)} placeholder="2980"/></FL><FL label="売却理由" span={1}><select style={S} value={form.sp_reason||""} onChange={e=>ff("sp_reason",e.target.value)}><option value="">選択</option>{SELL_REASONS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望時期" span={1}><select style={S} value={form.sp_timing||""} onChange={e=>ff("sp_timing",e.target.value)}><option value="">選択</option>{SELL_TIMINGS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="内覧回数" span={1}><input style={S} value={form.sp_nairanCount||"0"} onChange={e=>ff("sp_nairanCount",e.target.value)} placeholder="0"/></FL><FL label="内覧反応・メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.sp_nairanNote||""} onChange={e=>ff("sp_nairanNote",e.target.value)} placeholder="前向きな反応あり"/></FL></div>);}
 function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer,registerBuyerAndCreateFolder,linkExistingBuyerAndCreateFolder,allBuyCustomers,onBuyerQuickStatus}){
   const [showLinkModal,setShowLinkModal]=React.useState(false);
