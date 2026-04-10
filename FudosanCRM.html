@@ -521,7 +521,13 @@ function LoginScreen({onLogin}){
   const [pass,setPass]=useState("");
   const [err,setErr]=useState("");
   const [role,setRole]=useState("staff");
-  useEffect(()=>{(async()=>{try{const list=await loadStaffFromSP();if(list.length>0)setStaffList(list);else setStaffList([{name:"小沼由美子",pass:"1111"},{name:"奈良豊成",pass:"2222"}]);}catch(e){setStaffList([{name:"小沼由美子",pass:"1111"},{name:"奈良豊成",pass:"2222"}]);}setLoading(false);})();},[]);
+  useEffect(()=>{(async()=>{
+    // キャッシュを先に表示
+    try{const r=await store.get("staff");if(r?.value){const cached=JSON.parse(r.value);if(cached.length>0){setStaffList(cached);setLoading(false);}}}catch(e){}
+    // バックグラウンドで最新取得
+    try{const list=await loadStaffFromSP();if(list.length>0){setStaffList(list);await store.set("staff",JSON.stringify(list));}}catch(e){}
+    setLoading(false);
+  })();},[]);
   const login=()=>{setErr("");if(role==="admin"){if(pass===ADMIN_PASS)onLogin({role:"admin",name:"管理者"});else setErr("パスワードが違います");}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
   return(<div style={{minHeight:"100vh",background:"#F4F6F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{fontSize:48,marginBottom:12}}>🏠</div>
@@ -586,9 +592,29 @@ function App(){
   const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
-  const fetchGAS=useCallback(async()=>{setSyncing(true);setSyncMsg("同期中…");try{const customers=await loadCustomersFromSP();if(customers.length>0){setData(customers);flash("✓ 同期完了");}else{setData(SAMPLE);flash("✓ 初回データ");}}catch(e){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}setSyncing(false);setLoaded(true);},[]);
-  const saveGAS=useCallback(async(nd)=>{try{await store.set("fudo",JSON.stringify(nd));}catch(e){}setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
-  useEffect(()=>{if(!user)return;fetchGAS();const t=setInterval(fetchGAS,120000);return()=>clearInterval(t);},[user]);
+  const fetchGAS=useCallback(async(background=false)=>{
+    // キャッシュを先に表示
+    if(!background){
+      try{const r=await store.get("fudo");if(r?.value){setData(JSON.parse(r.value));setLoaded(true);}}catch(e){}
+    }
+    setSyncing(true);
+    if(!background)setSyncMsg("同期中…");
+    try{
+      const customers=await loadCustomersFromSP();
+      if(customers.length>0){
+        setData(customers);
+        await store.set("fudo",JSON.stringify(customers));
+        flash("✓ 同期完了");
+      }else if(!background){
+        setData(SAMPLE);flash("✓ 初回データ");
+      }
+    }catch(e){
+      if(!background){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}
+    }
+    setSyncing(false);setLoaded(true);
+  },[]);
+  const saveGAS=useCallback(async(nd)=>{setSyncMsg("保存中…");try{await store.set("fudo",JSON.stringify(nd));await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
+  useEffect(()=>{if(!user)return;fetchGAS(false);const t=setInterval(()=>fetchGAS(true),120000);return()=>clearInterval(t);},[user]);
   const fetchSurveyCount=useCallback(async()=>{try{const surveys=await loadSurveysFromGAS();setSurveyCount(surveys.length);}catch(e){}},[]);
   useEffect(()=>{if(!user||isAdmin)return;fetchSurveyCount();const t=setInterval(fetchSurveyCount,600000);return()=>clearInterval(t);},[user,isAdmin]);
   const persist=useCallback(nd=>{setData(nd);clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>saveGAS(nd),1500);},[saveGAS]);
