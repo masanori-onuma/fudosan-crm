@@ -509,7 +509,7 @@ function render(){
             childTd.className='col-info';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
-              <span style="font-size:11px;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}</span>
+              <span style="font-size:11px;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
@@ -547,13 +547,13 @@ function render(){
               }
               const clbl=document.createElement('span');
               clbl.style.cssText='font-size:9px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
-              clbl.textContent=child.name+(child.area?' '+child.area:'');
+              clbl.textContent=child.name+(child.area?' '+child.area:'')+(child.note?' '+child.note:'');
               cbar.appendChild(clbl);
               // バーが短い時は右外にラベル
               if(span<=3){
                 const col2=document.createElement('div');
                 col2.style.cssText=`position:absolute;top:2px;left:${span*_dw+3}px;font-size:9px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
-                col2.textContent=child.name+(child.area?' '+child.area:'');
+                col2.textContent=child.name+(child.area?' '+child.area:'')+(child.note?' '+child.note:'');
                 cbar.appendChild(col2);
               }
               sc.appendChild(cbar);
@@ -790,7 +790,8 @@ function openProcModal(siteId,procId){
         ${masters.procNames.map(v=>`<option value="${esc(v)}"${v===c.name?' selected':''}>${esc(v)}</option>`).join('')}
       </select>
       <input value="${esc(c.name||'')}" placeholder="工事項目名" onchange="updateChild(${procId||'null'},${i},'name',this.value)" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:60px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:50px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+      <input value="${esc(c.note||'')}" placeholder="備考" onchange="updateChild(${procId||'null'},${i},'note',this.value)" style="width:70px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
       <button class="btn btn-sm btn-danger" onclick="delChildInModal(${procId||'null'},${i})" style="flex-shrink:0">×</button>
     </div>`).join('');
 
@@ -940,6 +941,7 @@ function openChildModal(siteId,procId,childId){
     <h3>${isNew?'子項目を追加':'子項目を編集'}</h3>
     <div class="field"><label>項目名</label><input id="c_name" value="${esc(child.name||'')}"></div>
     <div class="field"><label>数量・面積</label><input id="c_area" value="${esc(child.area||'')}"></div>
+    <div class="field"><label>備考</label><input id="c_note" placeholder="品番・メモなど" value="${esc(child.note||'')}"></div>
     <div class="modal-btns">
       ${delBtn}
       <button class="btn" onclick="closeModal()">キャンセル</button>
@@ -950,9 +952,10 @@ function openChildModal(siteId,procId,childId){
 function saveChild(procId,childId){
   const name=document.getElementById('c_name').value.trim();if(!name)return;
   const area=document.getElementById('c_area').value.trim();
+  const note=document.getElementById('c_note').value.trim();
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
-    if(childId===null){p.children.push({id:nextCid++,name,area});}
-    else{const c=p.children.find(x=>x.id===childId);if(c)Object.assign(c,{name,area});}
+    if(childId===null){p.children.push({id:nextCid++,name,area,note});}
+    else{const c=p.children.find(x=>x.id===childId);if(c)Object.assign(c,{name,area,note});}
     break;
   }
   closeModal();
