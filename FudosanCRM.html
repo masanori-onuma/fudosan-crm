@@ -996,12 +996,15 @@ function AttendanceTab(){
   const [month,setMonth]=useState(new Date().toISOString().slice(0,7));
   const [staffFilter,setStaffFilter]=useState("all");
   const [staffList,setStaffList]=useState([]);
+  const [showAddPaid,setShowAddPaid]=useState(false);
+  const [paidForm,setPaidForm]=useState({staffName:"",date:new Date().toISOString().slice(0,10),note:""});
+  const [saving,setSaving]=useState(false);
 
   useEffect(()=>{(async()=>{
-    try{const list=await gasGet("loadStaff");setStaffList(list);}catch(e){}
+    try{const list=await gasGet("loadStaff");setStaffList(list);if(list.length>0)setPaidForm(f=>({...f,staffName:list[0].name}));}catch(e){}
   })();},[]);
 
-  useEffect(()=>{(async()=>{
+  const reload=async()=>{
     setLoading(true);
     try{
       const params=new URLSearchParams({action:"loadAttendance",month});
@@ -1011,7 +1014,21 @@ function AttendanceTab(){
       if(json.ok)setRecords(json.data||[]);
     }catch(e){}
     setLoading(false);
-  })();},[month,staffFilter]);
+  };
+
+  useEffect(()=>{reload();},[month,staffFilter]);
+
+  const addPaidLeave=async()=>{
+    if(!paidForm.staffName||!paidForm.date){alert("担当者と日付を入力してください");return;}
+    setSaving(true);
+    try{
+      await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({action:"clockIn",staffName:paidForm.staffName,type:"有給",lat:"",lng:"",note:paidForm.note,datetime:paidForm.date+"T00:00:00.000Z"})});
+      setShowAddPaid(false);
+      setTimeout(()=>reload(),1000);
+    }catch(e){}
+    setSaving(false);
+  };
 
   // 日ごとに集計
   const byDate={};
@@ -1035,7 +1052,28 @@ function AttendanceTab(){
         <option value="all">全員</option>
         {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
+      <button onClick={()=>setShowAddPaid(v=>!v)} style={{background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,padding:"0 14px",fontSize:12,color:"#1F4E79",fontWeight:700,cursor:"pointer",flexShrink:0}}>＋ 有給</button>
     </div>
+    {showAddPaid&&(<div style={{background:"#EBF3FB",borderRadius:10,padding:"14px",marginBottom:14,border:"1px solid #BDD7EE"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:10}}>有給を登録</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>担当者</label>
+          <select style={S} value={paidForm.staffName} onChange={e=>setPaidForm(f=>({...f,staffName:e.target.value}))}>
+            {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
+        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label>
+          <input style={S} type="date" value={paidForm.date} onChange={e=>setPaidForm(f=>({...f,date:e.target.value}))}/>
+        </div>
+      </div>
+      <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>備考（任意）</label>
+        <input style={S} value={paidForm.note} onChange={e=>setPaidForm(f=>({...f,note:e.target.value}))} placeholder="例：年次有給"/>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setShowAddPaid(false)} style={{flex:1,padding:"10px",border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:8,fontSize:13,cursor:"pointer",color:"#718096"}}>キャンセル</button>
+        <button onClick={addPaidLeave} disabled={saving} style={{flex:2,padding:"10px",border:"none",background:"#1F4E79",borderRadius:8,fontSize:13,cursor:"pointer",color:"#fff",fontWeight:700}}>{saving?"保存中…":"登録する"}</button>
+      </div>
+    </div>)}
     {loading?<div style={{textAlign:"center",padding:"40px 0",color:"#718096"}}>⟳ 読み込み中…</div>
     :Object.keys(byDate).sort().reverse().map(date=>(
       <div key={date} style={{background:"#fff",border:"1px solid #E2E8F0",borderRadius:10,marginBottom:10,overflow:"hidden"}}>
@@ -1050,8 +1088,8 @@ function AttendanceTab(){
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {rows.map(r=>(
-                <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,background:r.type==="出勤"||r.type==="直行"?"#E8F5E9":"#FDECEA",borderRadius:8,padding:"4px 10px"}}>
-                  <span style={{fontSize:11,fontWeight:700,color:r.type==="出勤"||r.type==="直行"?"#00703C":"#C0392B"}}>{r.type}</span>
+                <div key={r.id} style={{display:"flex",alignItems:"center",gap:6,background:r.type==="有給"?"#FFF3E0":r.type==="出勤"||r.type==="直行"?"#E8F5E9":"#FDECEA",borderRadius:8,padding:"4px 10px"}}>
+                  <span style={{fontSize:11,fontWeight:700,color:r.type==="有給"?"#E65100":r.type==="出勤"||r.type==="直行"?"#00703C":"#C0392B"}}>{r.type}</span>
                   <span style={{fontSize:11,color:"#718096"}}>{toJST(r.datetime)}</span>
                   {r.lat&&r.lng&&<a href={`https://maps.google.com/?q=${r.lat},${r.lng}`} target="_blank" style={{fontSize:10,color:"#2E75B6"}}>📍</a>}
                 </div>
