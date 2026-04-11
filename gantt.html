@@ -331,6 +331,7 @@ function render(){
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
+      ${site.keyLocation?`<div class="site-sub site-key">🔑 ${esc(site.keyLocation)}</div>`:''}
       </div>`;
     siteRow.appendChild(siteTd);
     days.forEach(day=>{
@@ -752,6 +753,7 @@ function openSiteModal(id){
       <select id="s_client_sel" onchange="document.getElementById('s_client_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${cOpts}</select>
       <input id="s_client_inp" placeholder="直接入力" value="${cInpVal}" style="${cInpStyle}">
     </div>
+    <div class="field"><label>🔑 鍵所在</label><input id="s_key" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}"></div>
     <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
     <div class="modal-btns">
       ${delBtn}
@@ -975,8 +977,9 @@ function saveSite(id){
   const addr=document.getElementById('s_addr').value.trim();
   const client=document.getElementById('s_client_sel').value==='__custom__'?document.getElementById('s_client_inp').value.trim():document.getElementById('s_client_sel').value;
   const dropboxUrl=document.getElementById('s_dropbox').value.trim();
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,collapsed:false,koukiStart:'',koukiEnd:'',processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl});}
+  const keyLocation=document.getElementById('s_key').value.trim();
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,collapsed:false,koukiStart:'',koukiEnd:'',processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation});}
   closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();}
@@ -1127,7 +1130,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
     '.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}'+
-    '.site-sub{display:none!important}'+
+    '.site-sub{display:none!important}.site-key{display:block!important;font-size:9px;color:#555}'+
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
     '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}';
