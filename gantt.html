@@ -753,6 +753,10 @@ function openSiteModal(id){
       <select id="s_client_sel" onchange="document.getElementById('s_client_inp').style.display=this.value==='__custom__'?'':'none'" style="margin-bottom:4px">${cOpts}</select>
       <input id="s_client_inp" placeholder="直接入力" value="${cInpVal}" style="${cInpStyle}">
     </div>
+    <div class="row2">
+      <div class="field"><label>着工日</label><input type="date" id="s_kouki_start" value="${s.koukiStart||''}"></div>
+      <div class="field"><label>完成日</label><input type="date" id="s_kouki_end" value="${s.koukiEnd||''}"></div>
+    </div>
     <div class="field"><label>🔑 鍵所在</label><input id="s_key" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}"></div>
     <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
     <div class="modal-btns">
@@ -978,8 +982,10 @@ function saveSite(id){
   const client=document.getElementById('s_client_sel').value==='__custom__'?document.getElementById('s_client_inp').value.trim():document.getElementById('s_client_sel').value;
   const dropboxUrl=document.getElementById('s_dropbox').value.trim();
   const keyLocation=document.getElementById('s_key').value.trim();
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,collapsed:false,koukiStart:'',koukiEnd:'',processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation});}
+  const koukiStart=document.getElementById('s_kouki_start').value;
+  const koukiEnd=document.getElementById('s_kouki_end').value;
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,collapsed:false,koukiStart,koukiEnd,processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation,koukiStart,koukiEnd});}
   closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();}
