@@ -763,7 +763,7 @@ function openKoukiModal(siteId){
       <button class="btn btn-primary" onclick="saveKouki(${siteId})">保存</button>
     </div></div></div>`;
 }
-function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();render();}
+function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();saveData();render();}
 function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';closeModal();render();}
 
 function openSiteModal(id){
