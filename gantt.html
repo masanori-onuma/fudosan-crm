@@ -108,6 +108,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <header>
   <h1>リフォーム工程表</h1>
   <button class="btn btn-sm" onclick="openMasterModal()" style="margin-left:auto">⚙ マスター</button>
+  <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap"></span>
   <a href="FudosanCRM.html" style="font-size:12px;color:#888;text-decoration:none">← CRM</a>
 </header>
@@ -225,7 +226,23 @@ async function loadData(){
     ]},
   ];
 }
-function saveData(){const j=JSON.stringify(sites);localStorage.setItem('gantt_sites',j);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));}
+let _undoStack=[];
+function saveData(){
+  // undo用に直前状態を保存（最大20件）
+  _undoStack.push(JSON.stringify(sites));
+  if(_undoStack.length>20)_undoStack.shift();
+  const el=document.getElementById('undoBtn');if(el)el.disabled=false;
+  const j=JSON.stringify(sites);localStorage.setItem('gantt_sites',j);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));
+}
+function undoLast(){
+  if(!_undoStack.length)return;
+  const prev=_undoStack.pop();
+  sites=normalizeSites(JSON.parse(prev));
+  const j=JSON.stringify(sites);localStorage.setItem('gantt_sites',j);
+  showSyncStatus('元に戻しました',2000);gasSave('gantt_sites',sites);
+  const el=document.getElementById('undoBtn');if(el)el.disabled=_undoStack.length===0;
+  render();
+}
 
 function getDays(){
   let days=[],d=new Date(viewStart);
@@ -510,7 +527,8 @@ function render(){
             childTd.className='col-info';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
-              <span style="font-size:11px;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
+              <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
+              <span style="font-size:11px;color:${child.done?'#aaa':'#555'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${child.done?'text-decoration:line-through':''}">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
@@ -704,6 +722,20 @@ document.addEventListener('mouseup',function(e){
   }
 },true);
 
+function toggleChildDone(procId,childId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    const c=p.children.find(x=>x.id===childId);
+    if(c){
+      c.done=!c.done;
+      // 全子項目完了で親も完了
+      if(p.children.length>0&&p.children.every(x=>x.done))p.done=true;
+      // 一つでも未完了なら親を未完了に戻す
+      else if(!c.done)p.done=false;
+    }
+    break;
+  }
+  saveData();render();
+}
 function toggleChildren(procId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
   render();
