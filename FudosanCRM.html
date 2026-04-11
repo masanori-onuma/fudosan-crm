@@ -1,421 +1,237 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>不動産顧客管理</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-<script>window.addEventListener("pageshow",function(e){if(e.persisted){window.location.reload();}});</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+// ============================================================
+// 不動産顧客管理 GAS スクリプト（SharePoint連携版）
+// ============================================================
+const SP_HOST      = "reallinks524.sharepoint.com";
+const SP_SITE_NAME = "CRM";
 
-<!-- アンケート用スタイル（?surveyのとき表示） -->
-<style id="survey-style">
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans JP',sans-serif;background:#F4F6F9;color:#1A202C;min-height:100vh}
-input,select,textarea,button{font-family:'Noto Sans JP',sans-serif}
-::-webkit-scrollbar{display:none}
-.search-input::placeholder{color:rgba(255,255,255,.5)}
-@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
-
-/* アンケート用 */
-#survey-app{display:none}
-#survey-app.active{display:block}
-#crm-app{display:block}
-#crm-app.hidden{display:none}
-
-.sv-header{background:#1F4E79;color:#fff;padding:20px 18px 16px;text-align:center}
-.sv-header .logo{font-size:28px;margin-bottom:6px}
-.sv-header h1{font-size:17px;font-weight:700}
-.sv-header p{font-size:11px;opacity:.75;margin-top:4px;line-height:1.6}
-.sv-progress-bar{background:rgba(255,255,255,.2);border-radius:99px;height:4px;margin-top:14px;overflow:hidden}
-.sv-progress-fill{height:100%;background:#fff;border-radius:99px;transition:width .35s ease}
-
-.sv-step{display:none;padding:18px 16px}
-.sv-step.active{display:block}
-.sv-step-label{text-align:center;font-size:11px;color:#718096;margin-bottom:10px;font-weight:600;letter-spacing:.05em}
-.sv-step-title{font-size:17px;font-weight:700;color:#1F4E79;margin-bottom:4px;text-align:center}
-.sv-step-desc{font-size:12px;color:#718096;text-align:center;margin-bottom:18px;line-height:1.6}
-
-.sv-card{background:#fff;border-radius:14px;padding:18px 16px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:14px}
-.sv-field{margin-bottom:16px}
-.sv-field:last-child{margin-bottom:0}
-.sv-field label{display:block;font-size:11px;font-weight:700;color:#718096;margin-bottom:5px;letter-spacing:.04em}
-.sv-field label .req{color:#C0392B;margin-left:3px}
-.sv-field input[type=text],.sv-field input[type=tel],.sv-field input[type=email],.sv-field input[type=number],.sv-field select,.sv-field textarea{
-  width:100%;padding:13px 14px;border:1.5px solid #E2E8F0;border-radius:10px;
-  font-size:16px;font-family:inherit;color:#1A202C;background:#fff;
-  outline:none;-webkit-appearance:none;appearance:none;transition:border-color .2s
+function getProps() {
+  const props = PropertiesService.getScriptProperties();
+  return {
+    tenantId     : props.getProperty("TENANT_ID"),
+    clientId     : props.getProperty("CLIENT_ID"),
+    clientSecret : props.getProperty("CLIENT_SECRET"),
+  };
 }
-.sv-field input:focus,.sv-field select:focus,.sv-field textarea:focus{border-color:#2E75B6}
-.sv-field textarea{resize:vertical;min-height:80px;line-height:1.6}
 
-.sv-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 20px}
-.sv-mode-btn{padding:24px 12px;border:2px solid #E2E8F0;border-radius:14px;background:#fff;
-  font-family:inherit;font-size:13px;font-weight:700;color:#718096;cursor:pointer;
-  text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:8px}
-.sv-mode-btn .icon{font-size:32px;line-height:1}
-.sv-mode-btn.buy.selected{border-color:#1F4E79;background:#EBF3FB;color:#1F4E79}
-.sv-mode-btn.sell.selected{border-color:#00703C;background:#E8F5E9;color:#00703C}
-
-.sv-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.sv-choice-grid.col1{grid-template-columns:1fr}
-.sv-choice-btn{padding:12px 10px;border:1.5px solid #E2E8F0;border-radius:10px;background:#fff;
-  font-family:inherit;font-size:14px;color:#718096;cursor:pointer;text-align:center;transition:all .18s;line-height:1.4}
-.sv-choice-btn.selected{border-color:#1F4E79;background:#EBF3FB;color:#1F4E79;font-weight:700}
-.sv-choice-btn.sell-mode.selected{border-color:#00703C;background:#E8F5E9;color:#00703C}
-
-.sv-range-wrap{padding:4px 0}
-.sv-range-labels{display:flex;justify-content:space-between;font-size:11px;color:#718096;margin-bottom:6px}
-.sv-field input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1F4E79 50%,#E2E8F0 50%);border-radius:99px;outline:none;border:none;padding:0}
-.sv-field input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#1F4E79;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
-.sv-range-val{text-align:center;font-size:18px;font-weight:700;color:#1F4E79;margin-top:8px}
-
-.sv-nav-btns{display:flex;gap:10px;margin-top:16px}
-.sv-btn{flex:1;padding:15px;border:none;border-radius:12px;font-size:15px;font-family:inherit;cursor:pointer;font-weight:700;transition:opacity .15s,transform .1s}
-.sv-btn:active{transform:scale(.97)}
-.sv-btn-primary{background:#1F4E79;color:#fff}
-.sv-btn-sell{background:#00703C;color:#fff}
-.sv-btn-secondary{background:#fff;color:#718096;border:1.5px solid #E2E8F0;flex:0 0 80px}
-
-.sv-error-msg{color:#C0392B;font-size:12px;margin-top:5px;display:none}
-.sv-error-msg.show{display:block}
-
-#sv-done-screen{display:none;padding:32px 20px;text-align:center}
-#sv-done-screen.active{display:block}
-.sv-done-icon{font-size:56px;margin-bottom:14px}
-.sv-done-title{font-size:20px;font-weight:700;color:#1F4E79;margin-bottom:8px}
-.sv-done-sub{font-size:13px;color:#718096;line-height:1.7;margin-bottom:24px}
-.sv-staff-note{background:#EBF3FB;border-radius:10px;padding:12px 14px;font-size:11px;color:#1F4E79;line-height:1.7;margin-bottom:14px;text-align:left}
-.sv-staff-note strong{font-weight:700}
-.sv-json-box{background:#1A202C;color:#68D391;border-radius:12px;padding:14px;font-family:monospace;font-size:11px;word-break:break-all;text-align:left;line-height:1.7;margin-bottom:14px;max-height:160px;overflow-y:auto}
-.sv-copy-btn{width:100%;padding:15px;background:#D4EDDA;color:#00703C;border:1.5px solid #00703C;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px}
-.sv-copy-btn.copied{background:#00703C;color:#fff}
-.sv-reset-btn{width:100%;padding:13px;background:#F4F6F9;color:#718096;border:1.5px solid #E2E8F0;border-radius:12px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:500}
-</style>
-</head>
-<body>
-
-<!-- ═══ CRMアプリ（通常アクセス用） ═══ -->
-<div id="crm-app">
-  <div id="root"></div>
-</div>
-
-<!-- ═══ アンケートアプリ（?surveyアクセス用） ═══ -->
-<div id="survey-app">
-  <header class="sv-header">
-    <div class="logo">🏠</div>
-    <h1>お客様アンケート</h1>
-    <p>ご要望を詳しくお聞かせください<br>所要時間：約2〜3分</p>
-    <div class="sv-progress-bar"><div class="sv-progress-fill" id="sv-progress" style="width:0%"></div></div>
-  </header>
-
-  <!-- STEP 0: 購入 or 売却 -->
-  <div class="sv-step active" id="sv-step0">
-    <p class="sv-step-label" style="margin-top:8px">STEP 1 / 5</p>
-    <p class="sv-step-title">本日のご相談内容</p>
-    <p class="sv-step-desc">どちらのご相談でしょうか？</p>
-    <div class="sv-mode-grid">
-      <button class="sv-mode-btn buy" id="sv-btn-buy" onclick="svSelectMode('buy')">
-        <span class="icon">🔍</span><span>物件を<br>お探しの方</span>
-      </button>
-      <button class="sv-mode-btn sell" id="sv-btn-sell" onclick="svSelectMode('sell')">
-        <span class="icon">🏷️</span><span>物件を<br>売りたい方</span>
-      </button>
-    </div>
-    <p class="sv-error-msg" id="sv-err-mode" style="text-align:center">ご相談内容をお選びください</p>
-    <div class="sv-nav-btns" style="margin-top:0">
-      <button class="sv-btn sv-btn-primary" id="sv-mode-next-btn" onclick="svModeNext()">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 1: 基本情報 -->
-  <div class="sv-step" id="sv-step1">
-    <p class="sv-step-label">STEP 2 / 5</p>
-    <p class="sv-step-title">お客様情報</p>
-    <p class="sv-step-desc">基本的な情報をご入力ください</p>
-    <div class="sv-card">
-      <div class="sv-field"><label>お名前<span class="req">*必須</span></label><input type="text" id="sv-f-n" placeholder="田中 太郎"><p class="sv-error-msg" id="sv-err-n">お名前をご入力ください</p></div>
-      <div class="sv-field"><label>フリガナ</label><input type="text" id="sv-f-k" placeholder="タナカ タロウ"></div>
-      <div class="sv-field"><label>電話番号</label><input type="tel" id="sv-f-p" placeholder="090-1234-5678"></div>
-      <div class="sv-field"><label>メールアドレス</label><input type="email" id="sv-f-e" placeholder="example@email.com"></div>
-      <div class="sv-field"><label>現在のご住所</label><input type="text" id="sv-f-a" placeholder="東京都〇〇区〇〇"></div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(0)">← 戻る</button>
-      <button class="sv-btn sv-btn-primary" onclick="svNext1()">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 2A: 購入 -->
-  <div class="sv-step" id="sv-step2buy">
-    <p class="sv-step-label">STEP 3 / 5</p>
-    <p class="sv-step-title">ご希望の物件</p>
-    <p class="sv-step-desc">お探しの物件タイプをお選びください</p>
-    <div class="sv-card">
-      <div class="sv-field">
-        <label>物件種別<span class="req">*必須</span></label>
-        <div class="sv-choice-grid" id="sv-cg-type">
-          <button class="sv-choice-btn" data-val="マンション" onclick="svPick('sv-cg-type',this,'sv-f-t')">🏢 マンション</button>
-          <button class="sv-choice-btn" data-val="一戸建て" onclick="svPick('sv-cg-type',this,'sv-f-t')">🏠 一戸建て</button>
-          <button class="sv-choice-btn" data-val="土地" onclick="svPick('sv-cg-type',this,'sv-f-t')">🗾 土地</button>
-          <button class="sv-choice-btn" data-val="収益物件" onclick="svPick('sv-cg-type',this,'sv-f-t')">💰 収益物件</button>
-        </div>
-        <input type="hidden" id="sv-f-t">
-        <p class="sv-error-msg" id="sv-err-t">物件種別をお選びください</p>
-      </div>
-      <div class="sv-field" style="margin-top:16px"><label>希望エリア</label><input type="text" id="sv-f-ar" placeholder="例：渋谷・恵比寿、横浜市緑区など"></div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(1)">← 戻る</button>
-      <button class="sv-btn sv-btn-primary" onclick="svNext2buy()">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 2B: 売却 -->
-  <div class="sv-step" id="sv-step2sell">
-    <p class="sv-step-label">STEP 3 / 5</p>
-    <p class="sv-step-title">売却物件の情報</p>
-    <p class="sv-step-desc">売却をお考えの物件について教えてください</p>
-    <div class="sv-card">
-      <div class="sv-field"><label>物件の所在地<span class="req">*必須</span></label><input type="text" id="sv-f-sp-addr" placeholder="東京都〇〇区〇〇1-2-3"><p class="sv-error-msg" id="sv-err-sp-addr">所在地をご入力ください</p></div>
-      <div class="sv-field">
-        <label>物件種別</label>
-        <div class="sv-choice-grid" id="sv-cg-sp-type">
-          <button class="sv-choice-btn sell-mode" data-val="マンション" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🏢 マンション</button>
-          <button class="sv-choice-btn sell-mode" data-val="一戸建て" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🏠 一戸建て</button>
-          <button class="sv-choice-btn sell-mode" data-val="土地" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">🗾 土地</button>
-          <button class="sv-choice-btn sell-mode" data-val="収益物件" onclick="svPick('sv-cg-sp-type',this,'sv-f-sp-type')">💰 収益物件</button>
-        </div>
-        <input type="hidden" id="sv-f-sp-type">
-      </div>
-      <div class="sv-field"><label>専有面積（㎡）</label><input type="number" id="sv-f-sp-area" placeholder="68"></div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep(1)">← 戻る</button>
-      <button class="sv-btn sv-btn-sell" onclick="svNext2sell()">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 3A: 購入 予算・間取り -->
-  <div class="sv-step" id="sv-step3buy">
-    <p class="sv-step-label">STEP 4 / 5</p>
-    <p class="sv-step-title">予算・間取り</p>
-    <p class="sv-step-desc">ご希望の予算と間取りをお教えください</p>
-    <div class="sv-card">
-      <div class="sv-field">
-        <label>ご予算（万円）</label>
-        <div class="sv-range-wrap">
-          <div class="sv-range-labels"><span>500万</span><span>3000万</span><span>5000万</span><span>1億+</span></div>
-          <input type="range" id="sv-f-b" min="500" max="10000" step="100" value="3000" oninput="svUpdRange(this,'sv-f-b-val')">
-          <div class="sv-range-val" id="sv-f-b-val">3000万円</div>
-        </div>
-      </div>
-      <div class="sv-field" style="margin-top:8px">
-        <label>希望の間取り</label>
-        <div class="sv-choice-grid" id="sv-cg-l">
-          <button class="sv-choice-btn" data-val="1K〜1LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">1K〜1LDK</button>
-          <button class="sv-choice-btn" data-val="2LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">2LDK</button>
-          <button class="sv-choice-btn" data-val="3LDK" onclick="svPick('sv-cg-l',this,'sv-f-l')">3LDK</button>
-          <button class="sv-choice-btn" data-val="4LDK以上" onclick="svPick('sv-cg-l',this,'sv-f-l')">4LDK以上</button>
-        </div>
-        <input type="hidden" id="sv-f-l">
-      </div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('2buy')">← 戻る</button>
-      <button class="sv-btn sv-btn-primary" onclick="svGoStep('4buy')">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 3B: 売却 理由・希望 -->
-  <div class="sv-step" id="sv-step3sell">
-    <p class="sv-step-label">STEP 4 / 5</p>
-    <p class="sv-step-title">売却のご希望</p>
-    <p class="sv-step-desc">売却のご事情をお聞かせください</p>
-    <div class="sv-card">
-      <div class="sv-field">
-        <label>売却をお考えの理由</label>
-        <div class="sv-choice-grid col1" id="sv-cg-reason">
-          <button class="sv-choice-btn sell-mode" data-val="買い替え" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">🔄 買い替え</button>
-          <button class="sv-choice-btn sell-mode" data-val="住み替え（賃貸へ）" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">🏢 賃貸への住み替え</button>
-          <button class="sv-choice-btn sell-mode" data-val="相続" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">📋 相続</button>
-          <button class="sv-choice-btn sell-mode" data-val="転勤・転居" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">✈️ 転勤・転居</button>
-          <button class="sv-choice-btn sell-mode" data-val="資産整理" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">💼 資産整理</button>
-          <button class="sv-choice-btn sell-mode" data-val="その他" onclick="svPick('sv-cg-reason',this,'sv-f-reason')">その他</button>
-        </div>
-        <input type="hidden" id="sv-f-reason">
-      </div>
-      <div class="sv-field" style="margin-top:16px">
-        <label>ご希望の売却時期</label>
-        <div class="sv-choice-grid col1" id="sv-cg-timing-sell">
-          <button class="sv-choice-btn sell-mode" data-val="3ヶ月以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">できるだけ早く（3ヶ月以内）</button>
-          <button class="sv-choice-btn sell-mode" data-val="半年以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">半年以内</button>
-          <button class="sv-choice-btn sell-mode" data-val="1年以内" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">1年以内</button>
-          <button class="sv-choice-btn sell-mode" data-val="未定" onclick="svPick('sv-cg-timing-sell',this,'sv-f-timing-sell')">まだ検討段階</button>
-        </div>
-        <input type="hidden" id="sv-f-timing-sell">
-      </div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('2sell')">← 戻る</button>
-      <button class="sv-btn sv-btn-sell" onclick="svGoStep('4sell')">次へ →</button>
-    </div>
-  </div>
-
-  <!-- STEP 4A: 購入 ご要望 -->
-  <div class="sv-step" id="sv-step4buy">
-    <p class="sv-step-label">STEP 5 / 5</p>
-    <p class="sv-step-title">ご要望・入居時期</p>
-    <p class="sv-step-desc">お住まいへのこだわりをお聞かせください</p>
-    <div class="sv-card">
-      <div class="sv-field"><label>ご要望・こだわり（自由記入）</label><textarea id="sv-f-m" placeholder="例：駅徒歩10分以内、日当たり重視、ペット可など"></textarea></div>
-      <div class="sv-field">
-        <label>ご入居のご希望時期</label>
-        <div class="sv-choice-grid col1" id="sv-cg-timing">
-          <button class="sv-choice-btn" data-val="3ヶ月以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">できるだけ早く（3ヶ月以内）</button>
-          <button class="sv-choice-btn" data-val="半年以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">半年以内</button>
-          <button class="sv-choice-btn" data-val="1年以内" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">1年以内</button>
-          <button class="sv-choice-btn" data-val="未定" onclick="svPick('sv-cg-timing',this,'sv-f-timing')">まだ検討段階</button>
-        </div>
-        <input type="hidden" id="sv-f-timing">
-      </div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('3buy')">← 戻る</button>
-      <button class="sv-btn sv-btn-primary" onclick="svBuildConfirm('buy')">確認 →</button>
-    </div>
-  </div>
-
-  <!-- STEP 4B: 売却 ご要望 -->
-  <div class="sv-step" id="sv-step4sell">
-    <p class="sv-step-label">STEP 5 / 5</p>
-    <p class="sv-step-title">その他のご要望</p>
-    <p class="sv-step-desc">売却に関してご要望があればお聞かせください</p>
-    <div class="sv-card">
-      <div class="sv-field"><label>ご要望・ご事情（自由記入）</label><textarea id="sv-f-ms" placeholder="例：なるべく高く売りたい、内覧は土日のみ対応可など"></textarea></div>
-    </div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" onclick="svGoStep('3sell')">← 戻る</button>
-      <button class="sv-btn sv-btn-sell" onclick="svBuildConfirm('sell')">確認 →</button>
-    </div>
-  </div>
-
-  <!-- STEP 5: 確認 -->
-  <div class="sv-step" id="sv-step5">
-    <p class="sv-step-label" id="sv-s5-label">確認</p>
-    <p class="sv-step-title">入力内容の確認</p>
-    <p class="sv-step-desc">以下の内容でよろしいでしょうか</p>
-    <div class="sv-card" id="sv-confirm-card"></div>
-    <div class="sv-nav-btns">
-      <button class="sv-btn sv-btn-secondary" id="sv-confirm-back">← 戻る</button>
-      <button class="sv-btn sv-btn-primary" id="sv-submit-btn" onclick="svSubmit()">送信する ✓</button>
-    </div>
-  </div>
-
-  <!-- 完了画面 -->
-  <div id="sv-done-screen">
-    <div class="sv-done-icon">✅</div>
-    <p class="sv-done-title">ありがとうございました！</p>
-    <p class="sv-done-sub">アンケートへのご回答ありがとうございます。<br>担当者よりご連絡いたします。</p>
-    <button class="sv-reset-btn" onclick="location.href=location.pathname+'?survey'">新しいアンケートを開始</button>
-  </div>
-</div>
-
-<!-- ═══ CRM React アプリ ═══ -->
-<script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-
-// ═══ GAS経由SharePoint設定 ═══
-const GAS_URL   = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
-const ADMIN_PASS = "admin1234";
-
-// GAS GET リクエスト
-async function gasGet(action) {
-  const res = await fetch(`${GAS_URL}?action=${action}`, {
-    redirect: "follow",
+function getAccessToken() {
+  const { tenantId, clientId, clientSecret } = getProps();
+  const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const res = UrlFetchApp.fetch(url, {
+    method: "post",
+    payload: {
+      grant_type   : "client_credentials",
+      client_id    : clientId,
+      client_secret: clientSecret,
+      scope        : "https://graph.microsoft.com/.default",
+    },
+    muteHttpExceptions: true,
   });
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || "GASエラー");
-  return json.data;
+  const json = JSON.parse(res.getContentText());
+  if (!json.access_token) throw new Error("トークン取得失敗: " + res.getContentText());
+  return json.access_token;
 }
 
-// GAS POST リクエスト（no-corsでリダイレクト対応）
-async function gasPost(body) {
-  // GASはリダイレクトするためno-corsで送信し、レスポンスは別途GETで確認
-  await fetch(GAS_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(body),
+let _siteId = null;
+function getSiteId(token) {
+  if (_siteId) return _siteId;
+  const url = `https://graph.microsoft.com/v1.0/sites/${SP_HOST}:/sites/${SP_SITE_NAME}`;
+  const res = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
   });
-  // no-corsではレスポンスが読めないため成功とみなす
-  return null;
+  const json = JSON.parse(res.getContentText());
+  if (!json.id) throw new Error("サイトID取得失敗: " + res.getContentText());
+  _siteId = json.id;
+  return _siteId;
 }
 
-// 顧客データをSharePoint形式→CRM形式に変換
+function spGet(token, siteId, listName) {
+  const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${encodeURIComponent(listName)}/items?expand=fields&$top=999`;
+  const res = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+  const json = JSON.parse(res.getContentText());
+  return json.value || [];
+}
+
+function spPost(token, siteId, listName, fields) {
+  const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${encodeURIComponent(listName)}/items`;
+  const res = UrlFetchApp.fetch(url, {
+    method: "post",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    payload: JSON.stringify({ fields }),
+    muteHttpExceptions: true,
+  });
+  return JSON.parse(res.getContentText());
+}
+
+function spPatch(token, siteId, listName, itemId, fields) {
+  const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${encodeURIComponent(listName)}/items/${itemId}/fields`;
+  UrlFetchApp.fetch(url, {
+    method: "patch",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    payload: JSON.stringify(fields),
+    muteHttpExceptions: true,
+  });
+}
+
+function spDelete(token, siteId, listName, itemId) {
+  const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${encodeURIComponent(listName)}/items/${itemId}`;
+  UrlFetchApp.fetch(url, {
+    method: "delete",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+}
+
+function ok(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, data: data || null }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function ng(msg) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: false, error: msg }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  try {
+    const action = e?.parameter?.action || "load";
+    const token  = getAccessToken();
+    const siteId = getSiteId(token);
+    if (action === "loadStaff")            return ok(loadStaff(token, siteId));
+    if (action === "loadSurveys")          return ok(loadNewSurveys(token, siteId));
+    if (action === "getFolderUrl")         return ok(getFolderUrl(token, siteId, e.parameter.spId));
+    if (action === "createPropertyFolder") return ok(createPropertyFolder(token, siteId, e.parameter.folderName, null, "物件資料"));
+    if (action === "moveToCompleted")      return ok(moveToCompleted(token, siteId, e.parameter.folderUrl));
+    if (action === "createCalEvent")       return ok(createCalendarEvent(e.parameter.title, e.parameter.datetime, e.parameter.staffName, e.parameter.endtime, e.parameter.location, e.parameter.description, e.parameter.alarms));
+    if (action === "deleteCalEvent")       { deleteCalendarEvent(e.parameter.eventId); return ok(null); }
+    if (action === "loadAttendance")       return ok(loadAttendance(token, siteId, e.parameter.staffName, e.parameter.month));
+    return ok(loadCustomers(token, siteId));
+  } catch(err) {
+    return ng(err.message);
+  }
+}
+
+function doPost(e) {
+  try {
+    const body   = JSON.parse(e.postData.contents);
+    const action = body.action;
+    const token  = getAccessToken();
+    const siteId = getSiteId(token);
+    if (action === "save")               { saveCustomers(token, siteId, body.customers); return ok(null); }
+    if (action === "survey")             { saveSurvey(token, siteId, body.survey);       return ok(null); }
+    if (action === "markSurveyImported") { markImported(token, siteId, body.ids);        return ok(null); }
+    if (action === "saveStaff")          { saveStaff(token, siteId, body.staffList);     return ok(null); }
+    if (action === "deleteCustomer")     { deleteCustomer(token, siteId, body.spId);     return ok(null); }
+    if (action === "createCalEvent")     { return ok(createCalendarEvent(body.title, body.datetime, body.staffName, body.endtime, body.location, body.description, body.alarms)); }
+    if (action === "deleteCalEvent")     { deleteCalendarEvent(body.eventId); return ok(null); }
+    if (action === "clockIn")            { return ok(saveAttendance(token, siteId, body)); }
+    return ng("unknown action: " + action);
+  } catch(err) {
+    return ng(err.message);
+  }
+}
+
+// ============================================================
+// フィールド内部名マッピング
+// ============================================================
+const F = {
+  担当者            : "_x62c5__x5f53__x8005_",
+  顧客種別Value     : "_x9867__x5ba2__x7a2e__x5225_",
+  電話番号          : "_x96fb__x8a71__x756a__x53f7_",
+  メールアドレス    : "_x30e1__x30fc__x30eb__x30a2__x30",
+  住所              : "_x4f4f__x6240_",
+  予算              : "_x4e88__x7b97_",
+  希望エリア        : "_x5e0c__x671b__x30a8__x30ea__x30",
+  物件住所          : "_x7269__x4ef6__x4f4f__x6240_",
+  査定価格          : "_x67fb__x5b9a__x4fa1__x683c_",
+  備考              : "_x5099__x8003_",
+  アンケート取込済み: "_x30a2__x30f3__x30b1__x30fc__x30",
+  取込済み          : "_x53d6__x8fbc__x6e08__x307f_",
+  アンケート内容    : "_x30a2__x30f3__x30b1__x30fc__x30",
+};
+
+const FA = {
+  担当者名: "_x62c5__x5f53__x8005__x540d_",
+  種別    : "_x7a2e__x5225_",
+  打刻日時: "_x6253__x523b__x65e5__x6642_",
+  緯度    : "_x7def__x5ea6_",
+  経度    : "_x7d4c__x5ea6_",
+  備考    : "_x5099__x8003_",
+};
+
 function spToCustomer(item) {
   const f = item.fields;
   let history = [], buyers = [], infoData = {}, sellInfo = {};
-  const memo = f["_x5099__x8003_"] || "";
+  const memo = f[F.備考] || "";
   try { history  = JSON.parse(memo.match(/\[\[HIST\]\]([\s\S]*)/)?.[1] || "[]"); } catch(e) {}
   try { buyers   = JSON.parse(memo.match(/\[\[BUYERS\]\]([\s\S]*)/)?.[1] || "[]"); } catch(e) {}
   try { infoData = JSON.parse(memo.match(/\[\[INFO\]\]([^\n]+)/)?.[1] || "{}"); } catch(e) {}
   try { sellInfo = JSON.parse(memo.match(/\[\[SELL\]\]([^\n]+)/)?.[1] || "{}"); } catch(e) {}
   let folderUrl = "";
-  try { const m = memo.match(/\[\[FOLDER\]\]([^\n]+)/); if(m) folderUrl = m[1].trim(); } catch(e) {}
+  try { const m = memo.match(/\[\[FOLDER\]\]([^\n]+)/); if (m) folderUrl = m[1].trim(); } catch(e) {}
   const cleanMemo = infoData.m || memo
-    .replace(/\[\[FOLDER\]\][^\n]*\n?/,"")
-    .replace(/\[\[INFO\]\][^\n]*\n?/,"")
-    .replace(/\[\[SELL\]\][^\n]*\n?/,"")
-    .replace(/\[\[HIST\]\][\s\S]*/,"")
-    .replace(/\[\[BUYERS\]\][\s\S]*/,"")
+    .replace(/\[\[FOLDER\]\][^\n]*\n?/, "")
+    .replace(/\[\[INFO\]\][^\n]*\n?/, "")
+    .replace(/\[\[SELL\]\][^\n]*\n?/, "")
+    .replace(/\[\[HIST\]\][\s\S]*/, "")
+    .replace(/\[\[BUYERS\]\][\s\S]*/, "")
     .trim();
   return {
-    _spId          : item.id,
-    id             : parseInt(item.id),
-    mode           : f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "sell" : "buy",
-    staff          : f["_x62c5__x5f53__x8005_"] || "",
-    n              : f.Title || "",
-    p              : f["_x96fb__x8a71__x756a__x53f7_"] || "",
-    e              : f["_x30e1__x30fc__x30eb__x30a2__x30"] || "",
-    a              : f["_x4f4f__x6240_"] || "",
-    ar             : f["_x5e0c__x671b__x30a8__x30ea__x30"] || "",
-    b              : parseInt(f["_x4e88__x7b97_"]) || 0,
-    s              : infoData.s || (f["_x9867__x5ba2__x7a2e__x5225_"] === "売却" ? "査定前" : "未接触"),
-    pr             : infoData.pr || "低",
-    d              : infoData.d || "",
-    ad             : infoData.ad || "",
-    ac             : infoData.ac || "",
-    m              : cleanMemo,
-    sp_addr        : f["_x7269__x4ef6__x4f4f__x6240_"] || "",
-    sp_assess      : String(f["_x67fb__x5b9a__x4fa1__x683c_"] || ""),
-    sp_type        : sellInfo.sp_type || "",
-    sp_area        : sellInfo.sp_area || "",
-    sp_price       : sellInfo.sp_price || "",
-    sp_reason      : sellInfo.sp_reason || "",
-    sp_timing      : sellInfo.sp_timing || "",
-    sp_nairanCount : sellInfo.sp_nairanCount || "0",
-    sp_nairanNote  : sellInfo.sp_nairanNote || "",
-    fromSurvey     : f["_x30a2__x30f3__x30b1__x30fc__x30"] === true,
-    folderUrl      : folderUrl,
+    _spId             : item.id,
+    id                : parseInt(item.id),
+    mode              : f[F.顧客種別Value] === "売却" ? "sell" : "buy",
+    staff             : f[F.担当者] || "",
+    n                 : f.Title || "",
+    p                 : f[F.電話番号] || "",
+    e                 : f[F.メールアドレス] || "",
+    a                 : f[F.住所] || "",
+    ar                : f[F.希望エリア] || "",
+    b                 : parseInt(f[F.予算]) || 0,
+    s                 : infoData.s || (f[F.顧客種別Value] === "売却" ? "査定前" : "未接触"),
+    pr                : infoData.pr || "低",
+    d                 : infoData.d || "",
+    ad                : infoData.ad || "",
+    at                : infoData.at || "",
+    ate               : infoData.ate || "",
+    ac                : infoData.ac || "",
+    al                : infoData.al || "",
+    aa                : infoData.aa || [],
+    am                : infoData.am || "",
+    m                 : cleanMemo,
+    sp_addr           : f[F.物件住所] || "",
+    sp_assess         : String(f[F.査定価格] || ""),
+    sp_type           : sellInfo.sp_type || "",
+    sp_area           : sellInfo.sp_area || "",
+    sp_price          : sellInfo.sp_price || "",
+    sp_reason         : sellInfo.sp_reason || "",
+    sp_timing         : sellInfo.sp_timing || "",
+    sp_nairanCount    : sellInfo.sp_nairanCount || "0",
+    sp_nairanNote     : sellInfo.sp_nairanNote || "",
+    fromSurvey        : f[F.アンケート取込済み] === true,
+    folderUrl         : folderUrl,
     propertyFolderUrl : infoData.propertyFolderUrl || "",
-    linkedSellerId : infoData.linkedSellerId || null,
-    history        : history,
-    buyers         : buyers,
+    linkedSellerId    : infoData.linkedSellerId || null,
+    history           : history,
+    buyers            : buyers,
   };
 }
 
-// CRM形式→SharePoint形式に変換
 function customerToSp(c) {
   const infoData = {
     s                 : c.s || "",
     pr                : c.pr || "低",
     d                 : c.d || "",
     ad                : c.ad || "",
+    at                : c.at || "",
+    ate               : c.ate || "",
     ac                : c.ac || "",
+    al                : c.al || "",
+    aa                : c.aa || [],
+    am                : c.am || "",
     m                 : c.m || "",
     propertyFolderUrl : c.propertyFolderUrl || "",
     linkedSellerId    : c.linkedSellerId || null,
@@ -434,674 +250,441 @@ function customerToSp(c) {
     };
     memo += `\n[[SELL]]${JSON.stringify(sellInfo)}`;
   }
-  if (c.history?.length) memo += `\n[[HIST]]${JSON.stringify(c.history)}`;
-  if (c.buyers?.length)  memo += `\n[[BUYERS]]${JSON.stringify(c.buyers)}`;
+  if (c.history && c.history.length > 0) memo += "\n[[HIST]]" + JSON.stringify(c.history);
+  if (c.buyers  && c.buyers.length  > 0) memo += "\n[[BUYERS]]" + JSON.stringify(c.buyers);
   return {
-    Title                     : c.n || "",
-    ["_x62c5__x5f53__x8005_"] : c.staff || "",
-    ["_x9867__x5ba2__x7a2e__x5225_"] : c.mode === "sell" ? "売却" : "購入",
-    ["_x96fb__x8a71__x756a__x53f7_"] : String(c.p || ""),
-    ["_x30e1__x30fc__x30eb__x30a2__x30"] : String(c.e || ""),
-    ["_x4f4f__x6240_"]        : String(c.a || ""),
-    ["_x4e88__x7b97_"]        : c.b ? Number(c.b) : 0,
-    ["_x5e0c__x671b__x30a8__x30ea__x30"] : String(c.ar || ""),
-    ["_x7269__x4ef6__x4f4f__x6240_"] : String(c.sp_addr || ""),
-    ["_x67fb__x5b9a__x4fa1__x683c_"] : c.sp_assess ? Number(c.sp_assess) : 0,
-    ["_x5099__x8003_"]        : memo,
-    ["_x30a2__x30f3__x30b1__x30fc__x30"] : c.fromSurvey === true,
+    Title                  : c.n || "",
+    [F.担当者]             : c.staff || "",
+    [F.顧客種別Value]      : c.mode === "sell" ? "売却" : "購入",
+    [F.電話番号]           : String(c.p || ""),
+    [F.メールアドレス]     : String(c.e || ""),
+    [F.住所]               : String(c.a || ""),
+    [F.予算]               : c.b ? Number(c.b) : 0,
+    [F.希望エリア]         : String(c.ar || ""),
+    [F.物件住所]           : String(c.sp_addr || ""),
+    [F.査定価格]           : c.sp_assess ? Number(c.sp_assess) : 0,
+    [F.備考]               : memo,
+    [F.アンケート取込済み] : c.fromSurvey === true,
   };
 }
 
-// GAS経由で全顧客データ読み込み
-async function loadCustomersFromSP() {
-  return await gasGet("load");
+function loadCustomers(token, siteId) {
+  const items = spGet(token, siteId, "顧客データ");
+  return items.map(spToCustomer);
 }
 
-// GAS経由で担当者リスト読み込み
-async function loadStaffFromSP() {
-  return await gasGet("loadStaff");
-}
-
-// GAS経由でアンケート読み込み
-async function loadSurveysFromGAS() {
-  return await gasGet("loadSurveys");
-}
-const TODAY = new Date(); TODAY.setHours(0,0,0,0);
-const todayStr = () => new Date().toISOString().slice(0,10);
-const BUY_STATUSES   = ["未接触","初回面談済","物件提案中","契約交渉中","成約"];
-const SELL_STATUSES  = ["査定前","査定済","媒介契約中","販売活動中","売買交渉中","成約"];
-const TYPES          = ["マンション","一戸建て","土地","収益物件","その他"];
-const SELL_REASONS   = ["買い替え","住み替え（賃貸へ）","相続","転勤・転居","資産整理","離婚","その他"];
-const SELL_TIMINGS   = ["3ヶ月以内","半年以内","1年以内","未定"];
-const BUYER_PROGRESS = ["情報収集中","内覧済","申込済","契約交渉中","成約","見送り"];
-const SAMPLE = [
-  {id:1,mode:"buy",staff:"小沼由美子",n:"田中 太郎",k:"タナカ タロウ",p:"090-1234-5678",e:"tanaka@email.com",a:"東京都渋谷区",t:"マンション",ar:"渋谷・恵比寿",b:5000,l:"2LDK",s:"物件提案中",pr:"高",d:"2026-01-15",ad:"2026-04-05",ac:"内覧予約確認",m:"子育て世帯",history:[]},
-  {id:2,mode:"sell",staff:"奈良豊成",n:"鈴木 一郎",k:"スズキ イチロウ",p:"070-5555-1111",e:"suzuki@email.com",a:"埼玉県さいたま市",s:"販売活動中",pr:"高",d:"2026-02-20",ad:"2026-04-08",ac:"内覧対応",m:"転勤のため早期売却希望",history:[],sp_addr:"埼玉県さいたま市大宮区桜木町2-1-5",sp_type:"マンション",sp_area:"68",sp_assess:"2800",sp_price:"2980",sp_reason:"転勤",sp_timing:"3ヶ月以内",sp_nairanCount:"3",sp_nairanNote:"前向きな反応2名",buyers:[{id:101,name:"木村様",progress:"内覧済",note:"価格交渉希望",date:"2026-03-28"}]},
-];
-function adSt(d){if(!d)return null;const dt=new Date(d);dt.setHours(0,0,0,0);const diff=Math.round((dt-TODAY)/86400000);if(diff<0)return{c:"overdue",t:`⚠️ ${Math.abs(diff)}日超過`};if(diff<=3)return{c:"soon",t:`🔔 あと${diff}日`};return{c:"ok",t:`✓ ${d}`};}
-function pOrd(p){return p==="高"?0:p==="中"?1:p==="低"?2:3;}
-function pcls(pr){return pr==="高"?"high":pr==="中"?"mid":"low";}
-const S={width:"100%",padding:"11px",border:"1.5px solid #E2E8F0",borderRadius:8,fontSize:16,color:"#1A202C",background:"#fff",outline:"none",WebkitAppearance:"none",boxSizing:"border-box"};
-const FL=({label,children,span=2})=>(<div style={{marginBottom:12,gridColumn:`span ${span}`}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:4,fontWeight:600}}>{label}</label>{children}</div>);
-const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
-
-const CRM_BASE_URL = "https://masanori-onuma.github.io/fudosan-crm/FudosanCRM.html";
-
-function QRModal({name, onClose}){
-  const url=`${CRM_BASE_URL}?survey&staff=${encodeURIComponent(name)}`;
-  const ref=React.useRef(null);
-  const [copied,setCopied]=React.useState(false);
-  React.useEffect(()=>{
-    if(ref.current){
-      ref.current.innerHTML="";
-      new QRCode(ref.current,{text:url,width:200,height:200,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});
-    }
-  },[]);
-  const copy=()=>{navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
-  return(<div onClick={e=>e.target===e.currentTarget&&onClose()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:"#fff",borderRadius:20,padding:"24px 20px",width:"100%",maxWidth:320,textAlign:"center"}}>
-      <div style={{fontSize:14,fontWeight:700,color:"#1F4E79",marginBottom:4}}>📋 アンケートQRコード</div>
-      <div style={{fontSize:12,color:"#718096",marginBottom:16}}>{name}</div>
-      <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
-        <div ref={ref} style={{background:"#fff",padding:4,borderRadius:8,border:"1px solid #E2E8F0"}}></div>
-      </div>
-      <div style={{fontSize:10,color:"#718096",wordBreak:"break-all",marginBottom:14,padding:"6px 10px",background:"#F4F6F9",borderRadius:8,lineHeight:1.5}}>{url}</div>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={copy} style={{flex:1,padding:"10px 0",background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{copied?"✅ コピー済み":"📋 URLをコピー"}</button>
-        <button onClick={onClose} style={{flex:1,padding:"10px 0",background:"#F4F6F9",border:"1.5px solid #E2E8F0",borderRadius:10,color:"#718096",fontSize:13,cursor:"pointer"}}>閉じる</button>
-      </div>
-    </div>
-  </div>);
-}
-
-function LoginScreen({onLogin}){
-  const [staffList,setStaffList]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [selectedName,setSelectedName]=useState("");
-  const [pass,setPass]=useState("");
-  const [err,setErr]=useState("");
-  const [role,setRole]=useState("staff");
-  useEffect(()=>{(async()=>{
-    // キャッシュを先に表示
-    try{const r=await store.get("staff");if(r?.value){const cached=JSON.parse(r.value);if(cached.length>0){setStaffList(cached);setLoading(false);}}}catch(e){}
-    // バックグラウンドで最新取得
-    try{const list=await loadStaffFromSP();if(list.length>0){setStaffList(list);await store.set("staff",JSON.stringify(list));}}catch(e){}
-    setLoading(false);
-  })();},[]);
-  const login=()=>{setErr("");if(role==="admin"){if(pass===ADMIN_PASS)onLogin({role:"admin",name:"管理者"});else setErr("パスワードが違います");}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
-  return(<div style={{minHeight:"100vh",background:"#F4F6F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
-    <div style={{fontSize:48,marginBottom:12}}>🏠</div>
-    <h1 style={{fontSize:20,fontWeight:700,color:"#1F4E79",marginBottom:4}}>不動産顧客管理</h1>
-    <p style={{fontSize:12,color:"#718096",marginBottom:28}}>ログインしてください</p>
-    <div style={{display:"flex",gap:8,marginBottom:20,background:"#E2E8F0",borderRadius:12,padding:4,width:"100%",maxWidth:340}}>
-      {[["staff","👤 担当者"],["admin","🔑 管理者"]].map(([v,l])=>(<button key={v} onClick={()=>{setRole(v);setErr("");setPass("");}} style={{flex:1,padding:"9px 0",border:"none",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",background:role===v?"#fff":"transparent",color:role===v?"#1F4E79":"#718096",boxShadow:role===v?"0 1px 4px rgba(0,0,0,.1)":"none"}}>{l}</button>))}
-    </div>
-    <div style={{background:"#fff",borderRadius:16,padding:"24px 20px",width:"100%",maxWidth:340,boxShadow:"0 4px 24px rgba(0,0,0,.08)"}}>
-      {role==="staff"?(<>
-        <div style={{marginBottom:14}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>お名前</label>
-          {loading?<div style={{padding:"12px",color:"#718096",fontSize:13}}>読み込み中…</div>
-            :<select style={S} value={selectedName} onChange={e=>{setSelectedName(e.target.value);setErr("");}}>
-              <option value="">-- 選択してください --</option>
-              {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
-            </select>}
-        </div>
-        <div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力"/></div>
-      </>):(<div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>管理者パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力" autoFocus/></div>)}
-      {err&&<p style={{color:"#C0392B",fontSize:12,marginTop:8,marginBottom:0}}>⚠️ {err}</p>}
-      <button onClick={login} style={{width:"100%",padding:14,background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:16}}>ログイン →</button>
-    </div>
-    <div style={{marginTop:20,textAlign:"center"}}>
-
-    </div>
-  </div>);
-}
-
-function StaffTab({gasUrl}){
-  const [staffList,setStaffList]=useState([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState("");const [newName,setNewName]=useState("");const [newPass,setNewPass]=useState("");const [showPass,setShowPass]=useState({});
-  const flash=m=>{setMsg(m);setTimeout(()=>setMsg(""),3000);};
-  useEffect(()=>{(async()=>{try{const list=await loadStaffFromSP();setStaffList(list);}catch(e){setMsg("⚠️ 読み込み失敗");}setLoading(false);})();},[]);
-  const addStaff=async()=>{if(!newName.trim()){alert("名前を入力してください");return;}if(!newPass.trim()){alert("パスワードを入力してください");return;}if(staffList.some(s=>s.name===newName.trim())){alert("同じ名前の担当者がすでにいます");return;}setSaving(true);try{const cur=await gasGet("loadStaff");const next=[...cur,{name:newName.trim(),pass:newPass.trim()}];await gasPost({action:"saveStaff",staffList:next});const list=await gasGet("loadStaff");setStaffList(list);setNewName("");setNewPass("");flash("✓ 追加しました");}catch(e){flash("⚠️ 保存失敗");}setSaving(false);};
-  const changePass=async(item,newP)=>{if(!newP.trim()){alert("新しいパスワードを入力してください");return;}setSaving(true);try{const cur=await gasGet("loadStaff");const next=cur.map(s=>s.name===item.name?{...s,pass:newP.trim()}:s);await gasPost({action:"saveStaff",staffList:next});const list=await gasGet("loadStaff");setStaffList(list);flash("✓ 保存しました");}catch(e){flash("⚠️ 保存失敗");}setSaving(false);};
-  const removeStaff=async(item)=>{if(!confirm(`「${item.name}」を削除しますか？`))return;setSaving(true);try{const cur=await gasGet("loadStaff");const next=cur.filter(s=>s.name!==item.name);await gasPost({action:"saveStaff",staffList:next});setStaffList(next);flash("✓ 削除しました");}catch(e){flash("⚠️ 削除失敗");}setSaving(false);};
-  if(loading)return<div style={{textAlign:"center",padding:"40px 0",color:"#718096"}}>⟳ 読み込み中…</div>;
-  return(<div>
-    {msg&&<div style={{background:"#EBF3FB",color:"#1F4E79",borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:12,fontWeight:600}}>{msg}</div>}
-    {staffList.length===0?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>担当者がいません</div>
-      :staffList.map(s=><StaffCard key={s.name} s={s} showPass={showPass[s.name]} onTogglePass={()=>setShowPass(p=>({...p,[s.name]:!p[s.name]}))} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
-    <div style={{background:"#F0F4F8",borderRadius:10,padding:"14px",marginTop:16,border:"1px solid #E2E8F0"}}>
-      <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:12}}>＋ 担当者を追加</div>
-      <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>名前</label><input style={S} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="山田 太郎"/></div>
-      <div style={{marginBottom:12}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>初期パスワード</label><input style={S} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="例：1234"/></div>
-      <button onClick={addStaff} disabled={saving} style={{width:"100%",padding:"11px",background:"#1F4E79",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>{saving?"保存中…":"追加する"}</button>
-    </div>
-  </div>);
-}
-
-function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
-  const [editing,setEditing]=useState(false);const [newPass,setNewPass]=useState("");
-  return(<div style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:editing?10:0}}>
-      <div><div style={{fontSize:14,fontWeight:700}}>{s.name}</div><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><span style={{fontSize:12,color:"#718096",fontFamily:"monospace"}}>{showPass?s.pass:"••••"}</span><button onClick={onTogglePass} style={{border:"none",background:"none",fontSize:11,color:"#2E75B6",cursor:"pointer",padding:0}}>{showPass?"隠す":"表示"}</button></div></div>
-      <div style={{display:"flex",gap:6}}><button onClick={()=>{setEditing(!editing);setNewPass("");}} style={{background:"#EBF3FB",border:"none",borderRadius:7,padding:"5px 12px",fontSize:11,cursor:"pointer",color:"#1F4E79",fontWeight:600}}>🔑 変更</button><button onClick={onRemove} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div>
-    </div>
-    {editing&&(<div style={{display:"flex",gap:8,marginTop:4}}><input style={{...S,flex:1}} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="新しいパスワード" type="text"/><button onClick={()=>{onChangePass(newPass);setEditing(false);setNewPass("");}} style={{background:"#1F4E79",border:"none",borderRadius:8,padding:"0 14px",fontSize:12,cursor:"pointer",color:"#fff",fontWeight:700,flexShrink:0}}>保存</button><button onClick={()=>{setEditing(false);setNewPass("");}} style={{background:"#F4F6F9",border:"1px solid #E2E8F0",borderRadius:8,padding:"0 10px",fontSize:12,cursor:"pointer",color:"#718096",flexShrink:0}}>✕</button></div>)}
-  </div>);
-}
-
-function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const alarmChecked=useRef(false);const saveTimer=useRef(null);
-  const isAdmin=user?.role==="admin";const myName=user?.name||"";
-  const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
-  const fetchGAS=useCallback(async(background=false)=>{
-    // キャッシュを先に表示
-    if(!background){
-      try{const r=await store.get("fudo");if(r?.value){setData(JSON.parse(r.value));setLoaded(true);}}catch(e){}
-    }
-    setSyncing(true);
-    if(!background)setSyncMsg("同期中…");
-    try{
-      const customers=await loadCustomersFromSP();
-      if(customers.length>0){
-        setData(customers);
-        await store.set("fudo",JSON.stringify(customers));
-        flash("✓ 同期完了");
-      }else if(!background){
-        setData(SAMPLE);flash("✓ 初回データ");
+// ============================================================
+// saveCustomers：購入・売却両方フォルダ自動作成
+// ============================================================
+function saveCustomers(token, siteId, customers) {
+  const existing = spGet(token, siteId, "顧客データ");
+  const existMap = {};
+  existing.forEach(item => { existMap[item.id] = item; });
+  customers.forEach(c => {
+    const isNew = !(c._spId && existMap[c._spId]);
+    if (isNew) {
+      const created = spPost(token, siteId, "顧客データ", customerToSp(c));
+      const newSpId = created.id;
+      if (newSpId) {
+        const paddedId   = String(newSpId).padStart(3, "0");
+        const folderName = `${c.n}（#${paddedId}）`;
+        const folderUrl  = createCustomerFolder(token, siteId, folderName, c.mode);
+        if (folderUrl) c.folderUrl = folderUrl;
+        if (!c.propertyFolderUrl) {
+          const propFolderName = `${c.n}（#${paddedId}）`;
+          const propertyFolderUrl = createPropertyFolder(token, siteId, propFolderName, null, "物件資料");
+          if (propertyFolderUrl) c.propertyFolderUrl = propertyFolderUrl;
+        }
+        spPatch(token, siteId, "顧客データ", newSpId, customerToSp(c));
       }
-    }catch(e){
-      if(!background){try{const r=await store.get("fudo");if(r?.value)setData(JSON.parse(r.value));}catch(e2){}flash("⚠️ オフライン");}
+    } else {
+      spPatch(token, siteId, "顧客データ", c._spId, customerToSp(c));
     }
-    setSyncing(false);setLoaded(true);
-  },[]);
-  const saveGAS=useCallback(async(nd)=>{setSyncMsg("保存中…");try{await store.set("fudo",JSON.stringify(nd));await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
-  useEffect(()=>{if(!user)return;fetchGAS(false);const t=setInterval(()=>fetchGAS(true),120000);return()=>clearInterval(t);},[user]);
-  const fetchSurveyCount=useCallback(async()=>{try{const surveys=await loadSurveysFromGAS();setSurveyCount(surveys.length);}catch(e){}},[]);
-  useEffect(()=>{if(!user||isAdmin)return;fetchSurveyCount();const t=setInterval(fetchSurveyCount,600000);return()=>clearInterval(t);},[user,isAdmin]);
-  const persist=useCallback(nd=>{setData(nd);clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>saveGAS(nd),1500);},[saveGAS]);
-  useEffect(()=>{if(!loaded)return;const check=()=>{const ti=new Date().toISOString().slice(0,10);const mine=isAdmin?data:data.filter(c=>c.staff===myName);const hits=mine.filter(c=>c.ad===ti&&c.s!=="成約"&&c.s!=="見送り");if(hits.length>0){setAlarms(hits);if(navigator.vibrate)navigator.vibrate([300,100,300]);}};if(!alarmChecked.current){check();alarmChecked.current=true;}const t=setInterval(check,60000);return()=>clearInterval(t);},[data,loaded,isAdmin,myName]);
-  const getList=useCallback(()=>{let r=data.filter(c=>c.mode===mode);if(!isAdmin)r=r.filter(c=>c.staff===myName);if(isAdmin&&staffFilter!=="all")r=r.filter(c=>c.staff===staffFilter);if(filter==="all")r=r.filter(c=>c.s!=="成約");else r=r.filter(c=>c.s===filter);if(sq){const q=sq.toLowerCase();r=r.filter(c=>[c.n,c.k,c.a,c.ar,c.m,c.p,c.sp_addr].some(v=>(v||"").toLowerCase().includes(q)));}r.sort((a,b)=>{let v=0;if(sort.k==="no")v=a.id-b.id;else if(sort.k==="name")v=(a.n||"").localeCompare(b.n||"","ja");else if(sort.k==="prospect")v=pOrd(a.pr)-pOrd(b.pr);else if(sort.k==="action")v=(a.ad||"9999").localeCompare(b.ad||"9999");else if(sort.k==="staff")v=(a.staff||"").localeCompare(b.staff||"","ja");return sort.asc?v:-v;});return r;},[data,mode,isAdmin,myName,staffFilter,filter,sq,sort]);
-  const ff=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const openNew=()=>{const base={mode,staff:myName,s:mode==="buy"?"未接触":"査定前",pr:"",d:"",ad:"",at:"",ate:"",ac:"",al:"",aa:[],am:"",n:"",k:"",p:"",e:"",a:"",m:"",history:[]};const ex=mode==="buy"?{t:"",ar:"",b:"",l:""}:{sp_addr:"",sp_type:"",sp_area:"",sp_assess:"",sp_price:"",sp_reason:"",sp_timing:"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]};setForm({...base,...ex});setFormTab("info");setModal("new");};
-  const openEdit=c=>{setForm({...c});setFormTab("info");setModal("edit");};
-  const closeModal=()=>setModal(null);
-  const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}if(form.ad&&!form.at){alert("開始時間を入力してください");return;}let currentForm={...form};
-    // 次回アクションがあればカレンダーに登録
-    if(form.ad&&form.at&&form.ac){
-      try{
-        const datetime=form.ad+"T"+form.at+":00";
-        const endtime=form.ate?form.ad+"T"+form.ate+":00":"";
-        const alarms=JSON.stringify(form.aa||[]);
-        const params=new URLSearchParams({action:"createCalEvent",title:form.ac,datetime,endtime,location:form.al||"",description:form.am||"",alarms,staffName:form.staff||myName});
-        const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
-        const json=await res.json();
-        if(json.ok&&json.data)currentForm={...currentForm,calEventId:json.data};
-      }catch(e){console.log("カレンダー登録失敗",e);}
-    }
-    const c={...currentForm,b:parseInt(currentForm.b)||0,staff:currentForm.staff||myName};let nd;if(modal==="edit"){nd=data.map(x=>x.id===c.id?c:x);}else{c.id=data.length?Math.max(...data.map(x=>x.id))+1:1;nd=[...data,c];}setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ 保存失敗");}};
-  // カードから直接ステータス変更して即保存
-  const movePropertyFolder=async(propertyUrl)=>{
-    if(!propertyUrl)return null;
-    try{
-      const res=await fetch(`${GAS_URL}?action=moveToCompleted&folderUrl=${encodeURIComponent(propertyUrl)}`,{redirect:"follow"});
-      const json=await res.json();
-      return json.ok?json.data:null;
-    }catch(e){return null;}
-  };
-  const quickStatus=async(c,newStatus)=>{
-    let nd=data.map(x=>x.id===c.id?{...x,s:newStatus}:x);
-    if(newStatus==="成約"){
-      // 売主の場合：紐づく買主も成約に
-      if(c.mode==="sell"){
-        (c.buyers||[]).filter(b=>b.customerId).forEach(b=>{
-          nd=nd.map(x=>x.id===b.customerId?{...x,s:"成約"}:x);
-        });
-      }
-      // 買主の場合：紐づく売主も成約に
-      if(c.mode==="buy"&&c.linkedSellerId){
-        nd=nd.map(x=>(x._spId||x.id)===c.linkedSellerId?{...x,s:"成約"}:x);
-      }
-      // 物件フォルダを取引完了に移動
-      const newUrl=await movePropertyFolder(c.propertyFolderUrl);
-      if(newUrl){
-        nd=nd.map(x=>x.propertyFolderUrl===c.propertyFolderUrl?{...x,propertyFolderUrl:newUrl}:x);
-      }
-    }
-    setData(nd);
-    try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
-    try{await gasPost({action:"save",customers:nd});flash(`✓ ${newStatus}に更新`);}catch(e){flash("⚠️ 保存失敗");}
-  };
-  // 買主候補の成約・見送り
-  const buyerQuickStatus=async(sellerId,buyerId,newStatus)=>{
-    const seller=data.find(x=>(x._spId||x.id)===sellerId);
-    const buyerEntry=(seller?.buyers||[]).find(b=>b.id===buyerId);
-    let nd=data.map(x=>{
-      if((x._spId||x.id)===sellerId){
-        return{...x,buyers:(x.buyers||[]).map(b=>b.id===buyerId?{...b,progress:newStatus==="成約"?"成約":"見送り"}:b)};
-      }
-      return x;
-    });
-    // CRM購入顧客カードを更新
-    if(buyerEntry?.customerId){
-      nd=nd.map(x=>x.id===buyerEntry.customerId?{...x,s:newStatus==="成約"?"成約":"見送り"}:x);
-    }
-    // 成約の場合：売主も成約＋物件フォルダ移動
-    if(newStatus==="成約"){
-      nd=nd.map(x=>(x._spId||x.id)===sellerId?{...x,s:"成約"}:x);
-      const newUrl=await movePropertyFolder(seller?.propertyFolderUrl);
-      if(newUrl){
-        nd=nd.map(x=>x.propertyFolderUrl===seller?.propertyFolderUrl?{...x,propertyFolderUrl:newUrl}:x);
-      }
-    }
-    setData(nd);
-    try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
-    try{await gasPost({action:"save",customers:nd});flash(`✓ ${newStatus==="成約"?"成約":"見送り（購入リストに残ります）"}`);}catch(e){flash("⚠️ 保存失敗");}
-  };
-  const del=async()=>{if(!confirm(`「${form.n}」を削除しますか？`))return;if(form._spId){try{await gasPost({action:"deleteCustomer",spId:form._spId});}catch(e){}}const nd=data.filter(x=>x.id!==form.id);setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();};
-  const addHistory=async()=>{if(!histForm.content.trim()){alert("内容を入力してください");return;}const newEntry={id:Date.now(),date:histForm.date,content:histForm.content,done:false,comment:histForm.comment};
-    // Googleカレンダーにイベント登録
-    try{
-      const datetime=histForm.date+"T09:00:00";
-      const params=new URLSearchParams({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName});
-      const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
-      const json=await res.json();
-      if(json.ok&&json.data)newEntry.calEventId=json.data;
-    }catch(e){console.log("カレンダー登録失敗",e);}
-    setForm(f=>({...f,history:[newEntry,...(f.history||[])]}));setHistForm({date:todayStr(),content:"",comment:""});};;
-  const toggleDone=async(hid)=>{
-    setForm(f=>({...f,history:(f.history||[]).map(x=>x.id===hid?{...x,done:!x.done}:x)}));
-  };
-  const delHist=hid=>setForm(f=>({...f,history:(f.history||[]).filter(h=>h.id!==hid)}));
-  const addBuyer=async()=>{
-    if(!buyerForm.name.trim()){alert("候補者名を入力してください");return;}
-    const newBuyerEntry={id:Date.now(),...buyerForm};
-    const updatedBuyers=[...(form.buyers||[]),newBuyerEntry];
-    setForm(f=>({...f,buyers:updatedBuyers}));
-    setBuyerForm({name:"",progress:"情報収集中",note:"",date:todayStr(),phone:""});
-    // 買主CRM登録
-    await registerBuyerAndCreateFolder(newBuyerEntry);
-    // 売主データも同時保存
-    const c={...form,buyers:updatedBuyers,b:parseInt(form.b)||0,staff:form.staff||myName};
-    const nd=data.map(x=>x.id===c.id?c:x);
-    setData(nd);
-    try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
-    try{await gasPost({action:"save",customers:nd});flash("✓ 候補者追加＋保存完了");}catch(e){flash("⚠️ 保存失敗");}
-  };
-  const delBuyer=bid=>setForm(f=>({...f,buyers:(f.buyers||[]).filter(b=>b.id!==bid)}));
-  const updBuyer=(bid,k,v)=>setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===bid?{...b,[k]:v}:b)}));
-
-  // 買主候補をCRM購入顧客として登録（物件フォルダは売主のものを引き継ぐ）
-  const registerBuyerAndCreateFolder=async(buyer)=>{
-    const newBuyer={
-      id:data.length?Math.max(...data.map(x=>x.id))+1:1,
-      mode:"buy",staff:form.staff||myName,
-      n:buyer.name,k:"",p:buyer.phone||"",e:buyer.email||"",a:"",
-      t:"",ar:"",b:0,l:"",
-      s:"未接触",pr:"低",d:todayStr(),ad:"",ac:"",m:"",
-      history:[],fromSurvey:false,
-      linkedSellerId:form._spId||form.id,
-      propertyFolderUrl:form.propertyFolderUrl||"",
-    };
-    const nd=[...data,newBuyer];
-    setForm(f=>({...f,buyers:(f.buyers||[]).map(b=>b.id===buyer.id?{...b,customerId:newBuyer.id,registered:true}:b)}));
-    setData(nd);
-    try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
-    try{
-      await gasPost({action:"save",customers:nd});
-      flash("✓ 購入顧客登録完了");
-    }catch(e){flash("⚠️ 保存失敗");}
-  };
-
-  // 既存の購入顧客を買主候補に紐づけ（物件フォルダは売主のものを引き継ぐ）
-  const linkExistingBuyerAndCreateFolder=async(buyerCustomerId)=>{
-    const buyerCustomer=data.find(c=>c.id===buyerCustomerId&&c.mode==="buy");
-    if(!buyerCustomer){alert("購入顧客が見つかりません");return;}
-    if(!confirm(`「${buyerCustomer.n}」を買主候補として紐づけますか？`))return;
-    const sellerId=form._spId||form.id;
-    const existingPropertyUrl=form.propertyFolderUrl||"";
-    const newBuyerEntry={id:Date.now(),name:buyerCustomer.n,progress:"情報収集中",note:"",date:todayStr(),customerId:buyerCustomer.id,registered:true};
-    setForm(f=>({...f,buyers:[...(f.buyers||[]),newBuyerEntry]}));
-    try{
-      const nd=data.map(c=>c.id===buyerCustomer.id?{...c,propertyFolderUrl:existingPropertyUrl,linkedSellerId:sellerId}:c);
-      setData(nd);
-      await gasPost({action:"save",customers:nd});
-      flash("✓ 紐づけ完了");
-    }catch(e){flash("⚠️ 保存失敗");}
-  };
-  const importSurvey=async()=>{
-    setSyncMsg("取込中…");
-    try{
-      const surveys=await loadSurveysFromGAS();
-      if(surveys.length===0){flash("新しいアンケートはありません");return;}
-      const nd=[...data];
-      const importedIds=[];
-      surveys.forEach(p=>{
-        if(!p.n?.trim())return;
-        const isSell=p.mode==="sell";
-        const nc={
-          id:nd.length?Math.max(...nd.map(x=>x.id))+1:1,
-          mode:isSell?"sell":"buy",
-          staff:p.staff||myName,
-          n:p.n,k:p.k||"",p:p.p||"",e:p.e||"",a:p.a||"",
-          ...(isSell?{sp_addr:p.sp_addr||"",sp_type:p.sp_type||"",sp_area:p.sp_area||"",sp_assess:"",sp_price:"",sp_reason:p.sp_reason||"",sp_timing:p.sp_timing||"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]}:{t:p.t||"",ar:p.ar||"",b:parseInt(p.b)||0,l:p.l||""}),
-          s:isSell?"査定前":"未接触",pr:"低",d:todayStr(),ad:"",ac:isSell?"査定依頼":"初回ヒアリング",m:p.m||"",history:[],fromSurvey:true
-        };
-        nd.push(nc);
-        if(p._surveyId)importedIds.push(p._surveyId);
-      });
-      persist(nd);
-      if(importedIds.length>0)await gasPost({action:"markSurveyImported",ids:importedIds});
-      setSurveyCount(0);
-      flash(`✓ ${surveys.length}件取り込みました`);
-    }catch(e){flash("⚠️ 取込失敗");}
-  };
-  const tog=id=>setExpanded(e=>({...e,[id]:!e[id]}));const setS=k=>setSort(s=>s.k===k?{...s,asc:!s.asc}:{k,asc:true});const sf=k=>sort.k===k?(sort.asc?" ↑":" ↓"):"";
-  const list=getList();const statuses=mode==="buy"?BUY_STATUSES:SELL_STATUSES;const myData=isAdmin?data:data.filter(c=>c.staff===myName);const staffList=[...new Set(data.map(c=>c.staff).filter(Boolean))];const overdueCount=myData.filter(c=>adSt(c.ad)?.c==="overdue").length;const fTabs=form.mode==="sell"?[["info","👤 基本"],["sell","🏠 物件・査定"],["buyers","🤝 買主候補"],["history","📅 履歴"]]:[["info","👤 基本情報"],["history","📅 履歴"]];
-  if(!user)return<LoginScreen onLogin={setUser}/>;
-  return(<div style={{background:"#F4F6F9",minHeight:"100vh"}}>
-    {alarms.length>0&&(<div style={{position:"fixed",top:0,left:0,right:0,zIndex:500,background:"#C0392B",color:"#fff",padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><div style={{fontSize:13,fontWeight:700}}>🔔 本日アクション期限！</div><div style={{fontSize:11,opacity:.9}}>{alarms.map(a=>a.n).join("、")}</div></div><button onClick={()=>setAlarms([])} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>✕</button></div>)}
-    <div style={{background:isAdmin?"#2C3E50":"#1F4E79",color:"#fff",padding:`${alarms.length>0?"54px":"14px"} 16px 12px`,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,.2)"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div><div style={{fontSize:16,fontWeight:700}}>{isAdmin?"👑 管理者ビュー":"🏠 不動産顧客管理"}</div><div style={{fontSize:11,opacity:.7,marginTop:1}}>{isAdmin?"全担当者のデータ":`担当：${myName}`}{syncMsg&&<span style={{marginLeft:8}}>{syncMsg}</span>}</div></div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <button onClick={fetchGAS} disabled={syncing} style={{background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 10px",borderRadius:18,fontSize:12,cursor:"pointer"}}>{syncing?"⟳":"🔄"}</button>
-          <div style={{position:"relative"}}>
-            <button onClick={()=>setMenuOpen(m=>!m)} style={{background:menuOpen?"rgba(255,255,255,.35)":"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.4)",color:"#fff",padding:"6px 12px",borderRadius:18,fontSize:16,cursor:"pointer",position:"relative"}}>≡{surveyCount>0&&<span style={{position:"absolute",top:-6,right:-6,background:"#C0392B",color:"#fff",borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{surveyCount}</span>}</button>
-            {menuOpen&&(<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:150}}/>)}
-            {menuOpen&&(<div style={{position:"absolute",right:0,top:"calc(100% + 8px)",background:"#fff",borderRadius:12,boxShadow:"0 4px 24px rgba(0,0,0,.18)",zIndex:200,minWidth:160,overflow:"hidden"}}>
-              {!isAdmin&&<button onClick={()=>{importSurvey();setMenuOpen(false);}} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",borderBottom:"1px solid #F0F0F0",fontSize:13,cursor:"pointer",color:"#1A202C",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>📋 <span>取込{surveyCount>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:9,padding:"1px 7px",fontSize:10,fontWeight:700,marginLeft:6}}>{surveyCount}</span>}</span></button>}
-              {!isAdmin&&<button onClick={()=>{setQrModal(true);setMenuOpen(false);}} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",borderBottom:"1px solid #F0F0F0",fontSize:13,cursor:"pointer",color:"#1A202C",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>🔲 QR</button>}
-              <button onClick={()=>{exportCSV(list,mode);setMenuOpen(false);}} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",borderBottom:"1px solid #F0F0F0",fontSize:13,cursor:"pointer",color:"#1A202C",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>📥 CSV出力</button>
-              <a href="https://calendar.google.com/calendar/r" target="_blank" onClick={()=>setMenuOpen(false)} style={{width:"100%",padding:"12px 16px",background:"none",borderBottom:"1px solid #F0F0F0",fontSize:13,cursor:"pointer",color:"#1A202C",textAlign:"left",display:"flex",alignItems:"center",gap:10,textDecoration:"none"}}>📅 スケジュール</a>
-              <button onClick={()=>setUser(null)} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",fontSize:13,cursor:"pointer",color:"#C0392B",textAlign:"left",display:"flex",alignItems:"center",gap:10}}>🚪 ログアウト</button>
-            </div>)}
-          </div>
-        </div>
-      </div>
-      {isAdmin&&(<div style={{display:"flex",gap:6,marginBottom:8}}>{[["customers","👥 顧客リスト"],["staff","⚙️ 担当者管理"]].map(([v,l])=>(<button key={v} onClick={()=>setAdminTab(v)} style={{padding:"7px 16px",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer",background:adminTab===v?"rgba(255,255,255,.9)":"rgba(255,255,255,.15)",color:adminTab===v?"#2C3E50":"rgba(255,255,255,.8)"}}>{l}</button>))}</div>)}
-      {(!isAdmin||adminTab==="customers")&&<>
-        {isAdmin&&(<div style={{display:"flex",gap:6,marginBottom:8,overflowX:"auto"}}>{[["all","全員"],...staffList.map(s=>[s,s])].map(([v,l])=>(<button key={v} onClick={()=>setStaffFilter(v)} style={{flexShrink:0,padding:"5px 13px",borderRadius:18,fontSize:11,fontWeight:600,cursor:"pointer",border:"none",background:staffFilter===v?"rgba(255,255,255,.9)":"rgba(255,255,255,.2)",color:staffFilter===v?"#2C3E50":"#fff"}}>{l}</button>))}</div>)}
-        <div style={{display:"flex",gap:6,marginBottom:8}}>{[["buy",`🔍 購入 ${myData.filter(c=>c.mode==="buy"&&c.s!=="成約").length}件`],["sell",`🏷️ 売却 ${myData.filter(c=>c.mode==="sell"&&c.s!=="成約").length}件`]].map(([v,l])=>(<button key={v} onClick={()=>{setMode(v);setFilter("all");}} style={{flex:1,padding:"8px 0",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",background:mode===v?"rgba(255,255,255,.22)":"rgba(255,255,255,.08)",color:mode===v?"#fff":"rgba(255,255,255,.5)",borderBottom:mode===v?"2.5px solid #fff":"2.5px solid transparent"}}>{l}</button>))}</div>
-        <input value={sq} onChange={e=>setSq(e.target.value)} placeholder="🔍 氏名・住所・エリアで検索…" className="search-input" style={{width:"100%",padding:"9px 14px",borderRadius:10,border:"none",background:"rgba(255,255,255,.18)",color:"rgba(255,255,255,.8)",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-      </>}
-    </div>
-    {isAdmin&&adminTab==="staff"&&(<div style={{padding:"14px 16px"}}><StaffTab gasUrl={GAS_URL}/></div>)}
-    {(!isAdmin||adminTab==="customers")&&<>
-      <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"8px 14px",display:"flex",gap:7,overflowX:"auto"}}>{[["all","すべて"],...statuses.map(s=>[s,s])].map(([v,l])=>(<button key={v} onClick={()=>setFilter(v)} style={{flexShrink:0,border:`1.5px solid ${filter===v?"#1F4E79":"#E2E8F0"}`,background:filter===v?"#1F4E79":"#fff",color:filter===v?"#fff":"#718096",padding:"5px 13px",borderRadius:18,fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>))}</div>
-      <div style={{background:"#fff",borderBottom:"1px solid #E2E8F0",padding:"7px 14px",display:"flex",gap:7,alignItems:"center",overflowX:"auto"}}><span style={{fontSize:11,color:"#718096",flexShrink:0}}>並替：</span>{[["no","No."],["name","名前"],["prospect","見込み"],["action","アクション日"],...(isAdmin?[["staff","担当者"]]:[])]
-        .map(([k,l])=>(<button key={k} onClick={()=>setS(k)} style={{flexShrink:0,border:`1.5px solid ${sort.k===k?"#2E75B6":"#E2E8F0"}`,background:sort.k===k?"#2E75B6":"#fff",color:sort.k===k?"#fff":"#718096",padding:"5px 11px",borderRadius:18,fontSize:11,cursor:"pointer"}}>{l}{sf(k)}</button>))}</div>
-      <div style={{padding:"6px 16px",fontSize:11,color:"#718096",background:"#F4F6F9",display:"flex",justifyContent:"space-between"}}><span>{list.length}件表示中</span>{overdueCount>0&&<span style={{color:"#C0392B",fontWeight:700}}>⚠️ 期限超過 {overdueCount}件</span>}</div>
-      <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",gap:10,paddingBottom:90}}>
-        <>{!loaded?<div style={{textAlign:"center",padding:"60px 0",color:"#718096"}}>⟳ 読み込み中…</div>
-          :list.length===0?<div style={{textAlign:"center",padding:"60px 20px",color:"#718096",fontSize:14}}><div style={{fontSize:40,marginBottom:12}}>📋</div>顧客がいません</div>
-          :list.map(c=><Card key={c.id} c={c} exp={expanded[c.id]} onTog={()=>tog(c.id)} onEdit={()=>openEdit(c)} isAdmin={isAdmin} onQuickStatus={(newStatus)=>quickStatus(c,newStatus)} onFolder={()=>setFolderModal(c)}/>)}</>
-      </div>
-      {!isAdmin&&<button onClick={openNew} style={{position:"fixed",bottom:24,right:20,width:54,height:54,borderRadius:"50%",background:mode==="buy"?"#1F4E79":"#00703C",color:"#fff",fontSize:26,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,.3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>＋</button>}
-    </>}
-    {modal&&(<div onClick={e=>e.target===e.currentTarget&&closeModal()} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.52)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",maxHeight:"93vh",overflowY:"auto",padding:"20px 16px 52px",animation:"sup .22s ease"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div><h2 style={{fontSize:15,fontWeight:700,margin:0,color:form.mode==="sell"?"#00703C":"#1F4E79"}}>{form.mode==="sell"?"🏷️":"🔍"} {modal==="new"?"新規顧客":"顧客情報を編集"}</h2><div style={{fontSize:11,color:"#718096",marginTop:2}}>担当：{form.staff||myName}</div></div>{modal==="edit"&&<button onClick={del} style={{border:"none",background:"#fee",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:"#C0392B",fontWeight:600}}>🗑️ 削除</button>}</div>
-      <div style={{display:"flex",marginBottom:14,borderBottom:"1.5px solid #E2E8F0",overflowX:"auto"}}>{fTabs.map(([t,l])=>(<button key={t} onClick={()=>setFormTab(t)} style={{border:"none",background:"none",padding:"7px 14px",fontSize:12,fontWeight:formTab===t?700:400,color:formTab===t?(form.mode==="sell"?"#00703C":"#1F4E79"):"#718096",borderBottom:formTab===t?`2.5px solid ${form.mode==="sell"?"#00703C":"#1F4E79"}`:"2.5px solid transparent",cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>{l}{t==="history"&&form.history?.length>0?` (${form.history.length})`:""}{t==="buyers"&&form.buyers?.length>0?` (${form.buyers.length})`:""}
-      </button>))}</div>
-      {formTab==="info"&&<InfoTab form={form} ff={ff} statuses={statuses}/>}
-      {formTab==="sell"&&form.mode==="sell"&&<SellTab form={form} ff={ff}/>}
-      {formTab==="buyers"&&form.mode==="sell"&&<BuyersTab form={form} buyerForm={buyerForm} setBuyerForm={setBuyerForm} addBuyer={addBuyer} delBuyer={delBuyer} updBuyer={updBuyer} registerBuyerAndCreateFolder={registerBuyerAndCreateFolder} linkExistingBuyerAndCreateFolder={linkExistingBuyerAndCreateFolder} allBuyCustomers={data.filter(c=>c.mode==="buy")} onBuyerQuickStatus={(buyerId,status)=>buyerQuickStatus(form._spId||form.id,buyerId,status)}/>}
-      {formTab==="history"&&<HistTab form={form} histForm={histForm} setHistForm={setHistForm} addHistory={addHistory} toggleDone={toggleDone} delHist={delHist}/>}
-      {formTab==="buyers"?(<div style={{marginTop:18}}><button onClick={closeModal} style={{width:"100%",padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>閉じる</button></div>):(<div style={{display:"flex",gap:10,marginTop:18}}><button onClick={closeModal} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={save} onPointerDown={e=>e.currentTarget.style.transform="scale(0.95)"} onPointerUp={e=>e.currentTarget.style.transform="scale(1)"} onPointerLeave={e=>e.currentTarget.style.transform="scale(1)"} style={{flex:2,padding:13,border:"none",background:form.mode==="sell"?"#00703C":"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700,transition:"transform 0.1s"}}>保存</button></div>)}
-    </div></div>)}
-    {folderModal&&(<div onClick={e=>e.target===e.currentTarget&&setFolderModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
-  <div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 16px 40px"}}>
-    <div style={{fontSize:14,fontWeight:700,color:"#1F4E79",marginBottom:4}}>📁 資料フォルダ</div>
-    <div style={{fontSize:12,color:"#718096",marginBottom:16}}>{folderModal.n}</div>
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <a href="#" onClick={async e=>{e.preventDefault();const spId=folderModal._spId||folderModal.id;const res=await fetch(`${GAS_URL}?action=getFolderUrl&spId=${spId}`,{redirect:"follow"});const json=await res.json();if(json.ok&&json.data)window.open(json.data,"_blank");else alert("顧客資料フォルダが見つかりません");setFolderModal(null);}} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#EBF3FB",borderRadius:12,textDecoration:"none"}}>
-        <span style={{fontSize:24}}>📁</span>
-        <div><div style={{fontSize:14,fontWeight:700,color:"#1F4E79"}}>顧客資料</div><div style={{fontSize:11,color:"#718096"}}>重説・契約書・ローン関係</div></div>
-      </a>
-      {folderModal.propertyFolderUrl?(<a href={folderModal.propertyFolderUrl} target="_blank" onClick={()=>setFolderModal(null)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#FFF3E0",borderRadius:12,textDecoration:"none"}}>
-        <span style={{fontSize:24}}>🏠</span>
-        <div><div style={{fontSize:14,fontWeight:700,color:"#E65100"}}>物件資料</div><div style={{fontSize:11,color:"#718096"}}>謄本・公図・税金・図面</div></div>
-      </a>):(<div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#F4F6F9",borderRadius:12,opacity:.5}}>
-        <span style={{fontSize:24}}>🏠</span>
-        <div><div style={{fontSize:14,fontWeight:700,color:"#718096"}}>物件資料</div><div style={{fontSize:11,color:"#718096"}}>未作成</div></div>
-      </div>)}
-    </div>
-    <button onClick={()=>setFolderModal(null)} style={{width:"100%",marginTop:14,padding:"12px",background:"#F4F6F9",border:"none",borderRadius:10,fontSize:14,color:"#718096",cursor:"pointer"}}>閉じる</button>
-  </div>
-</div>)}
-{qrModal&&<QRModal name={myName} onClose={()=>setQrModal(false)}/>}{surveyModal&&(<div onClick={e=>e.target===e.currentTarget&&(setSurveyModal(false),setSurveyJson(""),setSurveyError(""))} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}}><div style={{background:"#fff",borderRadius:"20px 20px 0 0",width:"100%",padding:"20px 18px 48px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h2 style={{fontSize:16,fontWeight:700,color:"#1F4E79",margin:0}}>📋 アンケートデータ取込</h2><button onClick={()=>{setSurveyModal(false);setSurveyJson("");setSurveyError("");}} style={{border:"none",background:"none",fontSize:20,cursor:"pointer",color:"#718096"}}>✕</button></div>
-      <textarea value={surveyJson} onChange={e=>setSurveyJson(e.target.value)} placeholder='{"mode":"buy","n":"田中 太郎",...}' style={{...S,resize:"vertical",minHeight:110,fontFamily:"monospace",fontSize:12,background:"#F8FAFC"}}/>
-      {surveyError&&<div style={{color:"#C0392B",fontSize:12,marginTop:6}}>⚠️ {surveyError}</div>}
-      <div style={{display:"flex",gap:10,marginTop:14}}><button onClick={()=>{setSurveyModal(false);setSurveyJson("");setSurveyError("");}} style={{flex:1,padding:13,border:"1.5px solid #E2E8F0",background:"#fff",borderRadius:10,fontSize:14,cursor:"pointer",color:"#718096"}}>キャンセル</button><button onClick={importSurvey} style={{flex:2,padding:13,border:"none",background:"#1F4E79",borderRadius:10,fontSize:14,cursor:"pointer",color:"#fff",fontWeight:700}}>取り込む</button></div>
-    </div></div>)}
-  </div>);
+  });
 }
 
-function InfoTab({form,ff,statuses}){
-  const alarmUnits=[["分前","min"],["時間前","hour"],["日前","day"]];
-  const addAlarm=()=>ff("aa",[...(form.aa||[]),{id:Date.now(),value:30,unit:"min"}]);
-  const updAlarm=(id,k,v)=>ff("aa",(form.aa||[]).map(a=>a.id===id?{...a,[k]:v}:a));
-  const delAlarm=id=>ff("aa",(form.aa||[]).filter(a=>a.id!==id));
-  return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-    <FL label="氏名 *" span={1}><input style={S} value={form.n||""} onChange={e=>ff("n",e.target.value)} placeholder="田中 太郎"/></FL>
-    <FL label="フリガナ" span={1}><input style={S} value={form.k||""} onChange={e=>ff("k",e.target.value)} placeholder="タナカ タロウ"/></FL>
-    <FL label="📞 電話番号" span={1}><input style={S} value={form.p||""} onChange={e=>ff("p",e.target.value)} placeholder="090-1234-5678"/></FL>
-    <FL label="✉️ メール" span={1}><input style={S} value={form.e||""} onChange={e=>ff("e",e.target.value)} placeholder="example@email.com"/></FL>
-    <FL label="現住所"><input style={S} value={form.a||""} onChange={e=>ff("a",e.target.value)} placeholder="東京都〇〇区"/></FL>
-    {form.mode==="buy"&&<><FL label="希望種別" span={1}><select style={S} value={form.t||""} onChange={e=>ff("t",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望エリア" span={1}><input style={S} value={form.ar||""} onChange={e=>ff("ar",e.target.value)} placeholder="渋谷・恵比寿"/></FL><FL label="予算（万円）" span={1}><input style={S} value={form.b||""} onChange={e=>ff("b",e.target.value)} placeholder="5000"/></FL><FL label="間取り" span={1}><input style={S} value={form.l||""} onChange={e=>ff("l",e.target.value)} placeholder="2LDK"/></FL></>}
-    <FL label="ステータス" span={1}><select style={S} value={form.s||statuses[0]} onChange={e=>ff("s",e.target.value)}>{statuses.map(v=><option key={v}>{v}</option>)}</select></FL>
-    <FL label="見込み度" span={1}><select style={S} value={form.pr||""} onChange={e=>ff("pr",e.target.value)}><option value="">選択</option>{["高","中","低"].map(v=><option key={v}>{v}</option>)}</select></FL>
-    <FL label="初回接触日" span={1}><input style={S} type="date" value={form.d||""} onChange={e=>ff("d",e.target.value)}/></FL>
-    <FL label="メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.m||""} onChange={e=>ff("m",e.target.value)} placeholder="特記事項"/></FL>
-    <FL label="⏰ 次回アクション" span={2}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付 *</label><input style={S} type="date" value={form.ad||""} onChange={e=>ff("ad",e.target.value)}/></div>
-        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>開始時間 *</label><input style={S} type="time" value={form.at||""} onChange={e=>ff("at",e.target.value)}/></div>
-        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>終了時間</label><input style={S} type="time" value={form.ate||""} onChange={e=>ff("ate",e.target.value)}/></div>
-      </div>
-      <input style={{...S,marginBottom:8}} value={form.ac||""} onChange={e=>ff("ac",e.target.value)} placeholder="タイトル（例：内覧立会い）"/>
-      <input style={{...S,marginBottom:8}} value={form.al||""} onChange={e=>ff("al",e.target.value)} placeholder="📍 場所（任意）"/>
-      <textarea style={{...S,resize:"vertical",minHeight:60,marginBottom:8}} value={form.am||""} onChange={e=>ff("am",e.target.value)} placeholder="説明（任意）"/>
-      <div style={{marginBottom:6}}>
-        {(form.aa||[]).map(a=>(
-          <div key={a.id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:12,color:"#718096",flexShrink:0}}>🔔</span>
-            <input style={{...S,width:70,flex:"none"}} type="number" min={1} value={a.value} onChange={e=>updAlarm(a.id,"value",e.target.value)}/>
-            <select style={{...S,flex:1}} value={a.unit} onChange={e=>updAlarm(a.id,"unit",e.target.value)}>
-              {alarmUnits.map(([l,v])=><option key={v} value={v}>{l}</option>)}
-            </select>
-            <span style={{fontSize:11,color:"#718096",flexShrink:0}}>前</span>
-            <button onClick={()=>delAlarm(a.id)} style={{background:"#FFF5F5",border:"none",borderRadius:6,padding:"5px 8px",fontSize:11,cursor:"pointer",color:"#C0392B",flexShrink:0}}>✕</button>
-          </div>
-        ))}
-        <button onClick={addAlarm} style={{background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#1F4E79",fontWeight:700,cursor:"pointer"}}>＋ 通知を追加</button>
-      </div>
-    </FL>
-  </div>);}
-function SellTab({form,ff}){return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><FL label="売却物件所在地"><input style={S} value={form.sp_addr||""} onChange={e=>ff("sp_addr",e.target.value)} placeholder="東京都〇〇区〇〇1-2-3"/></FL><FL label="種別" span={1}><select style={S} value={form.sp_type||""} onChange={e=>ff("sp_type",e.target.value)}><option value="">選択</option>{TYPES.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="専有面積（㎡）" span={1}><input style={S} value={form.sp_area||""} onChange={e=>ff("sp_area",e.target.value)} placeholder="68"/></FL><FL label="査定額（万円）" span={1}><input style={S} value={form.sp_assess||""} onChange={e=>ff("sp_assess",e.target.value)} placeholder="2800"/></FL><FL label="売出価格（万円）" span={1}><input style={S} value={form.sp_price||""} onChange={e=>ff("sp_price",e.target.value)} placeholder="2980"/></FL><FL label="売却理由" span={1}><select style={S} value={form.sp_reason||""} onChange={e=>ff("sp_reason",e.target.value)}><option value="">選択</option>{SELL_REASONS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="希望時期" span={1}><select style={S} value={form.sp_timing||""} onChange={e=>ff("sp_timing",e.target.value)}><option value="">選択</option>{SELL_TIMINGS.map(v=><option key={v}>{v}</option>)}</select></FL><FL label="内覧回数" span={1}><input style={S} value={form.sp_nairanCount||"0"} onChange={e=>ff("sp_nairanCount",e.target.value)} placeholder="0"/></FL><FL label="内覧反応・メモ"><textarea style={{...S,resize:"vertical",minHeight:70}} value={form.sp_nairanNote||""} onChange={e=>ff("sp_nairanNote",e.target.value)} placeholder="前向きな反応あり"/></FL></div>);}
-function BuyersTab({form,buyerForm,setBuyerForm,addBuyer,delBuyer,updBuyer,registerBuyerAndCreateFolder,linkExistingBuyerAndCreateFolder,allBuyCustomers,onBuyerQuickStatus}){
-  const [showLinkModal,setShowLinkModal]=React.useState(false);
-  const [selectedBuyerId,setSelectedBuyerId]=React.useState("");
-  return(<div>
-    {/* 既存購入顧客との紐づけモーダル */}
-    {showLinkModal&&(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:"#fff",borderRadius:16,padding:"20px",width:"100%",maxWidth:320}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#1F4E79",marginBottom:12}}>購入顧客を選んで紐づけ</div>
-        <select style={{...S,marginBottom:12}} value={selectedBuyerId} onChange={e=>setSelectedBuyerId(e.target.value)}>
-          <option value="">-- 選択してください --</option>
-          {allBuyCustomers.map(c=><option key={c.id} value={c.id}>{c.n}（#{String(c.id).padStart(3,"0")}）</option>)}
-        </select>
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>{setShowLinkModal(false);setSelectedBuyerId("");}} style={{flex:1,padding:"10px 0",background:"#F4F6F9",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:13,cursor:"pointer",color:"#718096"}}>キャンセル</button>
-          <button onClick={()=>{if(selectedBuyerId){linkExistingBuyerAndCreateFolder(parseInt(selectedBuyerId));setShowLinkModal(false);setSelectedBuyerId("");}}} style={{flex:1,padding:"10px 0",background:"#1F4E79",border:"none",borderRadius:10,fontSize:13,cursor:"pointer",color:"#fff",fontWeight:700}}>紐づける</button>
-        </div>
-      </div>
-    </div>)}
-    <div style={{background:"#F0FFF4",borderRadius:10,padding:"12px 14px",marginBottom:14,border:"1px solid #C6F6D5"}}>
-      <div style={{fontSize:12,fontWeight:700,color:"#00703C",marginBottom:10}}>＋ 買主候補を追加</div>
-      <div style={{marginBottom:8}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>候補者名</label><input style={S} value={buyerForm.name} onChange={e=>setBuyerForm(b=>({...b,name:e.target.value}))} placeholder="木村様"/></div>
-      <div style={{marginBottom:8}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>電話番号</label><input style={S} value={buyerForm.phone||""} onChange={e=>setBuyerForm(b=>({...b,phone:e.target.value}))} placeholder="090-1234-5678"/></div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>進捗</label><select style={S} value={buyerForm.progress} onChange={e=>setBuyerForm(b=>({...b,progress:e.target.value}))}>{BUYER_PROGRESS.map(v=><option key={v}>{v}</option>)}</select></div>
-        <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={buyerForm.date} onChange={e=>setBuyerForm(b=>({...b,date:e.target.value}))}/></div>
-      </div>
-      <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>メモ</label><input style={S} value={buyerForm.note} onChange={e=>setBuyerForm(b=>({...b,note:e.target.value}))} placeholder="価格交渉希望など"/></div>
-      <button onClick={addBuyer} style={{width:"100%",padding:"11px",background:"#00703C",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:8}}>候補者を追加</button>
-      <button onClick={()=>setShowLinkModal(true)} style={{width:"100%",padding:"9px 0",background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,color:"#1F4E79",fontSize:12,fontWeight:700,cursor:"pointer"}}>🔗 既存の購入顧客と紐づける</button>
-    </div>
-    {(!form.buyers||form.buyers.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>🤝 買主候補はまだいません</div>:(form.buyers||[]).map(b=>{
-      const pc=b.progress==="成約"?"#00703C":b.progress==="見送り"?"#C0392B":"#2E75B6";
-      const pb=b.progress==="成約"?"#D4EDDA":b.progress==="見送り"?"#FDECEA":"#EBF3FB";
-      return(<div key={b.id} style={{background:"#fff",border:`1.5px solid ${b.registered?"#C6F6D5":"#E2E8F0"}`,borderRadius:10,padding:"11px 13px",marginBottom:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-          <div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <div style={{fontSize:14,fontWeight:700}}>{b.name}</div>
-              {b.registered&&<span style={{background:"#C6F6D5",color:"#276749",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>✓ CRM登録済</span>}
-            </div>
-            <div style={{fontSize:10,color:"#718096"}}>{b.date}</div>
-          </div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <span style={{background:pb,color:pc,padding:"2px 9px",borderRadius:9,fontSize:10,fontWeight:700}}>{b.progress}</span>
-
-            <button onClick={()=>{if(window.confirm(`「${b.name}」を成約にしますか？\n売主も成約になり物件フォルダが取引完了に移動します。`))onBuyerQuickStatus(b.id,"成約");}} style={{background:"#D4EDDA",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,cursor:"pointer",color:"#00703C",fontWeight:700}}>✅</button><button onClick={()=>{if(window.confirm(`「${b.name}」をこの物件では見送りにしますか？\n購入リストには残ります。`))onBuyerQuickStatus(b.id,"見送り");}} style={{background:"#FFF3E0",border:"none",borderRadius:7,padding:"4px 8px",fontSize:10,cursor:"pointer",color:"#E65100",fontWeight:700}}>❌</button><button onClick={()=>delBuyer(b.id)} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"4px 8px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button>
-          </div>
-        </div>
-        <select value={b.progress} onChange={e=>updBuyer(b.id,"progress",e.target.value)} style={{fontSize:12,border:"1px solid #E2E8F0",borderRadius:7,padding:"4px 8px",color:"#1A202C",background:"#fff"}}>{BUYER_PROGRESS.map(v=><option key={v}>{v}</option>)}</select>
-        {b.note&&<div style={{marginTop:6,fontSize:11,color:"#718096"}}>💬 {b.note}</div>}
-      </div>);
-    })}
-  </div>);
-}
-function HistTab({form,histForm,setHistForm,addHistory,toggleDone,delHist}){return(<div><div style={{background:"#F0F4F8",borderRadius:10,padding:"12px 14px",marginBottom:14}}><div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:10}}>＋ アクションを記録</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label><input style={S} type="date" value={histForm.date} onChange={e=>setHistForm(h=>({...h,date:e.target.value}))}/></div><div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>内容</label><input style={S} value={histForm.content} onChange={e=>setHistForm(h=>({...h,content:e.target.value}))} placeholder="電話・内覧など"/></div></div><div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>コメント</label><input style={S} value={histForm.comment} onChange={e=>setHistForm(h=>({...h,comment:e.target.value}))} placeholder="詳細メモ"/></div></div>{(!form.history||form.history.length===0)?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>📋 履歴はまだありません</div>:(form.history||[]).map(h=>(<div key={h.id} style={{background:"#fff",border:`1.5px solid ${h.done?"#C6F6D5":"#E2E8F0"}`,borderRadius:10,padding:"11px 13px",marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}><span style={{fontSize:10,color:"#718096",fontFamily:"monospace"}}>{h.date}</span>{h.done&&<span style={{background:"#C6F6D5",color:"#276749",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>✓ 完了</span>}</div><div style={{fontSize:13,fontWeight:600,textDecoration:h.done?"line-through":"none"}}>{h.content}</div>{h.comment&&<div style={{fontSize:11,color:"#718096",marginTop:3}}>💬 {h.comment}</div>}</div><div style={{display:"flex",gap:6,marginLeft:8}}><button onClick={()=>toggleDone(h.id)} style={{background:h.done?"#F0FFF4":"#EBF8FF",border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",color:h.done?"#276749":"#2E75B6",fontWeight:600}}>{h.done?"↩️":"✓"}</button><button onClick={()=>delHist(h.id)} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"5px 8px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div></div></div>))}</div>);}
-function Card({c,exp,onTog,onEdit,isAdmin,onQuickStatus,onFolder}){const cl=pcls(c.pr);const aS=adSt(c.ad);const isSell=c.mode==="sell";const bc=isSell?(cl==="high"?"#00703C":cl==="mid"?"#F0A500":"#AAA"):(cl==="high"?"#2E75B6":cl==="mid"?"#F0A500":"#AAA");const pbg=cl==="high"?"#D4EDDA":cl==="mid"?"#FFF3CD":"#F0F0F0";const ptx=cl==="high"?"#155724":cl==="mid"?"#664D03":"#555";const adColor=aS?.c==="overdue"?"#C0392B":aS?.c==="soon"?"#E65100":"#2E7D32";const adBg=aS?.c==="overdue"?"#FDECEA":aS?.c==="soon"?"#FFF8E1":"#E8F5E9";const ph=(c.history||[]).filter(h=>!h.done).length;const ab=isSell?(c.buyers||[]).filter(b=>b.progress!=="見送り").length:0;return(<div style={{background:"#fff",borderRadius:12,boxShadow:"0 2px 12px rgba(0,0,0,.08)",border:"1px solid #E2E8F0",borderLeft:`4px solid ${bc}`,overflow:"hidden"}}><div style={{padding:"12px 13px 9px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1,minWidth:0}}><div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><span style={{fontSize:15,fontWeight:700}}>{c.n}</span>{isSell&&<span style={{background:"#E8F5E9",color:"#00703C",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>売却</span>}{c.fromSurvey&&<span style={{background:"#EBF8FF",color:"#2E75B6",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>📋</span>}{isAdmin&&c.staff&&<span style={{background:"#EBF3FB",color:"#1F4E79",padding:"1px 7px",borderRadius:9,fontSize:9,fontWeight:700}}>👤{c.staff}</span>}</div><div style={{fontSize:10,color:"#718096",marginTop:1}}>{c.k}</div>{isSell&&c.sp_addr&&<div style={{fontSize:11,color:"#4A5568",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🏠 {c.sp_addr}</div>}<div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:5,alignItems:"center"}}><span style={{padding:"2px 9px",borderRadius:10,fontSize:10,fontWeight:500,background:isSell?"#E8F5E9":"#EBF3FB",color:isSell?"#00703C":"#1F4E79"}}>{c.s||"未設定"}</span>{aS&&<span style={{padding:"3px 8px",borderRadius:10,fontSize:10,fontWeight:600,background:adBg,color:adColor}}>{aS.t}</span>}{c.ac&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#F0F4F8",color:"#4A5568"}}>{c.ac}</span>}{ph>0&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#FFF3CD",color:"#664D03",fontWeight:600}}>📅未完了{ph}</span>}{isSell&&ab>0&&<span style={{padding:"2px 8px",borderRadius:10,fontSize:10,background:"#E8F5E9",color:"#00703C",fontWeight:600}}>🤝候補{ab}名</span>}</div></div><div style={{textAlign:"right",flexShrink:0,marginLeft:8}}><span style={{padding:"3px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:pbg,color:ptx}}>{c.pr||"-"}</span>{isSell&&c.sp_price&&<div style={{fontSize:11,color:"#00703C",fontWeight:700,marginTop:4}}>{parseInt(c.sp_price).toLocaleString()}万</div>}<div style={{fontSize:9,color:"#718096",marginTop:4,fontFamily:"monospace"}}>#{String(c.id).padStart(3,"0")}</div></div></div><div style={{display:"flex",borderTop:"1px solid #E2E8F0"}}>{[{ico:"📞",sub:c.p||"電話なし",href:c.p?`tel:${c.p.replace(/[^0-9+]/g,"")}`:"",dis:!c.p},{ico:"📍",sub:"マップ",href:(c.sp_addr||c.a)?`https://maps.google.com/?q=${encodeURIComponent(c.sp_addr||c.a)}`:"",dis:!c.a&&!c.sp_addr,blank:true},{ico:"✉️",sub:c.e?"メール":"メールなし",href:c.e?`mailto:${c.e}`:"",dis:!c.e},{ico:"📁",sub:"資料",href:"#",dis:false,col:"#0078d4",onClick:onFolder},{ico:"✏️",sub:"編集",onClick:onEdit}].map((btn,i,arr)=>(<a key={i} href={btn.href||"#"} target={btn.blank?"_blank":undefined} onClick={btn.onClick?(e=>{e.preventDefault();btn.onClick();}):(btn.dis?(e=>e.preventDefault()):undefined)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 4px",textDecoration:"none",color:btn.dis?"#ccc":(btn.col||"#2E75B6"),gap:3,borderRight:i<arr.length-1?"1px solid #E2E8F0":"none",cursor:btn.dis&&!btn.onClick?"default":"pointer"}}><span style={{fontSize:15,lineHeight:1}}>{btn.ico}</span><span style={{fontSize:7}}>{btn.sub}</span></a>))}</div><div style={{display:"flex",borderTop:"1px solid #E2E8F0"}}>{c.s!=="成約"&&<button onClick={e=>{e.stopPropagation();if(window.confirm(`「${c.n}」を成約にしますか？`))onQuickStatus("成約");}} style={{flex:1,padding:"8px 4px",background:"none",border:"none",borderRight:"1px solid #E2E8F0",fontSize:11,color:"#718096",cursor:"pointer"}}>成約にする</button>}<button onClick={e=>{e.stopPropagation();onTog();}} style={{flex:2,background:"none",border:"none",padding:"8px 4px",fontSize:11,color:"#718096",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>{exp?"▲ 閉じる":"▼ 詳細を見る"}</button></div>{exp&&(<div><div style={{padding:"6px 13px 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>{(isSell?[["物件種別",c.sp_type],["専有面積",c.sp_area?c.sp_area+"㎡":""],["査定額",c.sp_assess?parseInt(c.sp_assess).toLocaleString()+"万円":""],["売出価格",c.sp_price?parseInt(c.sp_price).toLocaleString()+"万円":""],["売却理由",c.sp_reason],["希望時期",c.sp_timing],["内覧回数",c.sp_nairanCount+"回"],["初回接触日",c.d]]:[["種別",c.t],["エリア",c.ar],["予算",c.b?c.b.toLocaleString()+"万円":""],["間取り",c.l],["初回接触日",c.d],["次回アクション日",c.ad]]).map(([k,v])=>(<div key={k}><span style={{fontSize:9,color:"#718096",display:"block"}}>{k}</span><span style={{fontSize:12,fontWeight:500}}>{v||"-"}</span></div>))}</div>{c.m&&<div style={{margin:"0 13px 10px",padding:"8px 10px",background:"#F8FAFC",borderRadius:8,fontSize:11,color:"#718096",lineHeight:1.5,border:"1px solid #E2E8F0"}}>📝 {c.m}</div>}{isSell&&c.buyers&&c.buyers.length>0&&<div style={{margin:"0 13px 12px"}}><div style={{fontSize:10,color:"#718096",fontWeight:600,marginBottom:5}}>🤝 買主候補</div>{c.buyers.map(b=>{const pc=b.progress==="成約"?"#00703C":b.progress==="見送り"?"#C0392B":"#2E75B6";const pb=b.progress==="成約"?"#D4EDDA":b.progress==="見送り"?"#FDECEA":"#EBF3FB";return(<div key={b.id} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 8px",background:b.registered?"#F0FFF4":"#F8FAFC",borderRadius:7,marginBottom:4,border:`1px solid ${b.registered?"#C6F6D5":"#E2E8F0"}`}}><span style={{flex:1,fontSize:12,fontWeight:600}}>{b.name}{b.registered&&<span style={{fontSize:9,color:"#276749",marginLeft:4}}>✓</span>}</span><span style={{background:pb,color:pc,padding:"1px 8px",borderRadius:9,fontSize:9,fontWeight:700}}>{b.progress}</span><span style={{fontSize:10,color:"#718096",fontFamily:"monospace"}}>{b.date}</span></div>);})}</div>}{c.history&&c.history.length>0&&<div style={{margin:"0 13px 12px"}}><div style={{fontSize:10,color:"#718096",fontWeight:600,marginBottom:5}}>📅 アクション履歴（直近3件）</div>{c.history.slice(0,3).map(h=>(<div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:h.done?"#F0FFF4":"#F8FAFC",borderRadius:7,marginBottom:4,border:`1px solid ${h.done?"#C6F6D5":"#E2E8F0"}`}}><span style={{fontSize:10,fontFamily:"monospace",color:"#718096",flexShrink:0}}>{h.date}</span><span style={{fontSize:11,flex:1,textDecoration:h.done?"line-through":"none",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{h.content}</span>{h.done&&<span style={{fontSize:9,color:"#276749",fontWeight:700}}>✓</span>}</div>))}{c.history.length>3&&<div style={{fontSize:10,color:"#718096",textAlign:"center",padding:3}}>他 {c.history.length-3} 件</div>}</div>}</div>)}</div>);}
-function exportCSV(list,mode){const isSell=mode==="sell";const h=isSell?["No.","担当者","氏名","フリガナ","電話","メール","現住所","物件住所","種別","面積","査定額","売出価格","売却理由","希望時期","内覧回数","ステータス","見込み","次回アクション日","メモ"]:["No.","担当者","氏名","フリガナ","電話","メール","住所","種別","エリア","予算","間取り","ステータス","見込み","次回アクション日","メモ"];const mr=c=>isSell?[c.id,c.staff,c.n,c.k,c.p,c.e,c.a,c.sp_addr,c.sp_type,c.sp_area,c.sp_assess,c.sp_price,c.sp_reason,c.sp_timing,c.sp_nairanCount,c.s,c.pr,c.ad,c.m]:[c.id,c.staff,c.n,c.k,c.p,c.e,c.a,c.t,c.ar,c.b,c.l,c.s,c.pr,c.ad,c.m];const csv="\uFEFF"+[h.map(x=>`"${x}"`), ...list.map(c=>mr(c).map(v=>`"${String(v||"").replace(/"/g,'""')}"`))].map(r=>r.join(",")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=`${isSell?"売却":"購入"}顧客_${new Date().toISOString().slice(0,10).replace(/-/g,"")}.csv`;a.click();}
-
-// URLに?surveyがあればアンケートを表示、なければCRMを表示
-if(window.location.search.includes('survey')){
-  document.getElementById('crm-app').classList.add('hidden');
-  document.getElementById('survey-app').classList.add('active');
-}else{
-  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-}
-</script>
-
-<!-- アンケート用JavaScript -->
-<script>
-const SV_SP_HOST = "reallinks524.sharepoint.com";
-const SV_SITE_NAME = "CRM";
-let svCurrentMode = "";
-let svResultJson = "";
-let svSpToken = null;
-let svSpSiteId = null;
-
-async function svGetToken() {
-  if (svSpToken) return svSpToken;
-  // MSALが使えない場合はトークンなしで送信（アンケートは認証不要にする）
-  return null;
-}
-
-async function svSubmitToSP(data) {
-  // GAS経由でSharePointに送信（no-corsでCORSエラー回避）
-  const GAS = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
+// ============================================================
+// IDからフォルダURLを動的取得
+// ============================================================
+function getFolderUrl(token, siteId, spId) {
+  if (!spId) return null;
   try {
-    await fetch(GAS, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action: "survey", survey: data }),
+    const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${encodeURIComponent("顧客データ")}/items/${spId}?expand=fields`;
+    const res = UrlFetchApp.fetch(url, {
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true,
     });
+    const item = JSON.parse(res.getContentText());
+    const memo = item.fields?.[F.備考] || "";
+    const m = memo.match(/\[\[FOLDER\]\]([^\n]+)/);
+    if (m) return m[1].trim();
+    const paddedId = String(spId).padStart(3, "0");
+    return searchFolderById(token, siteId, paddedId);
   } catch(e) {
-    console.log("アンケート送信エラー:", e);
+    Logger.log("getFolderUrl error: " + e.message);
+    return null;
   }
 }
 
-function svUpdProgress(n){ const el=document.getElementById('sv-progress'); if(el)el.style.width=(n/5*100)+'%'; }
-function svSelectMode(m){
-  svCurrentMode=m;
-  document.getElementById('sv-btn-buy').classList.toggle('selected',m==='buy');
-  document.getElementById('sv-btn-sell').classList.toggle('selected',m==='sell');
-  document.getElementById('sv-err-mode').style.display='none';
-  const nb=document.getElementById('sv-mode-next-btn');
-  nb.className='sv-btn '+(m==='sell'?'sv-btn-sell':'sv-btn-primary');
-  document.getElementById('sv-submit-btn').className='sv-btn '+(m==='sell'?'sv-btn-sell':'sv-btn-primary');
-}
-function svModeNext(){
-  if(!svCurrentMode){document.getElementById('sv-err-mode').style.display='block';return;}
-  svGoStep(1);
-}
-function svGoStep(id){
-  document.querySelectorAll('.sv-step').forEach(s=>s.classList.remove('active'));
-  const el=document.getElementById('sv-step'+id);
-  if(el)el.classList.add('active');
-  window.scrollTo(0,0);
-  const m={0:1,1:2,'2buy':3,'2sell':3,'3buy':4,'3sell':4,'4buy':5,'4sell':5,5:5};
-  svUpdProgress(m[id]||1);
-}
-function svPick(gridId,btn,hiddenId){
-  document.querySelectorAll('#'+gridId+' .sv-choice-btn').forEach(b=>b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById(hiddenId).value=btn.dataset.val;
-}
-function svNext1(){
-  const n=document.getElementById('sv-f-n').value.trim();
-  document.getElementById('sv-err-n').classList.toggle('show',!n);
-  if(!n)return;
-  svGoStep(svCurrentMode==='sell'?'2sell':'2buy');
-}
-function svNext2buy(){
-  const t=document.getElementById('sv-f-t').value;
-  document.getElementById('sv-err-t').classList.toggle('show',!t);
-  if(!t)return;
-  svGoStep('3buy');
-}
-function svNext2sell(){
-  const a=document.getElementById('sv-f-sp-addr').value.trim();
-  document.getElementById('sv-err-sp-addr').classList.toggle('show',!a);
-  if(!a)return;
-  svGoStep('3sell');
-}
-function svUpdRange(el,valId){
-  const min=+el.min,max=+el.max,val=+el.value;
-  const pct=Math.round((val-min)/(max-min)*100);
-  el.style.background=`linear-gradient(to right,#1F4E79 ${pct}%,#E2E8F0 ${pct}%)`;
-  document.getElementById(valId).textContent=val.toLocaleString()+'万円';
-}
-function svBuildConfirm(mode){
-  let rows;
-  if(mode==='buy'){
-    rows=[['ご相談内容','物件のご購入'],['お名前',document.getElementById('sv-f-n').value],['フリガナ',document.getElementById('sv-f-k').value],['電話番号',document.getElementById('sv-f-p').value],['メール',document.getElementById('sv-f-e').value],['現住所',document.getElementById('sv-f-a').value],['物件種別',document.getElementById('sv-f-t').value],['希望エリア',document.getElementById('sv-f-ar').value],['ご予算',document.getElementById('sv-f-b').value+'万円'],['希望間取り',document.getElementById('sv-f-l').value],['入居時期',document.getElementById('sv-f-timing').value],['ご要望',document.getElementById('sv-f-m').value]];
-    document.getElementById('sv-confirm-back').onclick=()=>svGoStep('4buy');
-    document.getElementById('sv-s5-label').textContent='購入 — 確認';
-  }else{
-    rows=[['ご相談内容','物件の売却'],['お名前',document.getElementById('sv-f-n').value],['フリガナ',document.getElementById('sv-f-k').value],['電話番号',document.getElementById('sv-f-p').value],['メール',document.getElementById('sv-f-e').value],['現住所',document.getElementById('sv-f-a').value],['売却物件所在地',document.getElementById('sv-f-sp-addr').value],['物件種別',document.getElementById('sv-f-sp-type').value],['専有面積',document.getElementById('sv-f-sp-area').value?document.getElementById('sv-f-sp-area').value+'㎡':''],['売却理由',document.getElementById('sv-f-reason').value],['希望時期',document.getElementById('sv-f-timing-sell').value],['ご要望',document.getElementById('sv-f-ms').value]];
-    document.getElementById('sv-confirm-back').onclick=()=>svGoStep('4sell');
-    document.getElementById('sv-s5-label').textContent='売却 — 確認';
+function moveToCompleted(token, siteId, folderUrl) {
+  if (!folderUrl) return null;
+  try {
+    const driveRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const driveId = JSON.parse(driveRes.getContentText()).id;
+    if (!driveId) return null;
+    const completedId = ensureFolder(token, driveId, "root", "取引完了");
+    if (!completedId) { Logger.log("取引完了フォルダ取得失敗"); return null; }
+    const searchRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/root/search(q='${encodeURIComponent(folderUrl.split("/").pop())}')`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const results = JSON.parse(searchRes.getContentText()).value || [];
+    const folder = results.find(r => r.folder && r.webUrl === folderUrl);
+    if (!folder) { Logger.log("移動対象フォルダが見つかりません: " + folderUrl); return null; }
+    const moveRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folder.id}`,
+      {
+        method: "patch",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        payload: JSON.stringify({
+          parentReference: { id: completedId },
+          "@microsoft.graph.conflictBehavior": "rename",
+        }),
+        muteHttpExceptions: true,
+      }
+    );
+    const moved = JSON.parse(moveRes.getContentText());
+    Logger.log("フォルダ移動完了: " + (moved.webUrl || "失敗"));
+    return moved.webUrl || null;
+  } catch(e) {
+    Logger.log("moveToCompleted error: " + e.message);
+    return null;
   }
-  const card=document.getElementById('sv-confirm-card');
-  card.innerHTML=rows.filter(([,v])=>v).map(([k,v])=>`<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #E2E8F0;font-size:13px"><span style="flex:0 0 100px;color:#718096;font-size:11px;font-weight:700;padding-top:1px">${k}</span><span style="flex:1;line-height:1.5;word-break:break-all">${v}</span></div>`).join('');
-  svGoStep(5);
 }
-async function svSubmit(){
-  const isSell=svCurrentMode==='sell';
-  const data=isSell?{mode:'sell',n:document.getElementById('sv-f-n').value.trim(),k:document.getElementById('sv-f-k').value.trim(),p:document.getElementById('sv-f-p').value.trim(),e:document.getElementById('sv-f-e').value.trim(),a:document.getElementById('sv-f-a').value.trim(),sp_addr:document.getElementById('sv-f-sp-addr').value.trim(),sp_type:document.getElementById('sv-f-sp-type').value,sp_area:document.getElementById('sv-f-sp-area').value,sp_reason:document.getElementById('sv-f-reason').value,sp_timing:document.getElementById('sv-f-timing-sell').value,m:document.getElementById('sv-f-ms').value.trim(),s:'査定前',pr:'低',fromSurvey:true,_submitted:new Date().toISOString().slice(0,10)}:{mode:'buy',n:document.getElementById('sv-f-n').value.trim(),k:document.getElementById('sv-f-k').value.trim(),p:document.getElementById('sv-f-p').value.trim(),e:document.getElementById('sv-f-e').value.trim(),a:document.getElementById('sv-f-a').value.trim(),t:document.getElementById('sv-f-t').value,ar:document.getElementById('sv-f-ar').value.trim(),b:document.getElementById('sv-f-b').value,l:document.getElementById('sv-f-l').value,m:[document.getElementById('sv-f-m').value.trim(),document.getElementById('sv-f-timing').value?'入居時期：'+document.getElementById('sv-f-timing').value:''].filter(Boolean).join(' / '),s:'未接触',pr:'低',fromSurvey:true,_submitted:new Date().toISOString().slice(0,10)};
-  svResultJson=JSON.stringify(data,null,2);
-  try{await svSubmitToSP({...data,staff:new URLSearchParams(window.location.search).get('staff')||""});}catch(e){}
-  document.querySelectorAll('.sv-step').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sv-done-screen').classList.add('active');
-  document.getElementById('sv-progress').style.width='100%';
-  window.scrollTo(0,0);
+
+function searchFolderById(token, siteId, paddedId) {
+  try {
+    const driveRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const driveId = JSON.parse(driveRes.getContentText()).id;
+    if (!driveId) return null;
+    const searchRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/root/search(q='%23${paddedId}')`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const results = JSON.parse(searchRes.getContentText()).value || [];
+    const folder = results.find(r => r.folder && r.name.includes(`#${paddedId}`));
+    return folder ? folder.webUrl : null;
+  } catch(e) {
+    Logger.log("searchFolderById error: " + e.message);
+    return null;
+  }
 }
-function svCopyJson(){
-  const compact=JSON.stringify(JSON.parse(svResultJson));
-  const btn=document.getElementById('sv-copy-btn');
-  try{navigator.clipboard.writeText(compact).then(()=>{btn.textContent='✅ コピーしました！アプリに貼り付けてください';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 データをコピー（アプリへ取込用）';btn.classList.remove('copied');},3000);});}
-  catch(e){const ta=document.createElement('textarea');ta.value=compact;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);btn.textContent='✅ コピーしました！';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 データをコピー（アプリへ取込用）';btn.classList.remove('copied');},3000);}
+
+function createCustomerFolder(token, siteId, folderName, mode) {
+  try {
+    const driveRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const driveId = JSON.parse(driveRes.getContentText()).id;
+    if (!driveId) { Logger.log("driveId取得失敗"); return null; }
+    const rootId = ensureFolder(token, driveId, "root", "顧客資料");
+    if (!rootId) { Logger.log("顧客資料フォルダ取得失敗"); return null; }
+    const subFolder = mode === "sell" ? "売却" : "購入";
+    const parentId  = ensureFolder(token, driveId, rootId, subFolder);
+    if (!parentId) { Logger.log("サブフォルダ取得失敗"); return null; }
+    return createFolderInParent(token, driveId, parentId, folderName);
+  } catch(e) {
+    Logger.log("createCustomerFolder error: " + e.message);
+    return null;
+  }
 }
-// 予算スライダー初期化
-window.addEventListener('load',()=>{
-  const el=document.getElementById('sv-f-b');
-  if(el)svUpdRange(el,'sv-f-b-val');
-});
-</script>
-</body>
-</html>
+
+function createPropertyFolder(token, siteId, folderName, _unused, rootFolderName) {
+  try {
+    const driveRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drive`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const driveId = JSON.parse(driveRes.getContentText()).id;
+    if (!driveId) { Logger.log("driveId取得失敗"); return null; }
+    const rootName = rootFolderName || "物件資料";
+    const rootId = ensureFolder(token, driveId, "root", rootName);
+    if (!rootId) { Logger.log(rootName + "フォルダ取得失敗"); return null; }
+    return createFolderInParent(token, driveId, rootId, folderName);
+  } catch(e) {
+    Logger.log("createPropertyFolder error: " + e.message);
+    return null;
+  }
+}
+
+function createFolderInParent(token, driveId, parentId, folderName) {
+  const res = UrlFetchApp.fetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`,
+    {
+      method: "post",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      payload: JSON.stringify({
+        name: folderName,
+        folder: {},
+        "@microsoft.graph.conflictBehavior": "rename",
+      }),
+      muteHttpExceptions: true,
+    }
+  );
+  const result = JSON.parse(res.getContentText());
+  Logger.log("フォルダ作成: " + folderName + " → " + (result.webUrl || "失敗"));
+  return result.webUrl || null;
+}
+
+function ensureFolder(token, driveId, parentId, folderName) {
+  try {
+    const listRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`,
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const items = JSON.parse(listRes.getContentText()).value || [];
+    const found = items.find(i => i.name === folderName && i.folder);
+    if (found) return found.id;
+    const createRes = UrlFetchApp.fetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`,
+      {
+        method: "post",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        payload: JSON.stringify({
+          name: folderName,
+          folder: {},
+          "@microsoft.graph.conflictBehavior": "fail",
+        }),
+        muteHttpExceptions: true,
+      }
+    );
+    return JSON.parse(createRes.getContentText()).id || null;
+  } catch(e) {
+    Logger.log("ensureFolder error: " + e.message);
+    return null;
+  }
+}
+
+function deleteCustomer(token, siteId, spId) {
+  if (!spId) return;
+  spDelete(token, siteId, "顧客データ", spId);
+}
+
+// ============================================================
+// アンケート保存・取込・取込済みマーク
+// ============================================================
+function saveSurvey(token, siteId, survey) {
+  const now = new Date().toISOString();
+  spPost(token, siteId, "アンケート受信", {
+    Title                              : now.slice(0, 19).replace("T", " "),
+    "_x30a2__x30f3__x30b1__x30fc__x30" : JSON.stringify(survey),
+  });
+}
+
+function loadNewSurveys(token, siteId) {
+  const items = spGet(token, siteId, "アンケート受信");
+  return items
+    .filter(item => item.fields[F.取込済み] !== true)
+    .map(item => {
+      let data = {};
+      try { data = JSON.parse(item.fields[F.アンケート内容] || "{}"); } catch(e) {}
+      data._surveyId = item.id;
+      data._spId     = item.id;
+      return data;
+    });
+}
+
+function markImported(token, siteId, ids) {
+  ids.forEach(id => spPatch(token, siteId, "アンケート受信", id, { [F.取込済み]: true }));
+}
+
+// ============================================================
+// アンケート自動取込（タイムトリガーで5分おきに実行）
+// ============================================================
+function autoImportSurveys() {
+  try {
+    const token  = getAccessToken();
+    const siteId = getSiteId(token);
+    const surveys = loadNewSurveys(token, siteId);
+    if (surveys.length === 0) return;
+    const existing = spGet(token, siteId, "顧客データ");
+    const maxId = existing.length ? Math.max(...existing.map(i => parseInt(i.id) || 0)) : 0;
+    let nextId = maxId + 1;
+    const importedIds = [];
+    surveys.forEach(p => {
+      if (!p.n?.trim()) return;
+      const isSell = p.mode === "sell";
+      const today = new Date().toISOString().slice(0, 10);
+      const newCustomer = {
+        n    : p.n, k: p.k || "", p: p.p || "", e: p.e || "", a: p.a || "",
+        mode : isSell ? "sell" : "buy",
+        staff: p.staff || "",
+        s    : isSell ? "査定前" : "未接触",
+        pr   : "低",
+        d    : today, ad: "", at: "", ate: "", ac: isSell ? "査定依頼" : "初回ヒアリング",
+        al: "", aa: [], am: "",
+        m    : p.m || "",
+        b    : parseInt(p.b) || 0,
+        t    : p.t || "", ar: p.ar || "", l: p.l || "",
+        sp_addr: p.sp_addr || "", sp_type: p.sp_type || "", sp_area: p.sp_area || "",
+        sp_assess: "", sp_price: "", sp_reason: p.sp_reason || "",
+        sp_timing: p.sp_timing || "", sp_nairanCount: "0", sp_nairanNote: "",
+        fromSurvey: true, history: [], buyers: [],
+        folderUrl: "", propertyFolderUrl: "", linkedSellerId: null,
+      };
+      const created = spPost(token, siteId, "顧客データ", customerToSp(newCustomer));
+      const newSpId = created.id;
+      if (newSpId) {
+        const paddedId = String(newSpId).padStart(3, "0");
+        const folderName = `${newCustomer.n}（#${paddedId}）`;
+        const folderUrl = createCustomerFolder(token, siteId, folderName, newCustomer.mode);
+        if (folderUrl) newCustomer.folderUrl = folderUrl;
+        const propertyFolderUrl = createPropertyFolder(token, siteId, folderName, null, "物件資料");
+        if (propertyFolderUrl) newCustomer.propertyFolderUrl = propertyFolderUrl;
+        spPatch(token, siteId, "顧客データ", newSpId, customerToSp(newCustomer));
+      }
+      if (p._surveyId) importedIds.push(p._surveyId);
+      nextId++;
+    });
+    if (importedIds.length > 0) markImported(token, siteId, importedIds);
+    Logger.log(`自動取込完了: ${importedIds.length}件`);
+  } catch(e) {
+    Logger.log("autoImportSurveys error: " + e.message);
+  }
+}
+
+// ============================================================
+// タイムトリガー設定（初回のみ手動実行）
+// ============================================================
+function setAutoImportTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "autoImportSurveys") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("autoImportSurveys")
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+  Logger.log("トリガー設定完了");
+}
+
+// ============================================================
+// 担当者マスタ
+// ============================================================
+function loadStaff(token, siteId) {
+  const items = spGet(token, siteId, "担当者マスタ");
+  return items.map(item => ({
+    name : item.fields.Title || "",
+    pass : item.fields["_x30d1__x30b9__x30ef__x30fc__x30"] || "",
+    _spId: item.id,
+  }));
+}
+
+function saveStaff(token, siteId, staffList) {
+  const existing = spGet(token, siteId, "担当者マスタ");
+  existing.forEach(item => spDelete(token, siteId, "担当者マスタ", item.id));
+  staffList.forEach(s => {
+    spPost(token, siteId, "担当者マスタ", {
+      Title    : s.name || "",
+      パスワード: String(s.pass || ""),
+    });
+  });
+}
+
+// ============================================================
+// 勤怠管理
+// ============================================================
+function saveAttendance(token, siteId, body) {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const dateStr = jst.toISOString().slice(0, 10);
+  spPost(token, siteId, "勤怠データ", {
+    Title                          : `${body.staffName}_${dateStr}_${body.type}`,
+    [FA.担当者名]                  : body.staffName || "",
+    [FA.種別]                      : body.type || "",
+    [FA.打刻日時]                  : now.toISOString(),
+    [FA.緯度]                      : String(body.lat || ""),
+    [FA.経度]                      : String(body.lng || ""),
+    [FA.備考]                      : body.note || "",
+  });
+  return { staffName: body.staffName, type: body.type, datetime: now.toISOString() };
+}
+
+function loadAttendance(token, siteId, staffName, month) {
+  const items = spGet(token, siteId, "勤怠データ");
+  return items
+    .filter(item => {
+      const f = item.fields;
+      if (staffName && f[FA.担当者名] !== staffName) return false;
+      if (month) {
+        const d = (f[FA.打刻日時] || "").slice(0, 7);
+        if (d !== month) return false;
+      }
+      return true;
+    })
+    .map(item => {
+      const f = item.fields;
+      return {
+        id        : item.id,
+        staffName : f[FA.担当者名] || "",
+        type      : f[FA.種別] || "",
+        datetime  : f[FA.打刻日時] || "",
+        lat       : f[FA.緯度] || "",
+        lng       : f[FA.経度] || "",
+        note      : f[FA.備考] || "",
+      };
+    })
+    .sort((a, b) => a.datetime.localeCompare(b.datetime));
+}
+
+// ============================================================
+// Googleカレンダー連動
+// ============================================================
+const CALENDAR_ID = "c_1e8195f22762e26b89e74a457afcd9cff2ae168c5b14b46e88f328f980c77dc5@group.calendar.google.com";
+
+function createCalendarEvent(title, datetime, staffName, endtime, location, description, alarmsJson) {
+  try {
+    const cal = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!cal) { Logger.log("カレンダーが見つかりません"); return null; }
+    const start = new Date(datetime);
+    const end   = endtime ? new Date(endtime) : new Date(start.getTime() + 60 * 60 * 1000);
+    const options = {};
+    if (location)    options.location    = location;
+    if (description) options.description = description;
+    const event = cal.createEvent(`【${staffName}】${title}`, start, end, options);
+    event.removeAllReminders();
+    let alarms = [];
+    try { alarms = JSON.parse(alarmsJson || "[]"); } catch(e) {}
+    alarms.forEach(a => {
+      const v = parseInt(a.value) || 30;
+      const minutes = a.unit === "day" ? v * 1440 : a.unit === "hour" ? v * 60 : v;
+      event.addPopupReminder(minutes);
+    });
+    return event.getId();
+  } catch(e) {
+    Logger.log("createCalendarEvent error: " + e.message);
+    return null;
+  }
+}
+
+function deleteCalendarEvent(eventId) {
+  try {
+    const cal = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!cal) return;
+    const event = cal.getEventById(eventId);
+    if (event) event.deleteEvent();
+  } catch(e) {
+    Logger.log("deleteCalendarEvent error: " + e.message);
+  }
+}
+
+function testCalendar() {
+  const id = createCalendarEvent("内覧立会い", "2026-04-15T10:00:00", "奈良");
+  Logger.log("イベントID: " + id);
+}
