@@ -312,7 +312,7 @@ function render(){
     const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
     const wd=['日','月','火','水','木','金','土'][day.getDay()];
     const isSat=day.getDay()===6,isSunOrHol=day.getDay()===0||hol;
-    const dayColor=tod?'font-weight:700':isSat?'color:#2980B9':isSunOrHol?'color:#E24B4A':'';
+    const dayColor=isSat?(tod?'color:#2980B9;font-weight:700':'color:#2980B9'):isSunOrHol?(tod?'color:#E24B4A;font-weight:700':'color:#E24B4A'):tod?'font-weight:700':'';
     headHtml+=`<th class="day-col${wk?' wk':''}" style="height:36px;${dayColor}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
   });
   headHtml+='</tr>';
@@ -358,7 +358,7 @@ function render(){
     siteRow.appendChild(siteTd);
     days.forEach(day=>{
       const td=document.createElement('td');
-      td.className='day-cell'+((isWk(day)||isHoliday(day))?' wk-cell':isToday(day)?' tod-cell':'');
+      td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
       siteRow.appendChild(td);
     });
     frag.appendChild(siteRow);
@@ -375,7 +375,7 @@ function render(){
     const koukiCells=[];
     days.forEach((day,di)=>{
       const td=document.createElement('td');
-      td.className='day-cell'+((isWk(day)||isHoliday(day))?' wk-cell':isToday(day)?' tod-cell':'');
+      td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
       td.dataset.kouki=site.id;td.dataset.di=di;
       // 空きセルを長押しでドラッグ開始（クリックだけでは反応しない）
       let _koukiLpt=null;
@@ -460,7 +460,7 @@ function render(){
         const dayCells=[];
         days.forEach((day,di)=>{
           const td=document.createElement('td');
-          td.className='day-cell'+(proc.done?' wk-cell':(isWk(day)||isHoliday(day))?' wk-cell':isToday(day)?' tod-cell':'');
+          td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
           td.dataset.proc=proc.id;td.dataset.site=site.id;td.dataset.di=di;
           procRow.appendChild(td);
           dayCells.push(td);
@@ -558,7 +558,7 @@ function render(){
             const childDayCells=[];
             days.forEach((day,di)=>{
               const td=document.createElement('td');
-              td.className='day-cell'+(proc.done?' wk-cell':(isWk(day)||isHoliday(day))?' wk-cell':isToday(day)?' tod-cell':'');
+              td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
               childRow.appendChild(td);
               childDayCells.push(td);
             });
