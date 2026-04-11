@@ -1045,6 +1045,48 @@ function AttendanceTab(){
     return d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Tokyo"});
   };
 
+  const printAttendance=(staffName)=>{
+    const target=staffName==="all"?staffList.map(s=>s.name):[staffName];
+    const WEEKDAYS=["日","月","火","水","木","金","土"];
+    const [y,m]=month.split("-").map(Number);
+    const daysInMonth=new Date(y,m,0).getDate();
+    let html=`<html><head><meta charset="UTF-8"><style>
+      body{font-family:"MS Gothic",monospace;font-size:11px;margin:20px}
+      h2{font-size:14px;margin-bottom:4px}
+      h3{font-size:12px;margin-bottom:8px;color:#555}
+      table{border-collapse:collapse;width:100%;margin-bottom:30px}
+      th,td{border:1px solid #999;padding:4px 6px;text-align:center}
+      th{background:#f0f0f0;font-weight:bold}
+      .holiday{background:#fff0f0}
+      @media print{button{display:none}}
+    </style></head><body>`;
+    html+=`<button onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;background:#1F4E79;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">🖨️ PDFで保存</button>`;
+    target.forEach(name=>{
+      const staffRecords=records.filter(r=>r.staffName===name);
+      html+=`<h2>出勤簿　${name}</h2>`;
+      html+=`<h3>${y}年${m}月</h3>`;
+      html+=`<table><tr><th>日付</th><th>曜日</th><th>出勤</th><th>退勤</th><th>備考</th></tr>`;
+      for(let d=1;d<=daysInMonth;d++){
+        const dateStr=`${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        const dow=new Date(y,m-1,d).getDay();
+        const dowStr=WEEKDAYS[dow];
+        const isHoliday=dow===0||dow===6;
+        const dayRecords=staffRecords.filter(r=>r.datetime.slice(0,10)===dateStr);
+        const inn=dayRecords.find(r=>r.type==="出勤"||r.type==="直行");
+        const out=dayRecords.find(r=>r.type==="退勤"||r.type==="直帰");
+        const paid=dayRecords.find(r=>r.type==="有給");
+        const toT=dt=>{if(!dt)return"";const d=new Date(dt);return d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Tokyo"});};
+        const note=paid?"有給":dayRecords.find(r=>r.note)?.note||"";
+        html+=`<tr class="${isHoliday?"holiday":""}"><td>${m}月${d}日</td><td>${dowStr}</td><td>${inn?toT(inn.datetime):""}</td><td>${out?toT(out.datetime):""}</td><td>${note}</td></tr>`;
+      }
+      html+=`</table>`;
+    });
+    html+=`</body></html>`;
+    const w=window.open("","_blank");
+    w.document.write(html);
+    w.document.close();
+  };
+
   return(<div>
     <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
       <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{...S,flex:"none",width:"auto"}}/>
@@ -1053,6 +1095,7 @@ function AttendanceTab(){
         {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
       <button onClick={()=>setShowAddPaid(v=>!v)} style={{background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,padding:"0 14px",fontSize:12,color:"#1F4E79",fontWeight:700,cursor:"pointer",flexShrink:0}}>＋ 有給</button>
+      <button onClick={()=>printAttendance(staffFilter)} style={{background:"#1F4E79",border:"none",borderRadius:8,padding:"0 14px",fontSize:12,color:"#fff",fontWeight:700,cursor:"pointer",flexShrink:0}}>🖨️ 出勤簿</button>
     </div>
     {showAddPaid&&(<div style={{background:"#EBF3FB",borderRadius:10,padding:"14px",marginBottom:14,border:"1px solid #BDD7EE"}}>
       <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:10}}>有給を登録</div>
