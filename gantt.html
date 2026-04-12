@@ -377,22 +377,23 @@ function render(){
       const td=document.createElement('td');
       td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
       td.dataset.kouki=site.id;td.dataset.di=di;
-      // 空きセルを長押しでドラッグ開始（クリックだけでは反応しない）
-      let _koukiLpt=null;
+      // 工期行：長押し500msでバー作成開始
+      let _kLpt=null;
       td.onmousedown=(e)=>{
         if(e.target.closest('[data-handle]'))return;
         e.preventDefault();
         const d=days[di];
-        _koukiLpt=setTimeout(()=>{
+        _kLpt=setTimeout(()=>{
+          _kLpt=null;
           const s2=sites.find(x=>x.id===site.id);
           if(s2){s2.koukiStart=fmt(d);s2.koukiEnd=fmt(d);}
           barDrag={active:true,type:'right',isKouki:true,siteId:site.id,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
           render();
-        },400);
+        },500);
       };
-      td.onmouseup=()=>{if(_koukiLpt){clearTimeout(_koukiLpt);_koukiLpt=null;}};
-      td.onmouseleave=()=>{if(_koukiLpt){clearTimeout(_koukiLpt);_koukiLpt=null;}};
+      td.onmouseup=(e)=>{if(_kLpt){clearTimeout(_kLpt);_kLpt=null;}};
+      td.onmouseleave=(e)=>{if(_kLpt){clearTimeout(_kLpt);_kLpt=null;}};
       koukiRow.appendChild(td);
       koukiCells.push(td);
     });
@@ -559,6 +560,7 @@ function render(){
             days.forEach((day,di)=>{
               const td=document.createElement('td');
               td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
+              td.onmousedown=(e)=>e.stopPropagation();
               childRow.appendChild(td);
               childDayCells.push(td);
             });
@@ -610,7 +612,6 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.innerHTML='';
   tbody.appendChild(frag);
-  saveData();
 }
 
 // バードラッグ処理
