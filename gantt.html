@@ -348,7 +348,7 @@ function render(){
     siteTd.className='col-info';
     const ndBadge=nd>0?`<span class="badge-nd">未定${nd}</span>`:'';
     const warnBadge=isWarn?'<span class="badge-warn">⚠ 発注未完了</span>':'';
-    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="btn btn-sm" style="flex-shrink:0;text-decoration:none">📁</a>`:'';
+    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="btn btn-sm dropbox-btn" style="flex-shrink:0;text-decoration:none">📁</a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
@@ -1209,7 +1209,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     '.col-info{width:100px!important;min-width:100px!important}'+
     '.day-col{width:34px!important;min-width:34px!important}'+
-    '.btn-sm{display:none!important}'+
+    '.btn-sm:not(.dropbox-btn){display:none!important}'+
     '.chk{display:none!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
