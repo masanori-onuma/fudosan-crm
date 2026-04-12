@@ -274,7 +274,7 @@ let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,sta
 
 function makeBar(col,spanCount,label,isDone,isShort){
   const bar=document.createElement('div');
-  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:hidden;border-radius:3px;cursor:grab;user-select:none;`;
+  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
     bar.style.boxShadow='inset 0 0 0 2px #888';
@@ -396,7 +396,7 @@ function render(){
           barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
           render();
-        },200);
+        },150);
       };
       td.onmouseup=()=>{
         if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
@@ -872,10 +872,7 @@ function openProcModal(siteId,procId){
   const childRows=children.map((c,i)=>`
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
       <span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
-      <select style="width:110px;flex-shrink:0;font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:4px" onchange="updateChildFromSel(this,${procId||'null'},${i})">
-        <option value="">-- 選択 --</option>
-        ${masters.procNames.map(v=>`<option value="${esc(v)}"${v===c.name?' selected':''}>${esc(v)}</option>`).join('')}
-      </select>
+
       <input value="${esc(c.name||'')}" placeholder="工事項目名" onchange="updateChild(${procId||'null'},${i},'name',this.value)" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
       <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:50px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
       <input value="${esc(c.note||'')}" placeholder="備考" onchange="updateChild(${procId||'null'},${i},'note',this.value)" style="width:70px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
