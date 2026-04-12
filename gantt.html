@@ -110,7 +110,6 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
   <button class="btn btn-sm" onclick="openMasterModal()" style="margin-left:auto">⚙ マスター</button>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap"></span>
-  <a href="FudosanCRM.html" style="font-size:12px;color:#888;text-decoration:none">← CRM</a>
 </header>
 <div class="container">
   <div class="toolbar">
@@ -203,10 +202,10 @@ function normalizeSites(raw){
   return raw;
 }
 async function loadData(){
-  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));render();}}catch(e){}
+  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();}}catch(e){}
   showSyncStatus('読み込み中…');
   const v=await gasLoad('gantt_sites');
-  if(v){try{sites=normalizeSites(JSON.parse(v));localStorage.setItem('gantt_sites',v);render();showSyncStatus('✓ 同期済み',2000);}catch(e){showSyncStatus('読込エラー',3000);}}
+  if(v){try{sites=normalizeSites(JSON.parse(v));localStorage.setItem('gantt_sites',v);_lastSaved=v;render();showSyncStatus('✓ 同期済み',2000);}catch(e){showSyncStatus('読込エラー',3000);}}
   else{showSyncStatus('（オフライン）',3000);}
   if(!sites.length)sites=[
     {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
@@ -264,6 +263,7 @@ function rebuildSelects(){
 }
 
 // ドラッグ状態
+let _koukiLongPress=null;
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 
 function makeBar(col,spanCount,label,isDone,isShort){
@@ -378,22 +378,22 @@ function render(){
       td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
       td.dataset.kouki=site.id;td.dataset.di=di;
       // 工期行：長押し500msでバー作成開始
-      let _kLpt=null;
       td.onmousedown=(e)=>{
         if(e.target.closest('[data-handle]'))return;
         e.preventDefault();
         const d=days[di];
-        _kLpt=setTimeout(()=>{
-          _kLpt=null;
-          const s2=sites.find(x=>x.id===site.id);
+        const sid=site.id;
+        _koukiLongPress=setTimeout(()=>{
+          _koukiLongPress=null;
+          const s2=sites.find(x=>x.id===sid);
           if(s2){s2.koukiStart=fmt(d);s2.koukiEnd=fmt(d);}
-          barDrag={active:true,type:'right',isKouki:true,siteId:site.id,procId:null,periodIdx:null,
+          barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
           render();
         },500);
       };
-      td.onmouseup=(e)=>{if(_kLpt){clearTimeout(_kLpt);_kLpt=null;}};
-      td.onmouseleave=(e)=>{if(_kLpt){clearTimeout(_kLpt);_kLpt=null;}};
+      td.onmouseup=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
+      td.onmouseleave=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
       koukiRow.appendChild(td);
       koukiCells.push(td);
     });
@@ -525,6 +525,7 @@ function render(){
         // 空きセルのmousedownで新しいperiodのドラッグ開始
         dayCells.forEach((td,di)=>{
           td.onmousedown=(e)=>{
+            if(e.target.dataset.ischild)return;
             if(e.target.closest('[data-handle]')||e.target.closest('.bar'))return;
             e.preventDefault();
             const d=days[di];
@@ -560,7 +561,9 @@ function render(){
             days.forEach((day,di)=>{
               const td=document.createElement('td');
               td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-              td.onmousedown=(e)=>e.stopPropagation();
+              td.dataset.ischild='1';
+              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();};
+              td.onclick=(e)=>{e.preventDefault();e.stopPropagation();};
               childRow.appendChild(td);
               childDayCells.push(td);
             });
