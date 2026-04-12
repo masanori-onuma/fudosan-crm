@@ -212,7 +212,7 @@ async function loadData(){
   const v=await gasLoad('gantt_sites');
   if(v){try{sites=normalizeSites(JSON.parse(v));localStorage.setItem('gantt_sites',v);_lastSaved=v;render();showSyncStatus('✓ 同期済み',2000);}catch(e){showSyncStatus('読込エラー',3000);}}
   else{showSyncStatus('（オフライン）',3000);}
-  if(!sites.length)sites=[
+  if(false&&!sites.length)sites=[
     {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
       {id:101,name:'内装工事',person:'秀力内装',area:'',periods:[{startD:'2026-04-03',endD:'2026-04-07'}],done:false,color:PC[0],children:[
         {id:1011,name:'クロス貼替',area:'148m²'},
