@@ -278,7 +278,7 @@ let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,sta
 
 function makeBar(col,spanCount,label,isDone,isShort){
   const bar=document.createElement('div');
-  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
+  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*_dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
     bar.style.boxShadow='inset 0 0 0 2px #888';
@@ -305,7 +305,7 @@ function makeBar(col,spanCount,label,isDone,isShort){
   // バー短い時は右外にラベル
   if(isShort){
     const ol=document.createElement('div');
-    ol.style.cssText=`position:absolute;top:4px;left:${spanCount*DAY_W+3}px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
+    ol.style.cssText=`position:absolute;top:4px;left:${spanCount*_dayW+3}px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
     ol.textContent=label;
     bar.appendChild(ol);
   }
@@ -317,6 +317,8 @@ function render(){
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
   const days=getDays();
+  // 実際のセル幅を取得（スマホは34px、PCは26px）
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');return th?th.getBoundingClientRect().width||DAY_W:DAY_W;})();
 
   let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
   days.forEach(day=>{
@@ -430,7 +432,7 @@ function render(){
             if(e.target.dataset.handle)return;
             e.preventDefault();
             barDrag={active:true,type:'move',isKouki:true,siteId:site.id,procId:null,periodIdx:null,
-              startMouseDi:asi+Math.floor((e.clientX-sc.getBoundingClientRect().left)/DAY_W),
+              startMouseDi:asi+Math.floor((e.clientX-sc.getBoundingClientRect().left)/_dayW),
               origStart:ks,origEnd:ke};
           };
           bar.querySelector('[data-handle="left"]').onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
@@ -504,7 +506,7 @@ function render(){
             e.preventDefault();
             const cellRect=sc.getBoundingClientRect();
             barDrag={active:true,type:'move',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,
-              startMouseDi:asi+Math.floor((e.clientX-cellRect.left)/DAY_W),
+              startMouseDi:asi+Math.floor((e.clientX-cellRect.left)/_dayW),
               origStart:period.startD,origEnd:period.endD};
           };
           bar.querySelector('[data-handle="left"]').onmousedown=(e)=>{
@@ -647,6 +649,7 @@ document.addEventListener('mousemove',function(e){
   if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
   const days=getDays();
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');return th?th.getBoundingClientRect().width||DAY_W:DAY_W;})();
   // マウス位置からdi計算
   let di=null;
   const cells=document.querySelectorAll('td.day-cell');
