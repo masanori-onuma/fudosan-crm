@@ -274,7 +274,7 @@ let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,sta
 
 function makeBar(col,spanCount,label,isDone,isShort){
   const bar=document.createElement('div');
-  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;`;
+  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*DAY_W}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
     bar.style.boxShadow='inset 0 0 0 2px #888';
@@ -1214,7 +1214,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
     '.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}'+
-    '.site-sub{display:none!important}.site-key{display:block!important;font-size:9px;color:#555}'+
+    '.site-sub{font-size:9px!important;color:#555!important;padding-left:0!important}.site-key{display:block!important;font-size:9px;color:#555}'+
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
     '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}';
