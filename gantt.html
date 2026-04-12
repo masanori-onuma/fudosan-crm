@@ -107,10 +107,10 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <body>
 <header>
   <h1>リフォーム工程表</h1>
-  <span id="undoMsg" style="font-size:11px;color:#555;margin-left:auto"></span>
-  <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
+  <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap;margin-left:auto"></span>
+  <span id="undoMsg" style="font-size:11px;color:#555"></span>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
-  <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap"></span>
+  <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
   <div class="toolbar">
