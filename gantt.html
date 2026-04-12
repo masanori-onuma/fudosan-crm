@@ -243,7 +243,10 @@ function undoLast(){
   _lastSaved=prev;
   sites=normalizeSites(JSON.parse(prev));
   localStorage.setItem('gantt_sites',prev);
-  showSyncStatus('元に戻しました',2000);gasSave('gantt_sites',sites);
+  gasSave('gantt_sites',sites);
+  // undo後はボタンの右にトースト表示
+  const tb=document.getElementById('undoBtn');
+  if(tb){const t=document.createElement('span');t.textContent=' 元に戻しました';t.style.cssText='font-size:11px;color:#555;';tb.after(t);setTimeout(()=>t.remove(),2000);}
   const el=document.getElementById('undoBtn');if(el)el.disabled=_undoStack.length===0;
   render();
 }
@@ -264,6 +267,7 @@ function rebuildSelects(){
 
 // ドラッグ状態
 let _koukiLongPress=null;
+document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 
 function makeBar(col,spanCount,label,isDone,isShort){
@@ -525,7 +529,7 @@ function render(){
         // 空きセルのmousedownで新しいperiodのドラッグ開始
         dayCells.forEach((td,di)=>{
           td.onmousedown=(e)=>{
-            if(e.target.dataset.ischild)return;
+            if(td.dataset.ischild)return;
             if(e.target.closest('[data-handle]')||e.target.closest('.bar'))return;
             e.preventDefault();
             const d=days[di];
@@ -562,8 +566,9 @@ function render(){
               const td=document.createElement('td');
               td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
               td.dataset.ischild='1';
-              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();};
-              td.onclick=(e)=>{e.preventDefault();e.stopPropagation();};
+              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
+              td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
+              td.onmouseup=(e)=>{e.stopPropagation();};
               childRow.appendChild(td);
               childDayCells.push(td);
             });
