@@ -268,6 +268,7 @@ function rebuildSelects(){
 
 // ドラッグ状態
 let _koukiLongPress=null;
+let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 
@@ -530,22 +531,30 @@ function render(){
           sc.appendChild(bar);
         });
 
-        // 空きセルのmousedownで新しいperiodのドラッグ開始
+        // 空きセルの長押し（500ms）で新しいperiodのドラッグ開始
+        let _procLongPress=null;
         dayCells.forEach((td,di)=>{
           td.onmousedown=(e)=>{
-            if(td.dataset.ischild)return;
-            if(e.target.closest('[data-handle]')||e.target.closest('.bar'))return;
+            if(e.target.closest('[data-handle]'))return;
+            // バーの上はドラッグ開始を許可
+            if(e.target.closest('[data-proc-id]'))return;
             e.preventDefault();
             const d=days[di];
-            barDrag={active:true,type:'right',isKouki:false,isNew:true,
-              siteId:site.id,procId:proc.id,periodIdx:-1,
-              startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
-            // 仮periodを追加
-            const site2=sites.find(x=>x.id===site.id);
-            const proc2=site2&&site2.processes.find(x=>x.id===proc.id);
-            if(proc2){proc2.periods.push({startD:fmt(d),endD:fmt(d)});barDrag.periodIdx=proc2.periods.length-1;}
-            render();
+            const sid=site.id,pid=proc.id;
+            _procLongPress=setTimeout(()=>{
+              _procLongPress=null;
+              const site2=sites.find(x=>x.id===sid);
+              const proc2=site2&&site2.processes.find(x=>x.id===pid);
+              if(!proc2)return;
+              proc2.periods.push({startD:fmt(d),endD:fmt(d)});
+              barDrag={active:true,type:'right',isKouki:false,isNew:true,
+                siteId:sid,procId:pid,periodIdx:proc2.periods.length-1,
+                startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
+              render();
+            },500);
           };
+          td.onmouseup=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
+          td.onmouseleave=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
         });
 
         frag.appendChild(procRow);
