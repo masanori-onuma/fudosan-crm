@@ -394,8 +394,7 @@ function render(){
           if(s2){s2.koukiStart=fmt(d);s2.koukiEnd=fmt(d);}
           barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
-          // render呼ばずにbarDragだけセット（mousemoveで描画される）
-          const s3=sites.find(x=>x.id===sid);if(s3)render();
+          render();
         },500);
       };
       td.onmouseup=()=>{
@@ -631,12 +630,14 @@ function render(){
 
 // バードラッグ処理
 document.addEventListener('mousemove',function(e){
+  if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
   const days=getDays();
   // マウス位置からdi計算
   let di=null;
   const cells=document.querySelectorAll('td.day-cell');
   for(const cell of cells){
+    if(cell.dataset.ischild)continue;  // 子項目行は除外
     const r=cell.getBoundingClientRect();
     if(e.clientX>=r.left&&e.clientX<r.right&&e.clientY>=r.top&&e.clientY<r.bottom){
       di=parseInt(cell.dataset.di);break;
