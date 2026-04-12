@@ -141,10 +141,14 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <script>
 const PC=['#4A90D9','#27AE60','#E74C3C','#8E44AD','#E67E22','#16A085','#2980B9','#7F8C8D',
   '#F39C12','#1ABC9C','#C0392B','#9B59B6','#2ECC71','#E91E63','#00BCD4','#FF5722',
-  '#607D8B','#795548','#3F51B5','#009688'];
+  '#607D8B','#795548','#3F51B5','#009688',
+  '#F5A623','#D0021B','#417505','#BD10E0','#9013FE','#4A4A4A','#B8860B','#5C85D6',
+  '#E8D5A3','#A8D5A2','#ffffff','#f0f0f0','#cccccc','#888888','#333333','#000000'];
 const CNAMES=['青','緑','赤','紫','オレンジ','深緑','水色','グレー',
   '黄','エメラルド','濃赤','薄紫','ライム','ピンク','シアン','朱',
-  'スレート','ブラウン','インディゴ','ティール'];
+  'スレート','ブラウン','インディゴ','ティール',
+  '山吹','深紅','深緑2','明紫','濃紫','炭','金茶','コバルト',
+  'クリーム','薄緑','白','薄灰','灰','中灰','濃灰','黒'];
 const SITE_H=40,ROW_H=26,DAY_W=26;
 
 // 日本の祝日
@@ -289,7 +293,8 @@ function makeBar(col,spanCount,label,isDone,isShort){
   bar.appendChild(lh);
   // ラベル
   const lbl=document.createElement('span');
-  lbl.style.cssText='font-size:11px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
+  const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2'].includes(col);
+  lbl.style.cssText='font-size:11px;font-weight:500;color:'+(isLight?'#333':'#fff')+';padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight?'0':'0.3')+')';
   lbl.textContent=label;
   bar.appendChild(lbl);
   // 右リサイズハンドル
