@@ -396,7 +396,7 @@ function render(){
           barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
           render();
-        },500);
+        },200);
       };
       td.onmouseup=()=>{
         if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
@@ -551,7 +551,7 @@ function render(){
                 siteId:sid,procId:pid,periodIdx:proc2.periods.length-1,
                 startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
               render();
-            },500);
+            },200);
           };
           td.onmouseup=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
           td.onmouseleave=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
@@ -1171,7 +1171,7 @@ document.addEventListener('touchstart',function(e){
   const bar=e.target.closest('[data-proc-id]');
   if(bar){
     const pid=parseInt(bar.dataset.procId),sid=parseInt(bar.dataset.siteId);
-    _lpt=setTimeout(()=>{if(!_tmv)showDonePopup(sid,pid,e.touches[0].clientX,e.touches[0].clientY);},500);
+    _lpt=setTimeout(()=>{if(!_tmv)showDonePopup(sid,pid,e.touches[0].clientX,e.touches[0].clientY);},200);
   }
   const procTd=e.target.closest('td.day-cell[data-proc]');
   if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};return;}
