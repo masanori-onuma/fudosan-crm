@@ -107,7 +107,8 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 <body>
 <header>
   <h1>リフォーム工程表</h1>
-  <button class="btn btn-sm" onclick="openMasterModal()" style="margin-left:auto">⚙ マスター</button>
+  <span id="undoMsg" style="font-size:11px;color:#555;margin-left:auto"></span>
+  <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap"></span>
 </header>
@@ -245,8 +246,8 @@ function undoLast(){
   localStorage.setItem('gantt_sites',prev);
   gasSave('gantt_sites',sites);
   // undo後はボタンの右にトースト表示
-  const tb=document.getElementById('undoBtn');
-  if(tb){const t=document.createElement('span');t.textContent=' 元に戻しました';t.style.cssText='font-size:11px;color:#555;';tb.after(t);setTimeout(()=>t.remove(),2000);}
+  const um=document.getElementById('undoMsg');
+  if(um){um.textContent='元に戻しました';setTimeout(()=>{um.textContent='';},2000);}
   const el=document.getElementById('undoBtn');if(el)el.disabled=_undoStack.length===0;
   render();
 }
@@ -393,10 +394,14 @@ function render(){
           if(s2){s2.koukiStart=fmt(d);s2.koukiEnd=fmt(d);}
           barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
             origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
-          render();
+          // render呼ばずにbarDragだけセット（mousemoveで描画される）
+          const s3=sites.find(x=>x.id===sid);if(s3)render();
         },500);
       };
-      td.onmouseup=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
+      td.onmouseup=()=>{
+        if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
+        else if(barDrag.active&&barDrag.isKouki){barDrag.active=false;saveData();}
+      };
       td.onmouseleave=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
       koukiRow.appendChild(td);
       koukiCells.push(td);
@@ -552,6 +557,8 @@ function render(){
             const childRow=document.createElement('tr');
             childRow.className='row-proc'+(proc.done?' done':'');
             childRow.style.height='22px';
+            childRow.style.position='relative';
+            childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
