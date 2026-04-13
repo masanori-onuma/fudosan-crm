@@ -210,7 +210,7 @@ async function loadData(){
   try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();}}catch(e){}
   showSyncStatus('読み込み中…');
   const v=await gasLoad('gantt_sites');
-  if(v){try{sites=normalizeSites(JSON.parse(v));localStorage.setItem('gantt_sites',v);_lastSaved=v;render();showSyncStatus('✓ 同期済み',2000);}catch(e){showSyncStatus('読込エラー',3000);}}
+  if(v){try{sites=normalizeSites(JSON.parse(v));localStorage.setItem('gantt_sites',v);_lastSaved=v;render();showSyncStatus('✓ 同期済み',2000);}catch(e){console.error('loadData error:',e.message,e.stack);showSyncStatus('読込エラー',3000);}}
   else{showSyncStatus('（オフライン）',3000);}
   if(false&&!sites.length)sites=[
     {id:1,name:'マンションハピネスI 201',addr:'埼玉県越谷市東大沢1-5-10',client:'有限会社彩建',collapsed:false,koukiStart:'2026-04-03',koukiEnd:'2026-04-14',dropboxUrl:'',processes:[
@@ -276,9 +276,10 @@ let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 
-function makeBar(col,spanCount,label,isDone,isShort){
+function makeBar(col,spanCount,label,isDone,isShort,dayW){
+  if(!dayW)dayW=DAY_W;
   const bar=document.createElement('div');
-  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*_dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
+  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
     bar.style.boxShadow='inset 0 0 0 2px #888';
@@ -307,7 +308,7 @@ function makeBar(col,spanCount,label,isDone,isShort){
   // バー短い時は右外にラベル
   if(isShort){
     const ol=document.createElement('div');
-    ol.style.cssText=`position:absolute;top:4px;left:${spanCount*_dayW+3}px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
+    ol.style.cssText=`position:absolute;top:4px;left:${spanCount*dayW+3}px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
     ol.textContent=label;
     bar.appendChild(ol);
   }
@@ -427,7 +428,7 @@ function render(){
         if(sc){
           sc.style.position='relative';sc.style.overflow='visible';
           const span=aei-asi+1;
-          const bar=makeBar('#3949ab',span,'工期',false,span<=3);
+          const bar=makeBar('#3949ab',span,'工期',false,span<=3,_dayW);
           bar.style.cursor='pointer';
           bar.onclick=()=>openKoukiModal(site.id);
           bar.onmousedown=(e)=>{
@@ -500,7 +501,7 @@ function render(){
           sc.style.position='relative';sc.style.overflow='visible';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
-          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3);
+          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
           bar.onclick=(e)=>{if(e.target.dataset.handle)return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
