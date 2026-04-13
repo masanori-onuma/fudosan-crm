@@ -63,7 +63,7 @@ tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.6}
 tr.row-site.site-drag-over td{border-top:3px solid #0C447C!important}
 td{padding:0;border-bottom:1px solid #ddd;border-right:1px solid #e8e8e8;vertical-align:middle;overflow:hidden}
 td.col-info{border-right:1px solid #bbb;padding:0}
-td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:pan-x}
+td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:pan-x pan-y}
 td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .site-inner{display:flex;flex-direction:column;justify-content:center;padding:0 6px 0 4px;height:100%;gap:1px}
 .site-top{display:flex;align-items:center;gap:3px;line-height:1}
@@ -118,14 +118,14 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     <label>表示開始</label><input type="date" id="startDate">
     <label>終了</label><input type="date" id="endDate">
     <button class="btn" onclick="applyRange()">適用</button>
-    <button class="btn btn-primary" onclick="openSiteModal(null)">＋ 物件追加</button>
-    <button class="btn" onclick="exportCSV()">CSV出力</button>
+    <button class="btn btn-primary sp-hide" onclick="openSiteModal(null)">＋ 物件追加</button>
+    <button class="btn sp-hide" onclick="exportCSV()">CSV出力</button>
   </div>
   <div class="filter-bar">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
     <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
-    <span style="margin-left:8px;border-left:1px solid #ddd;padding-left:12px;display:flex;align-items:center;gap:6px">
+    <span class="sp-hide" style="margin-left:8px;border-left:1px solid #ddd;padding-left:12px;display:flex;align-items:center;gap:6px">
       <label style="color:#c0392b;font-weight:500">⚠ 完成</label>
       <input type="number" id="warnDays" value="3" min="1" max="30" style="width:48px;height:26px;font-size:12px;border:1px solid #ccc;border-radius:6px;padding:0 6px;text-align:center" onchange="render()">
       <label style="color:#c0392b">日以内で未発注工程あり</label>
@@ -1272,7 +1272,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     '.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}th.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}'+
     '.day-col{width:34px!important;min-width:34px!important}'+
-    '.btn-sm:not(.dropbox-btn){display:none!important}'+
+    '.btn-sm:not(.dropbox-btn){display:none!important}.sp-hide{display:none!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
