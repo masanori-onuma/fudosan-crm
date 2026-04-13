@@ -500,7 +500,7 @@ function render(){
         const dayCells=[];
         days.forEach((day,di)=>{
           const td=document.createElement('td');
-          td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
+          td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
           td.dataset.proc=proc.id;td.dataset.site=site.id;td.dataset.di=di;
           procRow.appendChild(td);
           dayCells.push(td);
@@ -609,7 +609,7 @@ function render(){
             const childDayCells=[];
             days.forEach((day,di)=>{
               const td=document.createElement('td');
-              td.className='day-cell'+(proc.done?' wk-cell':isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
+              td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
               td.dataset.ischild='1';
               td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
