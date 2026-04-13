@@ -321,7 +321,8 @@ function render(){
   const fp=document.getElementById('filterPerson').value;
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
-  const _dayW=(()=>{const th=document.querySelector('th.day-col');return th?th.getBoundingClientRect().width||DAY_W:DAY_W;})();
+  const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
 
   let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
   days.forEach(day=>{
@@ -652,7 +653,8 @@ document.addEventListener('mousemove',function(e){
   if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
   const days=getDays();
-  const _dayW=(()=>{const th=document.querySelector('th.day-col');return th?th.getBoundingClientRect().width||DAY_W:DAY_W;})();
+  const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
   // マウス位置からdi計算
   let di=null;
   const cells=document.querySelectorAll('td.day-cell');
