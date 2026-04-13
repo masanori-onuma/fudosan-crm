@@ -40,6 +40,9 @@ tr.row-site td{background:#dce8f5}
 tr.row-proc td{background:#fff}
 tr.row-proc.done td{background:#f5f5f3}
 tr.row-proc.done td.tod-cell{background:rgba(50,180,100,0.25)!important}
+tr.row-proc.done td.day-cell{background:#fff!important}
+tr.row-proc.done td.day-cell.wk-cell{background:#f5f5f2!important}
+tr.row-proc.done td.day-cell.tod-cell{background:rgba(50,180,100,0.25)!important}
 tr.row-kouki td{background:#f9f5ee}
 tr.row-kouki td.wk-cell{background:#f4eedf}
 tr.row-site td.wk-cell{background:#ccd6e8}
@@ -446,7 +449,7 @@ function render(){
         const cells=koukiRow.querySelectorAll('td.day-cell');
         const sc=cells[asi];
         if(sc){
-          sc.style.position='relative';sc.style.overflow='visible';
+          sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
           const bar=makeBar('#3949ab',span,'工期',false,span<=3,_dayW);
           bar.style.cursor='pointer';
@@ -518,7 +521,7 @@ function render(){
           if(asi<0||aei<0)return;
           const sc=dayCells[asi];
           if(!sc)return;
-          sc.style.position='relative';sc.style.overflow='visible';
+          sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
           const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW);
@@ -629,7 +632,7 @@ function render(){
               if(asi<0||aei<0)return;
               const sc=childDayCells[asi];
               if(!sc)return;
-              sc.style.position='relative';sc.style.overflow='visible';
+              sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
               const span=aei-asi+1;
               const col=proc.done?'#999':proc.color;
               const cbar=document.createElement('div');
