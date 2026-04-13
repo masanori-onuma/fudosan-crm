@@ -1269,7 +1269,7 @@ function showDonePopup(sid,pid,cx,cy){
 if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   const sp=document.createElement('style');
   sp.textContent=
-    '.col-info{width:100px!important;min-width:100px!important;max-width:100px!important}'+
+    '.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}th.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}'+
     '.day-col{width:34px!important;min-width:34px!important}'+
     '.btn-sm:not(.dropbox-btn){display:none!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
@@ -1297,6 +1297,7 @@ loadData();
 // スマホ：下に引っ張ってリロード
 if(_isSP){
   let _ptr_startY=0,_ptr_el=null;
+  const _ganttScroll=document.getElementById('ganttScroll');
   document.addEventListener('touchstart',function(e){
     if(document.getElementById('modalEl').innerHTML)return;
     _ptr_startY=e.touches[0].clientY;
