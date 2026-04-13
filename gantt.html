@@ -302,6 +302,8 @@ function makeBar(col,spanCount,label,isDone,isShort){
   rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:#f5c800;border-radius:0 3px 3px 0;opacity:0.85;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
+  // iOSのコピーメニューを防ぐ
+  bar.addEventListener('touchstart',function(e){e.preventDefault();},{passive:false});
   // バー短い時は右外にラベル
   if(isShort){
     const ol=document.createElement('div');
@@ -498,7 +500,7 @@ function render(){
           sc.style.position='relative';sc.style.overflow='visible';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
-          const bar=makeBar(col,span,proc.name,proc.done,span<=3);
+          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
           bar.onclick=(e)=>{if(e.target.dataset.handle)return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
@@ -800,7 +802,40 @@ function toggleChildren(procId){
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
 function expandAll(){sites.forEach(s=>s.collapsed=false);render();}
 function collapseAll(){sites.forEach(s=>s.collapsed=true);render();}
-function toggleDone(pid){for(const s of sites)for(const p of s.processes)if(p.id===pid){p.done=!p.done;break;}saveData();const pp=document.getElementById('donePopup');if(pp)pp.remove();render();}
+function toggleDone(pid){
+  for(const s of sites)for(const p of s.processes)if(p.id===pid){
+    if(!p.done){
+      // 完了にする→完了日モーダルを出す
+      openDoneModal(pid);
+    }else{
+      // 未完了に戻す→確認なしで戻す
+      p.done=false;p.doneDate='';
+      saveData();
+      const pp=document.getElementById('donePopup');if(pp)pp.remove();
+      render();
+    }
+    return;
+  }
+}
+function openDoneModal(pid){
+  const today=fmt(new Date());
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>完了日を入力</h3>
+    <div class="field"><label>完了日</label><input type="date" id="done_date" value="${today}"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveDone(${pid})">完了にする</button>
+    </div></div></div>`;
+}
+function saveDone(pid){
+  const date=document.getElementById('done_date').value;
+  for(const s of sites)for(const p of s.processes)if(p.id===pid){
+    p.done=true;p.doneDate=date;break;
+  }
+  closeModal();
+  const pp=document.getElementById('donePopup');if(pp)pp.remove();
+}
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
 function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';render();}
 
@@ -1202,7 +1237,7 @@ function showDonePopup(sid,pid,cx,cy){
     cl2.innerHTML=ch.map(c=>'<div style="font-size:11px;color:#555;padding:2px 0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('');
     pop.appendChild(cl2);
   }
-  if(!proc.done){const d=document.createElement('div');d.style.cssText='padding:12px 16px;font-size:14px;cursor:pointer;color:#1D9E75';d.textContent='✓ 完了にする';d.onclick=()=>toggleDone(pid);pop.appendChild(d);}
+  if(!proc.done){const d=document.createElement('div');d.style.cssText='padding:12px 16px;font-size:14px;cursor:pointer;color:#1D9E75';d.textContent='✓ 完了にする';d.onclick=()=>{pop.remove();toggleDone(pid);};pop.appendChild(d);}
   if(proc.done){const d=document.createElement('div');d.style.cssText='padding:12px 16px;font-size:14px;cursor:pointer;color:#E74C3C';d.textContent='↩ 未完了に戻す';d.onclick=()=>toggleDone(pid);pop.appendChild(d);}
   const cl=document.createElement('div');cl.style.cssText='padding:10px 16px;font-size:13px;cursor:pointer;color:#aaa;border-top:1px solid #eee';cl.textContent='キャンセル';cl.onclick=()=>pop.remove();pop.appendChild(cl);
   document.body.appendChild(pop);
@@ -1217,7 +1252,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.col-info{width:100px!important;min-width:100px!important}'+
     '.day-col{width:34px!important;min-width:34px!important}'+
     '.btn-sm:not(.dropbox-btn){display:none!important}'+
-    '.chk{display:none!important}'+
+    '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
     '.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}'+
