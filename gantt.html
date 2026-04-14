@@ -381,7 +381,7 @@ function render(){
     siteTd.className='col-info';
     const ndBadge=nd>0?`<span class="badge-nd">未定${nd}</span>`:'';
     const warnBadge=isWarn?'<span class="badge-warn">⚠ 発注未完了</span>':'';
-    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="btn btn-sm dropbox-btn" style="flex-shrink:0;text-decoration:none">📁</a>`:'';
+    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#4a90d9" title="Dropboxを開く"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
