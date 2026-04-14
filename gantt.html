@@ -695,6 +695,22 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
   if(_gs){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
+  // headTableの列幅をbodyTableに同期（2テーブル分離のズレ修正）
+  requestAnimationFrame(()=>{
+    const _ht=document.getElementById('ganttHeadTable');
+    const _bt=document.getElementById('ganttTable');
+    if(_ht&&_bt){
+      const _bRow=_bt.querySelector('tbody tr');
+      const _hRow=_ht.querySelector('thead tr');
+      if(_bRow&&_hRow){
+        const _bCells=_bRow.querySelectorAll('td');
+        const _hCells=_hRow.querySelectorAll('th');
+        const _n=Math.min(_bCells.length,_hCells.length);
+        for(let _i=0;_i<_n;_i++){const _w=_bCells[_i].getBoundingClientRect().width;_hCells[_i].style.width=_w+'px';_hCells[_i].style.minWidth=_w+'px';}
+        _ht.style.width=_bt.offsetWidth+'px';
+      }
+    }
+  });
 }
 
 // バードラッグ処理
