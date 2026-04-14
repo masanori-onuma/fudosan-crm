@@ -686,7 +686,12 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.innerHTML='';
   tbody.appendChild(frag);
-  if(_gs){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
+  if(_gs&&(_sl>0||_st>0)){
+    requestAnimationFrame(()=>{
+      _gs.scrollLeft=_sl;
+      _gs.scrollTop=_st;
+    });
+  }
 }
 
 // バードラッグ処理
