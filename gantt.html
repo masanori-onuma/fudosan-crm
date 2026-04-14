@@ -615,7 +615,7 @@ function render(){
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
-              <span style="font-size:11px;color:${child.done?'#aaa':'#555'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${child.done?'text-decoration:line-through':''}">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
+              <span style="font-size:11px;color:${child.done?'#aaa':'#555'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
