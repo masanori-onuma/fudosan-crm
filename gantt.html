@@ -28,12 +28,14 @@ header a:hover{color:#185FA5}
 .filter-bar label{font-size:11px;color:#888}
 .filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
 .gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
-.gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.gantt-pane-wrap{display:flex;max-height:75vh}
+.gantt-left{overflow-x:hidden;overflow-y:auto;flex-shrink:0;border-right:1px solid #bbb}
+.gantt-right{overflow-x:auto;overflow-y:auto;flex:1}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
-.col-info{width:300px;min-width:300px;position:sticky;left:0;z-index:10;touch-action:pan-y;overscroll-behavior-x:none}
+.col-info{width:300px;min-width:300px}
 .day-col{width:26px;min-width:26px}
 thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px solid #bbb;border-right:1px solid #ddd;padding:2px 0;text-align:center;font-weight:500;color:#555;white-space:nowrap}
-thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
+thead th.col-info{z-index:10;text-align:left;padding:0 8px;font-size:12px}
 thead th.wk{color:#E24B4A}
 thead th.tod{font-weight:700}
 tr.row-site td{background:#dce8f5}
@@ -65,16 +67,16 @@ tr.row-proc.sort-over td{border-top:2px solid #4A90D9!important}
 tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.6}
 tr.row-site.site-drag-over td{border-top:3px solid #0C447C!important}
 td{padding:0;border-bottom:1px solid #ddd;border-right:1px solid #e8e8e8;vertical-align:middle;overflow:hidden}
-td.col-info{border-right:1px solid #bbb;padding:0;touch-action:pan-y;overscroll-behavior-x:none}
+td.col-info{padding:0}
 td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:pan-x pan-y}
 td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
-.site-inner{display:flex;flex-direction:column;justify-content:center;padding:0 6px 0 4px;height:100%;gap:1px;touch-action:pan-y;overscroll-behavior-x:none}
+.site-inner{display:flex;flex-direction:column;justify-content:center;padding:0 6px 0 4px;height:100%;gap:1px}
 .site-top{display:flex;align-items:center;gap:3px;line-height:1}
 .toggle{cursor:pointer;font-size:12px;color:#555;user-select:none;flex-shrink:0;width:14px;text-align:center}
 .site-name{font-weight:600;color:#0C447C;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;cursor:pointer}
 .site-sub{font-size:10px;color:#185FA5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:16px}
 .badge-nd{font-size:10px;background:#FAEEDA;color:#854F0B;border-radius:10px;padding:1px 5px;flex-shrink:0}
-.proc-inner{display:flex;align-items:center;gap:4px;padding:0 4px 0 8px;height:100%;overflow:hidden;touch-action:pan-y;overscroll-behavior-x:none}
+.proc-inner{display:flex;align-items:center;gap:4px;padding:0 4px 0 8px;height:100%;overflow:hidden}
 .chk{width:22px;height:22px;border-radius:4px;border:1.5px solid #bbb;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;touch-action:manipulation}
 .chk.done{background:#1D9E75;border-color:#1D9E75;color:#fff}
 .proc-name{font-size:12px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -135,8 +137,13 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     </span>
   </div>
   <div class="gantt-outer">
-    <div class="gantt-scroll" id="ganttScroll">
-      <table id="ganttTable"><thead id="ganttHead"></thead><tbody id="ganttBody"></tbody></table>
+    <div class="gantt-pane-wrap">
+      <div class="gantt-left" id="ganttLeft">
+        <table id="ganttTableL" style="table-layout:fixed"><thead id="ganttHeadL"></thead><tbody id="ganttBodyL"></tbody></table>
+      </div>
+      <div class="gantt-right" id="ganttRight">
+        <table id="ganttTableR" style="table-layout:fixed"><thead id="ganttHeadR"></thead><tbody id="ganttBodyR"></tbody></table>
+      </div>
     </div>
   </div>
 </div>
@@ -346,18 +353,24 @@ function render(){
   // 実際のセル幅を取得（スマホは34px、PCは26px）
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
 
-  let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
+  // 左テーブルhead（col-infoのみ）
+  const headHtmlL='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th></tr>';
+  document.getElementById('ganttHeadL').innerHTML=headHtmlL;
+
+  // 右テーブルhead（日付セルのみ）
+  let headHtmlR='<tr>';
   days.forEach(day=>{
     const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
     const wd=['日','月','火','水','木','金','土'][day.getDay()];
     const isSat=day.getDay()===6,isSunOrHol=day.getDay()===0||hol;
     const dayColor=isSat?(tod?'color:#2980B9;font-weight:700':'color:#2980B9'):isSunOrHol?(tod?'color:#E24B4A;font-weight:700':'color:#E24B4A'):tod?'font-weight:700':'';
-    headHtml+=`<th class="day-col${wk?' wk':''}" style="height:36px;${dayColor}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
+    headHtmlR+=`<th class="day-col${wk?' wk':''}" style="height:36px;${dayColor}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
   });
-  headHtml+='</tr>';
-  document.getElementById('ganttHead').innerHTML=headHtml;
+  headHtmlR+='</tr>';
+  document.getElementById('ganttHeadR').innerHTML=headHtmlR;
 
-  const frag=document.createDocumentFragment();
+  const fragL=document.createDocumentFragment();
+  const fragR=document.createDocumentFragment();
   const warnDays=parseInt(document.getElementById('warnDays').value)||3;
   const todayN=toN(new Date());
 
@@ -395,14 +408,19 @@ function render(){
       ${site.keyLocation?`<div class="site-sub site-key">🔑 ${esc(site.keyLocation)}</div>`:''}
       </div>`;
     siteRow.appendChild(siteTd);
+    fragL.appendChild(siteRow);
+
+    const siteRowR=document.createElement('tr');
+    siteRowR.className='row-site'+(isWarn?' site-warn':'');
+    siteRowR.style.height=SITE_H+'px';
     days.forEach(day=>{
       const td=document.createElement('td');
       td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-      siteRow.appendChild(td);
+      siteRowR.appendChild(td);
     });
-    frag.appendChild(siteRow);
+    fragR.appendChild(siteRowR);
 
-    // 工期行
+    // 工期行（左）
     const koukiRow=document.createElement('tr');
     koukiRow.className='row-kouki';
     koukiRow.style.height=ROW_H+'px';
@@ -411,12 +429,17 @@ function render(){
     const ks=site.koukiStart,ke=site.koukiEnd;
     koukiTd.innerHTML=`<div class="proc-inner" style="padding-left:8px;cursor:pointer" onclick="openKoukiModal(${site.id})"><span style="font-size:11px;color:#555;font-weight:500">工期</span><span style="font-size:10px;color:#888;margin-left:6px">${(ks&&ke)?fmtD(ks)+' 〜 '+fmtD(ke):'<span style="color:#185FA5">＋設定</span>'}</span></div>`;
     koukiRow.appendChild(koukiTd);
+    fragL.appendChild(koukiRow);
+
+    // 工期行（右）
+    const koukiRowR=document.createElement('tr');
+    koukiRowR.className='row-kouki';
+    koukiRowR.style.height=ROW_H+'px';
     const koukiCells=[];
     days.forEach((day,di)=>{
       const td=document.createElement('td');
       td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
       td.dataset.kouki=site.id;td.dataset.di=di;
-      // 工期行：長押し500msでバー作成開始
       td.onmousedown=(e)=>{
         if(e.target.closest('[data-handle]'))return;
         e.preventDefault();
@@ -436,7 +459,7 @@ function render(){
         else if(barDrag.active&&barDrag.isKouki){barDrag.active=false;saveData();}
       };
       td.onmouseleave=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
-      koukiRow.appendChild(td);
+      koukiRowR.appendChild(td);
       koukiCells.push(td);
     });
     if(ks&&ke){
@@ -446,8 +469,7 @@ function render(){
       const asi=si>=0?si:(toN(days[0])>ksN?0:-1);
       const aei=ei>=0?ei:(toN(days[days.length-1])<keN?days.length-1:-1);
       if(asi>=0&&aei>=0){
-        const cells=koukiRow.querySelectorAll('td.day-cell');
-        const sc=cells[asi];
+        const sc=koukiCells[asi];
         if(sc){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
@@ -469,7 +491,7 @@ function render(){
         }
       }
     }
-    frag.appendChild(koukiRow);
+    fragR.appendChild(koukiRowR);
 
     if(!site.collapsed){
       procs.forEach(proc=>{
@@ -499,13 +521,18 @@ function render(){
           <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openChildModal(${site.id},${proc.id},null)" title="子項目追加">＋</button>
           </div>`;
         procRow.appendChild(procTd);
+        fragL.appendChild(procRow);
 
+        // 工程行（右）
+        const procRowR=document.createElement('tr');
+        procRowR.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'');
+        procRowR.style.height=ROW_H+'px';
         const dayCells=[];
         days.forEach((day,di)=>{
           const td=document.createElement('td');
           td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
           td.dataset.proc=proc.id;td.dataset.site=site.id;td.dataset.di=di;
-          procRow.appendChild(td);
+          procRowR.appendChild(td);
           dayCells.push(td);
         });
 
@@ -543,7 +570,6 @@ function render(){
             e.preventDefault();e.stopPropagation();
             barDrag={active:true,type:'right',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};
           };
-          // PCホバーで子項目ツールチップ
           if(children.length>0){
             bar.addEventListener('mouseenter',function(ev){
               let tip=document.getElementById('childTip');
@@ -564,12 +590,11 @@ function render(){
           sc.appendChild(bar);
         });
 
-        // 空きセルの長押し（500ms）で新しいperiodのドラッグ開始
+        // 空きセルの長押し（200ms）で新periodドラッグ開始
         let _procLongPress=null;
         dayCells.forEach((td,di)=>{
           td.onmousedown=(e)=>{
             if(e.target.closest('[data-handle]'))return;
-            // バーの上はドラッグ開始を許可
             if(e.target.closest('[data-proc-id]'))return;
             e.preventDefault();
             const d=days[di];
@@ -590,7 +615,7 @@ function render(){
           td.onmouseleave=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
         });
 
-        frag.appendChild(procRow);
+        fragR.appendChild(procRowR);
 
         // 子項目行
         if(!proc.childCollapsed&&children.length>0){
@@ -598,8 +623,6 @@ function render(){
             const childRow=document.createElement('tr');
             childRow.className='row-proc'+(proc.done?' done':'');
             childRow.style.height='22px';
-            childRow.style.position='relative';
-            childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
@@ -609,6 +632,12 @@ function render(){
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
+            fragL.appendChild(childRow);
+
+            // 子項目行（右）
+            const childRowR=document.createElement('tr');
+            childRowR.className='row-proc'+(proc.done?' done':'');
+            childRowR.style.height='22px';
             const childDayCells=[];
             days.forEach((day,di)=>{
               const td=document.createElement('td');
@@ -617,10 +646,9 @@ function render(){
               td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onmouseup=(e)=>{e.stopPropagation();};
-              childRow.appendChild(td);
+              childRowR.appendChild(td);
               childDayCells.push(td);
             });
-            // 子項目バー（親工程と同じperiodでバーを表示）
             periods.forEach((period,pi)=>{
               if(!period.startD||!period.endD)return;
               const psN=toN(parseD(period.startD));
@@ -649,7 +677,6 @@ function render(){
               clbl.style.cssText='font-size:9px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
               clbl.textContent=child.name+(child.area?' '+child.area:'')+(child.note?' '+child.note:'')+(child.done&&child.doneDate?' ✓'+fmtD(child.doneDate):'');
               cbar.appendChild(clbl);
-              // バーが短い時は右外にラベル
               if(span<=3){
                 const col2=document.createElement('div');
                 col2.style.cssText=`position:absolute;top:2px;left:${span*_dw+3}px;font-size:9px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
@@ -658,16 +685,27 @@ function render(){
               }
               sc.appendChild(cbar);
             });
-            frag.appendChild(childRow);
+            fragR.appendChild(childRowR);
           });
         }
       });
     }
   });
 
-  const tbody=document.getElementById('ganttBody');
-  tbody.innerHTML='';
-  tbody.appendChild(frag);
+  const tbodyL=document.getElementById('ganttBodyL');
+  tbodyL.innerHTML='';
+  tbodyL.appendChild(fragL);
+  const tbodyR=document.getElementById('ganttBodyR');
+  tbodyR.innerHTML='';
+  tbodyR.appendChild(fragR);
+
+  // 縦スクロール同期
+  const gl=document.getElementById('ganttLeft');
+  const gr=document.getElementById('ganttRight');
+  gl._syncScroll=false;
+  gr._syncScroll=false;
+  gl.onscroll=function(){if(gl._syncScroll)return;gr._syncScroll=true;gr.scrollTop=gl.scrollTop;gr._syncScroll=false;};
+  gr.onscroll=function(){if(gr._syncScroll)return;gl._syncScroll=true;gl.scrollTop=gr.scrollTop;gl._syncScroll=false;};
 }
 
 // バードラッグ処理
@@ -1321,38 +1359,9 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 loadMasters();
 loadData();
 
-// スマホ：col-infoエリアのタッチが横スクロールに漏れるのを防ぐ
-// col-infoエリアを縦スクロール中はgantt-scrollの横スクロールを封じる
-if(_isSP){
-  const _gs=document.getElementById('ganttScroll');
-  let _ciStartX=0,_ciStartY=0,_ciBlocked=false;
-  document.addEventListener('touchstart',function(e){
-    if(!e.target.closest('td.col-info,.col-info'))return;
-    _ciStartX=e.touches[0].clientX;
-    _ciStartY=e.touches[0].clientY;
-    _ciBlocked=false;
-  },{passive:true});
-  document.addEventListener('touchmove',function(e){
-    if(!e.target.closest('td.col-info,.col-info'))return;
-    const dx=Math.abs(e.touches[0].clientX-_ciStartX);
-    const dy=Math.abs(e.touches[0].clientY-_ciStartY);
-    if(!_ciBlocked&&dy>5){
-      _ciBlocked=true;
-      _gs.style.overflowX='hidden';
-    }
-  },{passive:true});
-  document.addEventListener('touchend',function(){
-    if(_ciBlocked){_gs.style.overflowX='auto';_ciBlocked=false;}
-  },{passive:true});
-  document.addEventListener('touchcancel',function(){
-    if(_ciBlocked){_gs.style.overflowX='auto';_ciBlocked=false;}
-  },{passive:true});
-}
-
 // スマホ：下に引っ張ってリロード
 if(_isSP){
   let _ptr_startY=0,_ptr_el=null;
-  const _ganttScroll=document.getElementById('ganttScroll');
   document.addEventListener('touchstart',function(e){
     if(document.getElementById('modalEl').innerHTML)return;
     _ptr_startY=e.touches[0].clientY;
