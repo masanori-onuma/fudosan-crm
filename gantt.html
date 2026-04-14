@@ -314,6 +314,7 @@ let _koukiLongPress=null;
 let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
+let _isTouching=false;
 
 function makeBar(col,spanCount,label,isDone,isShort,dayW){
   if(!dayW)dayW=DAY_W;
@@ -691,7 +692,7 @@ function render(){
   const _st=_gs?_gs.scrollTop:0;
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
-  if(_gs){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
+  if(_gs&&!_isTouching){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
 }
 
 // バードラッグ処理
@@ -1276,7 +1277,7 @@ function exportCSV(){
 
 // タッチ対応（長押しで完了切替）
 let _lpt=null,_tmv=false;
-document.addEventListener('touchstart',function(e){
+document.addEventListener('touchstart',function(e){_isTouching=true;
   _tmv=false;
   const bar=e.target.closest('[data-proc-id]');
   if(bar){
@@ -1287,7 +1288,7 @@ document.addEventListener('touchstart',function(e){
   if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};return;}
 },{passive:true});
 document.addEventListener('touchmove',function(){_tmv=true;if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
-document.addEventListener('touchend',function(e){
+document.addEventListener('touchend',function(e){_isTouching=false;
   if(_lpt){clearTimeout(_lpt);_lpt=null;}
   if(barDrag.active){barDrag.active=false;barDrag.isNew=false;saveData();}
 },{passive:true});
