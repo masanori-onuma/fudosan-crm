@@ -354,6 +354,9 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
 }
 
 function render(){
+  const _gs=document.getElementById('ganttScroll');
+  const _sl=_gs?_gs.scrollLeft:0;
+  const _st=_gs?_gs.scrollTop:0;
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
@@ -683,6 +686,7 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.innerHTML='';
   tbody.appendChild(frag);
+  if(_gs){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
 }
 
 // バードラッグ処理
