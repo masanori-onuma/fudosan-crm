@@ -27,8 +27,8 @@ header a:hover{color:#185FA5}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
 .filter-bar label{font-size:11px;color:#888}
 .filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
-.gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
-.gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh;touch-action:pan-x pan-y}
+.gantt-outer{border:1px solid #ccc;border-radius:8px;background:#fff}
+.gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh;touch-action:pan-x pan-y;border-radius:8px}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 .col-info{width:300px;min-width:300px;position:sticky;left:0;z-index:10;touch-action:pan-y}
 .day-col{width:26px;min-width:26px}
@@ -354,9 +354,6 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
 }
 
 function render(){
-  const _gs=document.getElementById('ganttScroll');
-  const _sl=_gs?_gs.scrollLeft:0;
-  const _st=_gs?_gs.scrollTop:0;
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
@@ -364,16 +361,21 @@ function render(){
   // 実際のセル幅を取得（スマホは34px、PCは26px）
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
 
-  let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
-  days.forEach(day=>{
-    const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
-    const wd=['日','月','火','水','木','金','土'][day.getDay()];
-    const isSat=day.getDay()===6,isSunOrHol=day.getDay()===0||hol;
-    const dayColor=tod?'':isSat?'color:#2980B9':isSunOrHol?'color:#E24B4A':'';
-    headHtml+=`<th class="day-col${wk?' wk':''}${tod?' tod':''}" style="height:36px;${dayColor?dayColor+';':''}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
-  });
-  headHtml+='</tr>';
-  document.getElementById('ganttHead').innerHTML=headHtml;
+  // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
+  const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
+  if(document.getElementById('ganttHead').dataset.rangeKey!==_headKey){
+    let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
+    days.forEach(day=>{
+      const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
+      const wd=['日','月','火','水','木','金','土'][day.getDay()];
+      const isSat=day.getDay()===6,isSunOrHol=day.getDay()===0||hol;
+      const dayColor=tod?'':isSat?'color:#2980B9':isSunOrHol?'color:#E24B4A':'';
+      headHtml+=`<th class="day-col${wk?' wk':''}${tod?' tod':''}" style="height:36px;${dayColor?dayColor+';':''}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
+    });
+    headHtml+='</tr>';
+    document.getElementById('ganttHead').innerHTML=headHtml;
+    document.getElementById('ganttHead').dataset.rangeKey=_headKey;
+  }
 
   const frag=document.createDocumentFragment();
   const warnDays=parseInt(document.getElementById('warnDays').value)||3;
@@ -686,12 +688,6 @@ function render(){
   const tbody=document.getElementById('ganttBody');
   tbody.innerHTML='';
   tbody.appendChild(frag);
-  if(_gs&&(_sl>0||_st>0)){
-    requestAnimationFrame(()=>{
-      _gs.scrollLeft=_sl;
-      _gs.scrollTop=_st;
-    });
-  }
 }
 
 // バードラッグ処理
