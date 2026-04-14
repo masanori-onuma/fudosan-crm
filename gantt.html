@@ -29,7 +29,7 @@ header a:hover{color:#185FA5}
 .filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
 .gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
 .gantt-pane-wrap{display:flex;max-height:75vh}
-.gantt-left{overflow-x:hidden;overflow-y:auto;flex-shrink:0;border-right:1px solid #bbb}
+.gantt-left{overflow:hidden;flex-shrink:0;border-right:1px solid #bbb}
 .gantt-right{overflow-x:auto;overflow-y:auto;flex:1}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 .col-info{width:300px;min-width:300px}
@@ -698,14 +698,6 @@ function render(){
   const tbodyR=document.getElementById('ganttBodyR');
   tbodyR.innerHTML='';
   tbodyR.appendChild(fragR);
-
-  // 縦スクロール同期
-  const gl=document.getElementById('ganttLeft');
-  const gr=document.getElementById('ganttRight');
-  gl._syncScroll=false;
-  gr._syncScroll=false;
-  gl.onscroll=function(){if(gl._syncScroll)return;gr._syncScroll=true;gr.scrollTop=gl.scrollTop;gr._syncScroll=false;};
-  gr.onscroll=function(){if(gr._syncScroll)return;gl._syncScroll=true;gl.scrollTop=gr.scrollTop;gl._syncScroll=false;};
 }
 
 // バードラッグ処理
@@ -1358,6 +1350,15 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 }
 loadMasters();
 loadData();
+
+// 右ペインのスクロールを左ペインに同期（右→左の一方向のみ）
+(function(){
+  const gl=document.getElementById('ganttLeft');
+  const gr=document.getElementById('ganttRight');
+  gr.addEventListener('scroll',function(){
+    gl.scrollTop=gr.scrollTop;
+  },{passive:true});
+})();
 
 // スマホ：下に引っ張ってリロード
 if(_isSP){
