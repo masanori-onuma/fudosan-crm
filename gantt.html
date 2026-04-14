@@ -28,9 +28,9 @@ header a:hover{color:#185FA5}
 .filter-bar label{font-size:11px;color:#888}
 .filter-bar select{font-size:11px;height:26px;padding:0 6px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;min-width:110px}
 .gantt-outer{border:1px solid #ccc;border-radius:8px;overflow:hidden;background:#fff}
-.gantt-pane-wrap{display:flex;max-height:75vh}
+.gantt-pane-wrap{display:flex;max-height:75vh;overflow-y:auto;overflow-x:hidden;align-items:flex-start}
 .gantt-left{overflow:hidden;flex-shrink:0;border-right:1px solid #bbb}
-.gantt-right{overflow-x:auto;overflow-y:auto;flex:1}
+.gantt-right{overflow-x:auto;overflow-y:visible;flex:1;min-width:0}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 .col-info{width:300px;min-width:300px}
 .day-col{width:26px;min-width:26px}
@@ -137,7 +137,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     </span>
   </div>
   <div class="gantt-outer">
-    <div class="gantt-pane-wrap">
+    <div class="gantt-pane-wrap" id="ganttPaneWrap">
       <div class="gantt-left" id="ganttLeft">
         <table id="ganttTableL" style="table-layout:fixed"><thead id="ganttHeadL"></thead><tbody id="ganttBodyL"></tbody></table>
       </div>
@@ -1351,25 +1351,14 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 loadMasters();
 loadData();
 
-// 右ペインのスクロールを左ペインに同期（右→左の一方向のみ）
-(function(){
-  const gl=document.getElementById('ganttLeft');
-  const gr=document.getElementById('ganttRight');
-  gr.addEventListener('scroll',function(){
-    gl.scrollTop=gr.scrollTop;
-  },{passive:true});
-})();
-
 // スマホ：下に引っ張ってリロード
 if(_isSP){
   let _ptr_startY=0,_ptr_el=null;
   const _PTR_THRESHOLD=150;
   document.addEventListener('touchstart',function(e){
     if(document.getElementById('modalEl').innerHTML)return;
-    const gl=document.getElementById('ganttLeft');
-    const gr=document.getElementById('ganttRight');
-    // ガントエリアが最上部かつページも最上部の時だけ受け付ける
-    if((gl&&gl.scrollTop>0)||(gr&&gr.scrollTop>0))return;
+    const gw=document.getElementById('ganttPaneWrap');
+    if(gw&&gw.scrollTop>0)return;
     if(window.scrollY>0)return;
     _ptr_startY=e.touches[0].clientY;
     _ptr_el=document.createElement('div');
