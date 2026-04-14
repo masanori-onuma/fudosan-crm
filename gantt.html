@@ -178,8 +178,9 @@ function darken(hex,amt){const[r,g,b]=hexToRgb(hex);return'rgb('+Math.max(0,r-am
 
 let viewStart,viewEnd;
 (function(){
-  let n=new Date(),y=n.getFullYear(),m=n.getMonth();
-  viewStart=new Date(y,m,1);viewEnd=new Date(y,m+2,0);
+  let n=new Date();
+  viewStart=addDays(n,-2);
+  viewEnd=new Date(n.getFullYear(),n.getMonth()+2,0);
   document.getElementById('startDate').value=fmt(viewStart);
   document.getElementById('endDate').value=fmt(viewEnd);
 })();
@@ -214,7 +215,7 @@ function normalizeSites(raw){
   return raw;
 }
 async function loadData(){
-  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
+  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();scrollToToday();}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
   showSyncStatus('読み込み中…');
   const v=await gasLoad('gantt_sites');
   if(v){
@@ -227,7 +228,11 @@ async function loadData(){
       localStorage.setItem('gantt_sites',v);
       _lastSaved=v;
       console.log('before render');
+      const _prevScrollLeft=document.getElementById('ganttScroll')?document.getElementById('ganttScroll').scrollLeft:0;
+      const _firstLoad=_prevScrollLeft===0;
       render();
+      if(_firstLoad)scrollToToday();
+      else document.getElementById('ganttScroll').scrollLeft=_prevScrollLeft;
       console.log('render ok');
       showSyncStatus('✓ 同期済み',2000);
     }catch(e){
