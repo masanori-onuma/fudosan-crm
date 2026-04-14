@@ -32,6 +32,7 @@ header a:hover{color:#185FA5}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 .col-info{width:300px;min-width:300px;position:sticky;left:0;z-index:10;touch-action:pan-y}
 .day-col{width:26px;min-width:26px}
+thead{position:sticky;top:0;z-index:25}
 thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px solid #bbb;border-right:1px solid #ddd;padding:2px 0;text-align:center;font-weight:500;color:#555;white-space:nowrap}
 thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
 thead th.wk{color:#E24B4A}
@@ -313,6 +314,7 @@ let _koukiLongPress=null;
 let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
+let _isTouching=false;
 
 function makeBar(col,spanCount,label,isDone,isShort,dayW){
   if(!dayW)dayW=DAY_W;
@@ -622,13 +624,13 @@ function render(){
             childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
-            const _childColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
-            const _orderedMark=child.material?(child.ordered?'<span style="font-size:10px;color:#27AE60;flex-shrink:0;cursor:pointer" onclick="toggleChildOrdered('+proc.id+','+child.id+')" title="発注済み（タップで解除）">発注済</span>':'<span style="font-size:10px;color:#E74C3C;flex-shrink:0;cursor:pointer" onclick="toggleChildOrdered('+proc.id+','+child.id+')" title="未発注（タップで発注済みに）">未発注</span>'):'';
+            const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
+            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})">${child.ordered?'発注済':'未発注'}</span>`:'';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
-              <span style="font-size:11px;color:${_childColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px">　'+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
-              ${_orderedMark}
+              <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px"> '+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
+              ${_oMark}
               <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
@@ -693,7 +695,7 @@ function render(){
   const _st=_gs?_gs.scrollTop:0;
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
-  if(_gs){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
+  if(_gs&&!_isTouching){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
 }
 
 // バードラッグ処理
@@ -1298,6 +1300,7 @@ function exportCSV(){
 // タッチ対応（長押しで完了切替）
 let _lpt=null,_tmv=false;
 document.addEventListener('touchstart',function(e){
+  _isTouching=true;
   _tmv=false;
   const bar=e.target.closest('[data-proc-id]');
   if(bar){
@@ -1309,6 +1312,7 @@ document.addEventListener('touchstart',function(e){
 },{passive:true});
 document.addEventListener('touchmove',function(){_tmv=true;if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
 document.addEventListener('touchend',function(e){
+  _isTouching=false;
   if(_lpt){clearTimeout(_lpt);_lpt=null;}
   if(barDrag.active){barDrag.active=false;barDrag.isNew=false;saveData();}
 },{passive:true});
