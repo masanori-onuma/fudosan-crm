@@ -304,15 +304,15 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
   const bar=document.createElement('div');
   bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
-    bar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
-    bar.style.boxShadow='inset 0 0 0 2px #888';
+    bar.style.background='linear-gradient(to bottom,#5a5a5a,#333333)';
+    bar.style.boxShadow='inset 0 0 0 1px #7d7d7d';
   }else{
     bar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
     bar.style.boxShadow='inset 0 0 0 1px #f5c800';
   }
   // 左リサイズハンドル
   const lh=document.createElement('div');
-  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:#f5c800;border-radius:3px 0 0 3px;opacity:0.85;';
+  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isDone?'#7d7d7d':'#f5c800')+';border-radius:3px 0 0 3px;opacity:0.85;';
   lh.dataset.handle='left';
   bar.appendChild(lh);
   // ラベル
@@ -323,7 +323,7 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
   bar.appendChild(lbl);
   // 右リサイズハンドル
   const rh=document.createElement('div');
-  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:#f5c800;border-radius:0 3px 3px 0;opacity:0.85;';
+  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isDone?'#7d7d7d':'#f5c800')+';border-radius:0 3px 3px 0;opacity:0.85;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
@@ -639,8 +639,8 @@ function render(){
               const _dw=sc.getBoundingClientRect().width||DAY_W;
               cbar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${span*_dw}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;pointer-events:none;`;
               if(proc.done){
-                cbar.style.background='linear-gradient(to bottom,#ccc,#aaa)';
-                cbar.style.boxShadow='inset 0 0 0 2px #888';
+                cbar.style.background='linear-gradient(to bottom,#5a5a5a,#333333)';
+                cbar.style.boxShadow='inset 0 0 0 1px #7d7d7d';
               }else{
                 cbar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
                 cbar.style.boxShadow='inset 0 0 0 1px #f5c800';
