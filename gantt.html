@@ -35,7 +35,8 @@ table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
 thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px solid #bbb;border-right:1px solid #ddd;padding:2px 0;text-align:center;font-weight:500;color:#555;white-space:nowrap}
 thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
 thead th.wk{color:#E24B4A}
-thead th.tod{font-weight:700}
+thead th.tod{font-weight:700;background:#1D9E75!important;color:#fff!important;position:relative}
+thead th.tod::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:#0e7a5a}
 tr.row-site td{background:#dce8f5}
 tr.row-proc td{background:#fff}
 tr.row-proc.done td{background:#f5f5f3}
@@ -114,6 +115,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
   <span id="syncStatus" style="font-size:11px;color:#888;white-space:nowrap;margin-left:auto"></span>
   <span id="undoMsg" style="font-size:11px;color:#555"></span>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
+  <button class="btn btn-sm btn-primary" onclick="scrollToToday()" title="今日の列へ移動">今日</button>
   <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
@@ -265,6 +267,14 @@ function saveData(){
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));
 }
+function scrollToToday(){
+  const th=document.querySelector('thead th.tod');
+  if(!th)return;
+  const gs=document.getElementById('ganttScroll');
+  const rect=th.getBoundingClientRect();
+  const gsRect=gs.getBoundingClientRect();
+  gs.scrollLeft+=rect.left-gsRect.left-(gsRect.width/2);
+}
 function undoLast(){
   if(!_undoStack.length)return;
   const prev=_undoStack.pop();
@@ -351,8 +361,8 @@ function render(){
     const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
     const wd=['日','月','火','水','木','金','土'][day.getDay()];
     const isSat=day.getDay()===6,isSunOrHol=day.getDay()===0||hol;
-    const dayColor=isSat?(tod?'color:#2980B9;font-weight:700':'color:#2980B9'):isSunOrHol?(tod?'color:#E24B4A;font-weight:700':'color:#E24B4A'):tod?'font-weight:700':'';
-    headHtml+=`<th class="day-col${wk?' wk':''}" style="height:36px;${dayColor}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
+    const dayColor=tod?'':isSat?'color:#2980B9':isSunOrHol?'color:#E24B4A':'';
+    headHtml+=`<th class="day-col${wk?' wk':''}${tod?' tod':''}" style="height:36px;${dayColor?dayColor+';':''}">${day.getDate()}<br><span style="font-size:9px">${wd}</span></th>`;
   });
   headHtml+='</tr>';
   document.getElementById('ganttHead').innerHTML=headHtml;
