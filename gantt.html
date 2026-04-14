@@ -1321,22 +1321,44 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 loadMasters();
 loadData();
 
-// スマホ：col-info幅内のタッチで横スクロールをロック
+// スマホ：縦スクロール中は横スクロールをロック
 if(_isSP){
   const _gs=document.getElementById('ganttScroll');
-  const _COL_W=180;// スマホのcol-info幅
+  const _COL_W=180;
+  let _tsX=0,_tsY=0,_dirLocked=false,_isHorizontal=false;
   _gs.addEventListener('touchstart',function(e){
+    _tsX=e.touches[0].clientX;
+    _tsY=e.touches[0].clientY;
+    _dirLocked=false;
+    _isHorizontal=false;
+    // col-info幅内なら即横スクロールをロック
     const rect=_gs.getBoundingClientRect();
     const tx=e.touches[0].clientX-rect.left+_gs.scrollLeft;
     if(tx<_COL_W){
+      _gs.style.overflowX='hidden';
+      _dirLocked=true;
+      _isHorizontal=false;
+    }
+  },{passive:true});
+  _gs.addEventListener('touchmove',function(e){
+    if(_dirLocked)return;
+    const dx=Math.abs(e.touches[0].clientX-_tsX);
+    const dy=Math.abs(e.touches[0].clientY-_tsY);
+    if(dx<3&&dy<3)return;// まだ判定できない
+    _dirLocked=true;
+    _isHorizontal=dx>dy;
+    if(!_isHorizontal){
+      // 縦スクロールと確定→横をロック
       _gs.style.overflowX='hidden';
     }
   },{passive:true});
   _gs.addEventListener('touchend',function(){
     _gs.style.overflowX='auto';
+    _dirLocked=false;
   },{passive:true});
   _gs.addEventListener('touchcancel',function(){
     _gs.style.overflowX='auto';
+    _dirLocked=false;
   },{passive:true});
 }
 
