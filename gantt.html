@@ -1322,30 +1322,30 @@ loadMasters();
 loadData();
 
 // スマホ：col-infoエリアのタッチが横スクロールに漏れるのを防ぐ
-// col-infoはpan-yのみ許可。横方向の動きでないことが確定したらstopPropagation
+// col-infoエリアを縦スクロール中はgantt-scrollの横スクロールを封じる
 if(_isSP){
-  let _ciTouchStartX=0,_ciTouchStartY=0,_ciLocked=false;
+  const _gs=document.getElementById('ganttScroll');
+  let _ciStartX=0,_ciStartY=0,_ciBlocked=false;
   document.addEventListener('touchstart',function(e){
-    const ci=e.target.closest('td.col-info,.col-info');
-    if(!ci)return;
-    _ciTouchStartX=e.touches[0].clientX;
-    _ciTouchStartY=e.touches[0].clientY;
-    _ciLocked=false;
+    if(!e.target.closest('td.col-info,.col-info'))return;
+    _ciStartX=e.touches[0].clientX;
+    _ciStartY=e.touches[0].clientY;
+    _ciBlocked=false;
   },{passive:true});
   document.addEventListener('touchmove',function(e){
-    const ci=e.target.closest('td.col-info,.col-info');
-    if(!ci)return;
-    const dx=Math.abs(e.touches[0].clientX-_ciTouchStartX);
-    const dy=Math.abs(e.touches[0].clientY-_ciTouchStartY);
-    if(!_ciLocked){
-      // 縦方向が主なら横スクロール伝播を止める
-      if(dy>dx){
-        _ciLocked=true;
-      }
+    if(!e.target.closest('td.col-info,.col-info'))return;
+    const dx=Math.abs(e.touches[0].clientX-_ciStartX);
+    const dy=Math.abs(e.touches[0].clientY-_ciStartY);
+    if(!_ciBlocked&&dy>5){
+      _ciBlocked=true;
+      _gs.style.overflowX='hidden';
     }
-    if(_ciLocked){
-      e.stopPropagation();
-    }
+  },{passive:true});
+  document.addEventListener('touchend',function(){
+    if(_ciBlocked){_gs.style.overflowX='auto';_ciBlocked=false;}
+  },{passive:true});
+  document.addEventListener('touchcancel',function(){
+    if(_ciBlocked){_gs.style.overflowX='auto';_ciBlocked=false;}
   },{passive:true});
 }
 
