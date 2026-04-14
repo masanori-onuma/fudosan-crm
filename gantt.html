@@ -1326,15 +1326,22 @@ if(_isSP){
   const _gs=document.getElementById('ganttScroll');
   const _COL_W=180;
   let _tsX=0,_tsY=0,_dirLocked=false,_isHorizontal=false;
+  let _lastScrollTop=0,_scrolling=false,_scrollTimer=null;
+  _gs.addEventListener('scroll',function(){
+    _scrolling=true;
+    clearTimeout(_scrollTimer);
+    _scrollTimer=setTimeout(function(){_scrolling=false;},150);
+    _lastScrollTop=_gs.scrollTop;
+  },{passive:true});
   _gs.addEventListener('touchstart',function(e){
     _tsX=e.touches[0].clientX;
     _tsY=e.touches[0].clientY;
     _dirLocked=false;
     _isHorizontal=false;
-    // col-info幅内なら即横スクロールをロック
+    // 慣性スクロール中 or col-info幅内なら即横ロック
     const rect=_gs.getBoundingClientRect();
     const tx=e.touches[0].clientX-rect.left+_gs.scrollLeft;
-    if(tx<_COL_W){
+    if(tx<_COL_W||_scrolling){
       _gs.style.overflowX='hidden';
       _dirLocked=true;
       _isHorizontal=false;
@@ -1353,11 +1360,11 @@ if(_isSP){
     }
   },{passive:true});
   _gs.addEventListener('touchend',function(){
-    _gs.style.overflowX='auto';
+    setTimeout(function(){if(!_scrolling)_gs.style.overflowX='auto';},300);
     _dirLocked=false;
   },{passive:true});
   _gs.addEventListener('touchcancel',function(){
-    _gs.style.overflowX='auto';
+    setTimeout(function(){if(!_scrolling)_gs.style.overflowX='auto';},300);
     _dirLocked=false;
   },{passive:true});
 }
