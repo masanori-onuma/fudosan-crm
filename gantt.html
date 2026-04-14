@@ -490,7 +490,7 @@ function render(){
         const toggleIcon=hasChildren?(childCollapsed?'▶':'▼'):'';
         procTd.innerHTML=`<div class="proc-inner">
           <span class="sort-handle" data-proc="${proc.id}" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
-          <div class="chk${proc.done?' done':''}" onclick="toggleDone(${proc.id})">${proc.done?'✓':''}</div>
+          <div class="chk${proc.done?' done':(hasChildren&&!proc.done?' disabled':'')} " onclick="${hasChildren?'allChildrenDone('+proc.id+')?toggleDone('+proc.id+'):null':'toggleDone('+proc.id+')'}" style="${hasChildren&&!proc.done?'opacity:0.3;cursor:not-allowed':''}">${proc.done?'✓':''}</div>
           ${hasChildren?`<span style="cursor:pointer;font-size:11px;color:#888;flex-shrink:0;width:12px" onclick="toggleChildren(${proc.id})">${toggleIcon}</span>`:'<span style="width:12px;flex-shrink:0"></span>'}
           <span class="proc-name${proc.done?' done':''}">${esc(proc.name)}</span>
           ${nodateBadge}
@@ -647,7 +647,7 @@ function render(){
               }
               const clbl=document.createElement('span');
               clbl.style.cssText='font-size:9px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
-              clbl.textContent=child.name+(child.area?' '+child.area:'')+(child.note?' '+child.note:'');
+              clbl.textContent=child.name+(child.area?' '+child.area:'')+(child.note?' '+child.note:'')+(child.done&&child.doneDate?' ✓'+fmtD(child.doneDate):'');
               cbar.appendChild(clbl);
               // バーが短い時は右外にラベル
               if(span<=3){
@@ -805,19 +805,42 @@ document.addEventListener('mouseup',function(e){
   }
 },true);
 
+function allChildrenDone(procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    return p.children.length>0&&p.children.every(x=>x.done);
+  }
+  return false;
+}
 function toggleChildDone(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){
-      c.done=!c.done;
-      // 全子項目完了で親も完了
-      if(p.children.length>0&&p.children.every(x=>x.done))p.done=true;
-      // 一つでも未完了なら親を未完了に戻す
-      else if(!c.done)p.done=false;
+      if(!c.done){openChildDoneModal(procId,childId);return;}
+      else{c.done=false;c.doneDate='';p.done=false;}
     }
     break;
   }
   saveData();render();
+}
+function openChildDoneModal(procId,childId){
+  const today=fmt(new Date());
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <h3>完了日を入力</h3>
+    <div class="field"><label>完了日</label><input type="date" id="child_done_date" value="${today}"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveChildDone(${procId},${childId})">完了にする</button>
+    </div></div></div>`;
+}
+function saveChildDone(procId,childId){
+  const date=document.getElementById('child_done_date').value;
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    const c=p.children.find(x=>x.id===childId);
+    if(c){c.done=true;c.doneDate=date;if(p.children.every(x=>x.done)){p.done=true;p.doneDate=date;}}
+    break;
+  }
+  closeModal();
 }
 function toggleChildren(procId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
