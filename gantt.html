@@ -273,21 +273,16 @@ function saveData(){
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));
 }
-// 子バーの期間が親バーを超えたら親バーを自動拡張する。親にperiodがなければ生成する
+// 子バーの期間が親バーを超えたら親バーを自動拡張する
 function _expandProcPeriods(proc){
   const allChildPeriods=(proc.children||[]).flatMap(c=>c.periods||[]).filter(p=>p.startD&&p.endD);
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
-  if(!proc.periods||!proc.periods.length){
-    proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
-    return;
-  }
   proc.periods.forEach(p=>{
     if(!p.startD||!p.endD)return;
-    if(toN(parseD(p.startD))>minN)p.startD=toDate(minN);
-    if(toN(parseD(p.endD))<maxN)p.endD=toDate(maxN);
+    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
+    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
   });
 }
 
@@ -666,9 +661,15 @@ function _renderInner(){
               td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
               td.dataset.ischild='1';
               td.dataset.di=di;
-              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
+              td.onmousedown=(e)=>{
+                if(barDrag.active)return;
+                e.preventDefault();e.stopPropagation();return false;
+              };
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
-              td.onmouseup=(e)=>{e.stopPropagation();};
+              td.onmouseup=(e)=>{
+                if(barDrag.active)return;
+                e.stopPropagation();
+              };
               childRow.appendChild(td);
               childDayCells.push(td);
             });
@@ -1313,12 +1314,7 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){
-      c.periods[idx][key]=val;
-      _expandProcPeriods(p);
-      saveData();
-      return;
-    }
+    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
   }
 }
 
@@ -1346,14 +1342,12 @@ function saveChild(procId,childId){
       document.querySelectorAll('#childPeriodList > div').forEach(row=>{
         const starts=row.querySelectorAll('.new-child-period-start');
         const ends=row.querySelectorAll('.new-child-period-end');
-        if(starts.length&&ends.length&&(starts[0].value||ends[0].value))newPeriods.push({startD:starts[0].value,endD:ends[0].value});
+        if(starts.length&&ends.length)newPeriods.push({startD:starts[0].value,endD:ends[0].value});
       });
       p.children.push({id:nextCid++,name,area,note,material,ordered,periods:newPeriods});
-      if(newPeriods.length)_expandProcPeriods(p);
     }else{
       const c=p.children.find(x=>x.id===childId);
       if(c)Object.assign(c,{name,area,note,material,ordered});
-      _expandProcPeriods(p);
     }
     break;
   }
