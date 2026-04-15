@@ -1167,7 +1167,7 @@ function updateChildFromSel(sel,procId,idx){
 }
 
 function updateChild(procId,idx,key,val){
-  if(procId===null){
+  if(procId==null){
     const rows=document.querySelectorAll('#childList > div');
     return;
   }
@@ -1177,7 +1177,7 @@ function updateChild(procId,idx,key,val){
   saveData();
 }
 function delChildInModal(procId,idx){
-  if(procId===null){
+  if(procId==null){
     document.querySelectorAll('#childList > div')[idx]&&document.querySelectorAll('#childList > div')[idx].remove();
     return;
   }
@@ -1188,7 +1188,7 @@ function delChildInModal(procId,idx){
 }
 function addChildInModal(procId){
   const selOpts='<option value="">-- 選択 --</option>'+masters.procNames.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(procId===null){
+  if(procId==null){
     const list=document.getElementById('childList');
     const div=document.createElement('div');
     div.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
@@ -1219,7 +1219,7 @@ function delPeriod(procId,idx){
   if(site)openProcModal(site.id,procId);
 }
 function addPeriodInModal(procId){
-  if(procId===null){
+  if(procId==null){
     // 新規工程の場合はperiodListに行追加のみ
     const list=document.getElementById('periodList');
     const i=list.children.length;
@@ -1414,7 +1414,7 @@ function saveProc(siteId,procId){
     if(nm&&nm.value.trim())newChildren.push({id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''});
   });
 
-  if(procId===null){
+  if(procId==null){
     const periods=[];
     document.querySelectorAll('#periodList > div').forEach(row=>{
       const inputs=row.querySelectorAll('input[type=date]');
