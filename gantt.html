@@ -279,11 +279,15 @@ function _expandProcPeriods(proc){
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  proc.periods.forEach(p=>{
-    if(!p.startD||!p.endD)return;
-    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
-    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
-  });
+  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
+  if(!proc.periods||!proc.periods.length){
+    // 親バーがなければ子バーの範囲で生成
+    proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
+    return;
+  }
+  // 親バーを全子バーのmin/maxに合わせる（拡張・縮小両対応）
+  proc.periods[0].startD=toDate(minN);
+  proc.periods[0].endD=toDate(maxN);
 }
 
 function scrollToToday(){
@@ -1307,7 +1311,12 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
+    if(c&&c.periods&&c.periods[idx]){
+      c.periods[idx][key]=val;
+      _expandProcPeriods(p);
+      saveData();
+      return;
+    }
   }
 }
 
@@ -1317,7 +1326,7 @@ function delChildPeriod(procId,childId,idx){
     const c=p.children.find(x=>x.id===childId);
     if(c&&c.periods){
       c.periods.splice(idx,1);
-      // 全子バーのperiodsが空になったら親バーも削除
+      // 全子バーが空になったら親バーも削除
       const allChildPeriods=p.children.flatMap(ch=>ch.periods||[]).filter(pd=>pd.startD&&pd.endD);
       if(!allChildPeriods.length){
         p.periods=[];
@@ -1351,6 +1360,7 @@ function saveChild(procId,childId){
       const c=p.children.find(x=>x.id===childId);
       if(c)Object.assign(c,{name,area,note,material,ordered});
     }
+    _expandProcPeriods(p);
     break;
   }
   closeModal();
