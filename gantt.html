@@ -625,7 +625,7 @@ function render(){
             const childTd=document.createElement('td');
             childTd.className='col-info';
             const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 2px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})">${child.ordered?'発注済':'未発注'}</span>`:'';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
@@ -1139,13 +1139,13 @@ function openChildModal(siteId,procId,childId){
   document.getElementById('modalEl').innerHTML=`
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isNew?'子項目を追加':'子項目を編集'}</h3>
-    <div class="field"><label>項目名</label><input id="c_name" value="${esc(child.name||'')}"></div>
-    <div class="field"><label>数量・面積</label><input id="c_area" value="${esc(child.area||'')}"></div>
-    <div class="field"><label>材料名 <span style="font-size:10px;color:#888">（入力すると発注管理が有効になります）</span></label><input id="c_material" placeholder="例：サンゲツ RE-7512　148m²" value="${esc(child.material||'')}"></div>
-    <div class="field"><label>備考</label><input id="c_note" placeholder="品番・メモなど" value="${esc(child.note||'')}"></div>
+    <div class="field"><label>項目名</label><input id="c_name" style="touch-action:manipulation" value="${esc(child.name||'')}"></div>
+    <div class="field"><label>数量・面積</label><input id="c_area" style="touch-action:manipulation" value="${esc(child.area||'')}"></div>
+    <div class="field"><label>材料名</label><input id="c_material" style="touch-action:manipulation" placeholder="例：サンゲツ RE-7512　148m²" value="${esc(child.material||'')}"></div>
+    <div class="field"><label>備考</label><input id="c_note" style="touch-action:manipulation" placeholder="品番・メモなど" value="${esc(child.note||'')}"></div>
     <div class="field" style="display:flex;align-items:center;gap:10px">
       <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer">
+        <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation">
         <span>発注済み</span>
       </label>
       <span style="font-size:11px;color:#aaa">（未発注は赤字で表示）</span>
