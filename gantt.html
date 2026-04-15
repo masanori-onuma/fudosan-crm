@@ -369,14 +369,6 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
 }
 
 function render(){
-  try{
-  _renderInner();
-  }catch(e){
-    console.error('render error:',e.message,e.stack);
-    showSyncStatus('render error:'+e.message.slice(0,40),10000);
-  }
-}
-function _renderInner(){
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
