@@ -663,7 +663,7 @@ function _renderInner(){
             days.forEach((day,di)=>{
               const td=document.createElement('td');
               td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-              td.dataset.ischild='1';
+              td.dataset.ischild='1';td.dataset.di=di;
               td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onmouseup=(e)=>{e.stopPropagation();};
@@ -805,7 +805,7 @@ document.addEventListener('mousemove',function(e){
       di=parseInt(cell.dataset.di);break;
     }
   }
-  if(di===null)return;
+  if(di===null||isNaN(di))return;
 
   if(barDrag.isKouki){
     const site=sites.find(x=>x.id===barDrag.siteId);
