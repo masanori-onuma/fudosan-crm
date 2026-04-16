@@ -54,11 +54,9 @@ td.tod-cell{background:rgba(50,180,100,0.15)!important}
 .badge-procwarn{font-size:10px;background:#FCEBEB;color:#A32D2D;border:1px solid #E24B4A;border-radius:10px;padding:1px 6px;font-weight:600;flex-shrink:0}
 tr.site-warn td{background:#fff5f5!important}
 tr.site-warn td.wk-cell{background:#ffe8e8!important}
-tr.site-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.site-warn .col-info{border-left:3px solid #E24B4A!important}
 tr.proc-warn td{background:#fff5f5!important}
 tr.proc-warn td.wk-cell{background:#ffe8e8!important}
-tr.proc-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
 .sort-handle{font-size:13px;color:#bbb;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
 .sort-handle:hover{color:#888}
@@ -647,8 +645,8 @@ function _renderInner(){
             childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
-            const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _cColor=child.done?'#aaa':(!child.ordered?'#E74C3C':'#555');
+            const _oMark=`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`;
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
