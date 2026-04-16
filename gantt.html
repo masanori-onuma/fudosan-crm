@@ -1586,6 +1586,7 @@ if(_isSP){
   const _COL_W=180;
   let _tsX=0,_tsY=0,_dirLocked=false,_isHorizontal=false;
   let _lastScrollTop=0,_scrolling=false,_scrollTimer=null;
+  let _savedScrollLeft=undefined;
   _gs.addEventListener('scroll',function(){
     _scrolling=true;
     clearTimeout(_scrollTimer);
@@ -1601,6 +1602,7 @@ if(_isSP){
     const rect=_gs.getBoundingClientRect();
     const tx=e.touches[0].clientX-rect.left+_gs.scrollLeft;
     if(tx<_COL_W||_scrolling){
+      _savedScrollLeft=_gs.scrollLeft;
       _gs.style.overflowX='hidden';
       _dirLocked=true;
       _isHorizontal=false;
@@ -1615,15 +1617,31 @@ if(_isSP){
     _isHorizontal=dx>dy;
     if(!_isHorizontal){
       // 縦スクロールと確定→横をロック
+      _savedScrollLeft=_gs.scrollLeft;
       _gs.style.overflowX='hidden';
+      requestAnimationFrame(()=>{if(_gs.scrollLeft!==_savedScrollLeft)_gs.scrollLeft=_savedScrollLeft;});
     }
   },{passive:true});
   _gs.addEventListener('touchend',function(){
-    setTimeout(function(){if(!_scrolling)_gs.style.overflowX='auto';},300);
+    setTimeout(function(){
+      if(!_scrolling){
+        const sl=_savedScrollLeft!==undefined?_savedScrollLeft:_gs.scrollLeft;
+        _gs.style.overflowX='auto';
+        _gs.scrollLeft=sl;
+        _savedScrollLeft=undefined;
+      }
+    },300);
     _dirLocked=false;
   },{passive:true});
   _gs.addEventListener('touchcancel',function(){
-    setTimeout(function(){if(!_scrolling)_gs.style.overflowX='auto';},300);
+    setTimeout(function(){
+      if(!_scrolling){
+        const sl=_savedScrollLeft!==undefined?_savedScrollLeft:_gs.scrollLeft;
+        _gs.style.overflowX='auto';
+        _gs.scrollLeft=sl;
+        _savedScrollLeft=undefined;
+      }
+    },300);
     _dirLocked=false;
   },{passive:true});
 }
