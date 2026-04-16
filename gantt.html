@@ -671,7 +671,8 @@ function _renderInner(){
               childDayCells.push(td);
             });
             // 子バーの期間：child.periodsがあればそれを使う、なければ親のperiodsを流用
-            const childPeriods=(child.periods&&child.periods.length)?child.periods:periods;
+            const childPeriods=(child.periods&&child.periods.length)?child.periods:[];
+              if(!childPeriods.length)return;
             childPeriods.forEach((period,pi)=>{
               if(!period.startD||!period.endD)return;
               const psN=toN(parseD(period.startD));
@@ -1379,7 +1380,7 @@ function delChild(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id==procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  closeModal();
+  saveData();closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
