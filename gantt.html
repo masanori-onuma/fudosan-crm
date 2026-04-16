@@ -279,11 +279,13 @@ function _expandProcPeriods(proc){
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  proc.periods.forEach(p=>{
-    if(!p.startD||!p.endD)return;
-    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
-    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
-  });
+  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
+  if(!proc.periods||!proc.periods.length){
+    proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
+    return;
+  }
+  proc.periods[0].startD=toDate(minN);
+  proc.periods[0].endD=toDate(maxN);
 }
 
 function scrollToToday(){
@@ -645,8 +647,9 @@ function _renderInner(){
             childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
-            const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _trackOrder=child.ordered!==undefined;
+            const _cColor=child.done?'#aaa':(_trackOrder&&!child.ordered?'#E74C3C':'#555');
+            const _oMark=_trackOrder?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
@@ -752,14 +755,11 @@ function _renderInner(){
             // 独自期間がない場合、日付セルの長押しで期間設定できるようにする
             if(!(child.periods&&child.periods.length)){
               let _childLongPress=null;
-              let _childLPX=0,_childLPY=0;
               childDayCells.forEach((td,di)=>{
                 td.onmousedown=(e)=>{
-                  if(barDrag.active)return;
                   e.preventDefault();e.stopPropagation();
                   const d=days[di];
                   const sid=site.id,pid=proc.id,cid=child.id;
-                  _childLPX=e.clientX;_childLPY=e.clientY;
                   _childLongPress=setTimeout(()=>{
                     _childLongPress=null;
                     const s2=sites.find(x=>x.id===sid);
@@ -772,19 +772,11 @@ function _renderInner(){
                       siteId:sid,procId:pid,childId:cid,periodIdx:0,
                       startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
                     render();
-                  },300);
+                  },200);
                   return false;
                 };
-                td.onmouseup=(e)=>{
-                  if(barDrag.active)return;
-                  if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}
-                };
-                td.onmousemove=(e)=>{
-                  if(!_childLongPress)return;
-                  if(Math.abs(e.clientX-_childLPX)>10||Math.abs(e.clientY-_childLPY)>10){
-                    clearTimeout(_childLongPress);_childLongPress=null;
-                  }
-                };
+                td.onmouseup=()=>{if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}};
+                td.onmouseleave=()=>{if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}};
               });
             }
             frag.appendChild(childRow);
@@ -1327,7 +1319,12 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
+    if(c&&c.periods&&c.periods[idx]){
+      c.periods[idx][key]=val;
+      _expandProcPeriods(p);
+      saveData();
+      return;
+    }
   }
 }
 
@@ -1335,10 +1332,15 @@ function delChildPeriod(procId,childId,idx){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods)c.periods.splice(idx,1);
+    if(c&&c.periods){
+      c.periods.splice(idx,1);
+      const allChildPeriods=p.children.flatMap(ch=>ch.periods||[]).filter(pd=>pd.startD&&pd.endD);
+      if(!allChildPeriods.length){p.periods=[];}
+      else{_expandProcPeriods(p);}
+    }
     break;
   }
-  saveData();
+  saveData();render();
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
@@ -1348,7 +1350,8 @@ function saveChild(procId,childId){
   const area=document.getElementById('c_area').value.trim();
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
-  const ordered=document.getElementById('c_ordered').checked;
+  const trackOrder=document.getElementById('c_track_order')?document.getElementById('c_track_order').checked:false;
+  const ordered=trackOrder?document.getElementById('c_ordered').checked:undefined;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(childId===null){
       const newPeriods=[];
@@ -1362,6 +1365,7 @@ function saveChild(procId,childId){
       const c=p.children.find(x=>x.id===childId);
       if(c)Object.assign(c,{name,area,note,material,ordered});
     }
+    _expandProcPeriods(p);
     break;
   }
   closeModal();
@@ -1370,7 +1374,7 @@ function saveChild(procId,childId){
 function toggleChildOrdered(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c)c.ordered=!c.ordered;
+    if(c)c.ordered=c.ordered===undefined?true:!c.ordered;
     break;
   }
   saveData();render();
@@ -1380,7 +1384,7 @@ function delChild(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  closeModal();
+  saveData();closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
