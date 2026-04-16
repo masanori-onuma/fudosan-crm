@@ -54,9 +54,11 @@ td.tod-cell{background:rgba(50,180,100,0.15)!important}
 .badge-procwarn{font-size:10px;background:#FCEBEB;color:#A32D2D;border:1px solid #E24B4A;border-radius:10px;padding:1px 6px;font-weight:600;flex-shrink:0}
 tr.site-warn td{background:#fff5f5!important}
 tr.site-warn td.wk-cell{background:#ffe8e8!important}
+tr.site-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.site-warn .col-info{border-left:3px solid #E24B4A!important}
 tr.proc-warn td{background:#fff5f5!important}
 tr.proc-warn td.wk-cell{background:#ffe8e8!important}
+tr.proc-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
 .sort-handle{font-size:13px;color:#bbb;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
 .sort-handle:hover{color:#888}
@@ -221,7 +223,6 @@ async function loadData(){
   const v=await gasLoad('gantt_sites');
   if(v){
     try{
-      // localStorageと同じデータならrender()不要（スクロール位置を保持）
       if(v===_lastSaved){showSyncStatus('✓ 同期済み',2000);return;}
       const parsed=JSON.parse(v);
       const normed=normalizeSites(parsed);
@@ -236,6 +237,7 @@ async function loadData(){
       showSyncStatus('✓ 同期済み',2000);
     }catch(e){
       console.error('loadData error:',e.message);
+      console.error('stack:',e.stack);
       showSyncStatus('読込エラー:'+e.message.slice(0,30),5000);
     }
   }
@@ -276,11 +278,10 @@ function _expandProcPeriods(proc){
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  proc.periods.forEach(p=>{
-    if(!p.startD||!p.endD)return;
-    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
-    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
-  });
+  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
+  if(!proc.periods||!proc.periods.length){proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];return;}
+  proc.periods[0].startD=toDate(minN);
+  proc.periods[0].endD=toDate(maxN);
 }
 
 function scrollToToday(){
@@ -320,7 +321,7 @@ function rebuildSelects(){
 }
 
 // ドラッグ状態
-let _koukiLongPress=null;
+let _koukiLongPress=null,_koukiLPX=0,_koukiLPY=0;
 let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
@@ -462,6 +463,7 @@ function _renderInner(){
         e.preventDefault();
         const d=days[di];
         const sid=site.id;
+        _koukiLPX=e.clientX;_koukiLPY=e.clientY;
         _koukiLongPress=setTimeout(()=>{
           _koukiLongPress=null;
           const s2=sites.find(x=>x.id===sid);
@@ -475,7 +477,10 @@ function _renderInner(){
         if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
         else if(barDrag.active&&barDrag.isKouki){barDrag.active=false;saveData();}
       };
-      td.onmouseleave=()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}};
+      td.onmousemove=(e)=>{
+        if(!_koukiLongPress)return;
+        if(Math.abs(e.clientX-_koukiLPX)>10||Math.abs(e.clientY-_koukiLPY)>10){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
+      };
       koukiRow.appendChild(td);
       koukiCells.push(td);
     });
@@ -605,7 +610,7 @@ function _renderInner(){
         });
 
         // 空きセルの長押し（500ms）で新しいperiodのドラッグ開始
-        let _procLongPress=null;
+        let _procLongPress=null,_procLongPressX=0,_procLongPressY=0;
         dayCells.forEach((td,di)=>{
           td.onmousedown=(e)=>{
             if(e.target.closest('[data-handle]'))return;
@@ -614,6 +619,7 @@ function _renderInner(){
             e.preventDefault();
             const d=days[di];
             const sid=site.id,pid=proc.id;
+            _procLongPressX=e.clientX;_procLongPressY=e.clientY;
             _procLongPress=setTimeout(()=>{
               _procLongPress=null;
               const site2=sites.find(x=>x.id===sid);
@@ -627,7 +633,10 @@ function _renderInner(){
             },200);
           };
           td.onmouseup=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
-          td.onmouseleave=()=>{if(_procLongPress){clearTimeout(_procLongPress);_procLongPress=null;}};
+          td.onmousemove=(e)=>{
+            if(!_procLongPress)return;
+            if(Math.abs(e.clientX-_procLongPressX)>10||Math.abs(e.clientY-_procLongPressY)>10){clearTimeout(_procLongPress);_procLongPress=null;}
+          };
         });
 
         frag.appendChild(procRow);
@@ -642,8 +651,9 @@ function _renderInner(){
             childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
-            const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _trackOrder=child.ordered!==undefined;
+            const _cColor=child.done?'#aaa':(_trackOrder&&!child.ordered?'#E74C3C':'#555');
+            const _oMark=_trackOrder?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
@@ -1273,20 +1283,26 @@ function openChildModal(siteId,procId,childId){
       <input type="date" value="${pd.endD||''}" onchange="updateChildPeriod(${childId||'null'},${i},'endD',this.value)" style="flex:1;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px;touch-action:manipulation">
       <button class="btn btn-sm btn-danger" onclick="delChildPeriod(${procId},${childId||'null'},${i})" style="flex-shrink:0">×</button>
     </div>`).join('');
+  const _trackOrder=child.ordered!==undefined;
   document.getElementById('modalEl').innerHTML=`
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3>${isNew?'子項目を追加':'子項目を編集'}</h3>
     <div class="field"><label>項目名</label><input id="c_name" style="touch-action:manipulation" value="${esc(child.name||'')}"></div>
     <div class="field"><label>数量・面積</label><input id="c_area" style="touch-action:manipulation" value="${esc(child.area||'')}"></div>
-    <div class="field"><label>材料名・数量 <span style="font-size:10px;color:#888">（入力すると材料発注管理が有効）</span></label><input id="c_material" style="touch-action:manipulation" placeholder="例：サンゲツ RE-7512　148m²" value="${esc(child.material||'')}"></div>
-    <div class="field" style="display:flex;align-items:center;gap:10px">
-      <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation">
-        <span>材料発注済み</span>
-      </label>
-      <span style="font-size:11px;color:#aaa">（未発注は赤字）</span>
-    </div>
+    <div class="field"><label>材料名・数量</label><input id="c_material" style="touch-action:manipulation" placeholder="例：サンゲツ RE-7512　148m²" value="${esc(child.material||'')}"></div>
     <div class="field"><label>備考</label><input id="c_note" style="touch-action:manipulation" placeholder="品番・メモなど" value="${esc(child.note||'')}"></div>
+    <div class="field" style="display:flex;flex-direction:column;gap:8px">
+      <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="c_track_order" ${_trackOrder?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation" onchange="document.getElementById('c_ordered_wrap').style.display=this.checked?'flex':'none'">
+        <span>発注管理する</span>
+      </label>
+      <div id="c_ordered_wrap" style="display:${_trackOrder?'flex':'none'};align-items:center;gap:8px;padding-left:26px">
+        <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation">
+          <span>発注済み</span>
+        </label>
+      </div>
+    </div>
     <div class="field"><label>期間 <span style="font-size:10px;color:#888">（未設定なら親工程と同じ期間）</span></label>
       <div id="childPeriodList">${periodRows}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:4px" onclick="addChildPeriodInModal(${procId},${childId||'null'})">＋ 期間を追加</button>
@@ -1345,7 +1361,8 @@ function saveChild(procId,childId){
   const area=document.getElementById('c_area').value.trim();
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
-  const ordered=document.getElementById('c_ordered').checked;
+  const trackOrder=document.getElementById('c_track_order')?document.getElementById('c_track_order').checked:false;
+  const ordered=trackOrder?document.getElementById('c_ordered').checked:undefined;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(childId===null){
       const newPeriods=[];
@@ -1367,7 +1384,7 @@ function saveChild(procId,childId){
 function toggleChildOrdered(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c)c.ordered=!c.ordered;
+    if(c)c.ordered=c.ordered===undefined?true:!c.ordered;
     break;
   }
   saveData();render();
@@ -1377,7 +1394,7 @@ function delChild(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  closeModal();
+  saveData();closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
