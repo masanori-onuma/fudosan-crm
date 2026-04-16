@@ -54,9 +54,11 @@ td.tod-cell{background:rgba(50,180,100,0.15)!important}
 .badge-procwarn{font-size:10px;background:#FCEBEB;color:#A32D2D;border:1px solid #E24B4A;border-radius:10px;padding:1px 6px;font-weight:600;flex-shrink:0}
 tr.site-warn td{background:#fff5f5!important}
 tr.site-warn td.wk-cell{background:#ffe8e8!important}
+tr.site-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.site-warn .col-info{border-left:3px solid #E24B4A!important}
 tr.proc-warn td{background:#fff5f5!important}
 tr.proc-warn td.wk-cell{background:#ffe8e8!important}
+tr.proc-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
 .sort-handle{font-size:13px;color:#bbb;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
 .sort-handle:hover{color:#888}
@@ -279,13 +281,11 @@ function _expandProcPeriods(proc){
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
-  if(!proc.periods||!proc.periods.length){
-    proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
-    return;
-  }
-  proc.periods[0].startD=toDate(minN);
-  proc.periods[0].endD=toDate(maxN);
+  proc.periods.forEach(p=>{
+    if(!p.startD||!p.endD)return;
+    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
+    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
+  });
 }
 
 function scrollToToday(){
@@ -371,6 +371,14 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
 }
 
 function render(){
+  try{
+  _renderInner();
+  }catch(e){
+    console.error('render error:',e.message,e.stack);
+    showSyncStatus('render error:'+e.message.slice(0,40),10000);
+  }
+}
+function _renderInner(){
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
@@ -654,21 +662,14 @@ function render(){
               const td=document.createElement('td');
               td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
               td.dataset.ischild='1';
-              td.dataset.di=di;
-              td.onmousedown=(e)=>{
-                if(barDrag.active)return;
-                e.preventDefault();e.stopPropagation();return false;
-              };
+              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
-              td.onmouseup=(e)=>{
-                if(barDrag.active)return;
-                e.stopPropagation();
-              };
+              td.onmouseup=(e)=>{e.stopPropagation();};
               childRow.appendChild(td);
               childDayCells.push(td);
             });
-            // 子バーの期間：child.periodsがあればそれを使う、なければ表示しない
-            const childPeriods=(child.periods&&child.periods.length)?child.periods:[];
+            // 子バーの期間：child.periodsがあればそれを使う、なければ親のperiodsを流用
+            const childPeriods=(child.periods&&child.periods.length)?child.periods:periods;
             childPeriods.forEach((period,pi)=>{
               if(!period.startD||!period.endD)return;
               const psN=toN(parseD(period.startD));
@@ -1308,12 +1309,7 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){
-      c.periods[idx][key]=val;
-      _expandProcPeriods(p);
-      saveData();
-      return;
-    }
+    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
   }
 }
 
@@ -1321,18 +1317,10 @@ function delChildPeriod(procId,childId,idx){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods){
-      c.periods.splice(idx,1);
-      const allChildPeriods=p.children.flatMap(ch=>ch.periods||[]).filter(pd=>pd.startD&&pd.endD);
-      if(!allChildPeriods.length){
-        p.periods=[];
-      }else{
-        _expandProcPeriods(p);
-      }
-    }
+    if(c&&c.periods)c.periods.splice(idx,1);
     break;
   }
-  saveData();render();
+  saveData();
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
@@ -1356,7 +1344,6 @@ function saveChild(procId,childId){
       const c=p.children.find(x=>x.id===childId);
       if(c)Object.assign(c,{name,area,note,material,ordered});
     }
-    _expandProcPeriods(p);
     break;
   }
   closeModal();
