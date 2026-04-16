@@ -950,13 +950,13 @@ document.addEventListener('mouseup',function(e){
 },true);
 
 function allChildrenDone(procId){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     return p.children.length>0&&p.children.every(x=>x.done);
   }
   return false;
 }
 function toggleChildDone(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){
       if(!c.done){openChildDoneModal(procId,childId);return;}
@@ -979,7 +979,7 @@ function openChildDoneModal(procId,childId){
 }
 function saveChildDone(procId,childId){
   const date=document.getElementById('child_done_date').value;
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){c.done=true;c.doneDate=date;if(p.children.every(x=>x.done)){p.done=true;p.doneDate=date;}}
     break;
@@ -987,7 +987,7 @@ function saveChildDone(procId,childId){
   closeModal();
 }
 function toggleChildren(procId){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.childCollapsed=!p.childCollapsed;break;}
   render();
 }
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
@@ -1171,7 +1171,7 @@ function updateChild(procId,idx,key,val){
     const rows=document.querySelectorAll('#childList > div');
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     if(p.children[idx])p.children[idx][key]=val;break;
   }
   saveData();
@@ -1181,9 +1181,9 @@ function delChildInModal(procId,idx){
     document.querySelectorAll('#childList > div')[idx]&&document.querySelectorAll('#childList > div')[idx].remove();
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.splice(idx,1);break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.children.splice(idx,1);break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openProcModal(site.id,procId);
 }
 function addChildInModal(procId){
@@ -1202,20 +1202,20 @@ function addChildInModal(procId){
     if(areaField)areaField.style.display='none';
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.push({id:nextCid++,name:'',area:''});break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.children.push({id:nextCid++,name:'',area:''});break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openProcModal(site.id,procId);
 }
 function updatePeriod(procId,idx,key,val){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods[idx][key]=val;break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods[idx][key]=val;break;}
   saveData();
 }
 function delPeriod(procId,idx){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.splice(idx,1);break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods.splice(idx,1);break;}
   saveData();
   // モーダルを再描画
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openProcModal(site.id,procId);
 }
 function addPeriodInModal(procId){
@@ -1232,9 +1232,9 @@ function addPeriodInModal(procId){
     list.appendChild(div);
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.push({startD:'',endD:''});break;}
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods.push({startD:'',endD:''});break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openProcModal(site.id,procId);
 }
 
@@ -1297,13 +1297,13 @@ function addChildPeriodInModal(procId,childId){
     list.appendChild(div);
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){if(!c.periods)c.periods=[];c.periods.push({startD:'',endD:''});}
     break;
   }
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openChildModal(site.id,procId,childId);
 }
 
@@ -1322,7 +1322,7 @@ function updateChildPeriod(childId,idx,key,val){
 
 function delChildPeriod(procId,childId,idx){
   if(childId===null)return;
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     const c=p.children.find(x=>x.id===childId);
     if(c&&c.periods){
       c.periods.splice(idx,1);
@@ -1337,7 +1337,7 @@ function delChildPeriod(procId,childId,idx){
     break;
   }
   saveData();render();
-  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
   if(site)openChildModal(site.id,procId,childId);
 }
 
@@ -1347,7 +1347,7 @@ function saveChild(procId,childId){
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
   const ordered=document.getElementById('c_ordered').checked;
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     if(childId===null){
       const newPeriods=[];
       document.querySelectorAll('#childPeriodList > div').forEach(row=>{
@@ -1367,7 +1367,7 @@ function saveChild(procId,childId){
 }
 
 function toggleChildOrdered(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     const c=p.children.find(x=>x.id===childId);
     if(c)c.ordered=!c.ordered;
     break;
@@ -1376,7 +1376,7 @@ function toggleChildOrdered(procId,childId){
 }
 
 function delChild(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+  for(const s of sites)for(const p of s.processes)if(p.id==procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
   closeModal();
