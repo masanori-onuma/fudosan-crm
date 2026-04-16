@@ -279,13 +279,11 @@ function _expandProcPeriods(proc){
   if(!allChildPeriods.length)return;
   const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
-  if(!proc.periods||!proc.periods.length){
-    proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
-    return;
-  }
-  proc.periods[0].startD=toDate(minN);
-  proc.periods[0].endD=toDate(maxN);
+  proc.periods.forEach(p=>{
+    if(!p.startD||!p.endD)return;
+    if(toN(parseD(p.startD))>minN)p.startD=fmt(new Date(Math.floor(minN/10000),Math.floor((minN%10000)/100)-1,minN%100));
+    if(toN(parseD(p.endD))<maxN)p.endD=fmt(new Date(Math.floor(maxN/10000),Math.floor((maxN%10000)/100)-1,maxN%100));
+  });
 }
 
 function scrollToToday(){
@@ -425,7 +423,7 @@ function _renderInner(){
     const siteTd=document.createElement('td');
     siteTd.className='col-info';
     const ndBadge=nd>0?`<span class="badge-nd">未定${nd}</span>`:'';
-    const warnBadge=isWarn?'<span class="badge-warn">⚠ 発注未完了</span>':'';
+    const warnBadge='';
     const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
@@ -647,15 +645,14 @@ function _renderInner(){
             childRow.style.zIndex='5';
             const childTd=document.createElement('td');
             childTd.className='col-info';
-            const _trackOrder=child.ordered!==undefined;
-            const _cColor=child.done?'#aaa':(_trackOrder&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=_trackOrder?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _cColor=child.done?'#aaa':(child.material&&!child.ordered?'#E74C3C':'#555');
+            const _oMark=child.material?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
               <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
               <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px"> '+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               ${_oMark}
-              <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
+              <button class="btn btn-sm child-edit-btn" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
             childRow.appendChild(childTd);
             const childDayCells=[];
@@ -755,11 +752,14 @@ function _renderInner(){
             // 独自期間がない場合、日付セルの長押しで期間設定できるようにする
             if(!(child.periods&&child.periods.length)){
               let _childLongPress=null;
+              let _childLPX=0,_childLPY=0;
               childDayCells.forEach((td,di)=>{
                 td.onmousedown=(e)=>{
+                  if(barDrag.active)return;
                   e.preventDefault();e.stopPropagation();
                   const d=days[di];
                   const sid=site.id,pid=proc.id,cid=child.id;
+                  _childLPX=e.clientX;_childLPY=e.clientY;
                   _childLongPress=setTimeout(()=>{
                     _childLongPress=null;
                     const s2=sites.find(x=>x.id===sid);
@@ -772,11 +772,19 @@ function _renderInner(){
                       siteId:sid,procId:pid,childId:cid,periodIdx:0,
                       startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
                     render();
-                  },200);
+                  },300);
                   return false;
                 };
-                td.onmouseup=()=>{if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}};
-                td.onmouseleave=()=>{if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}};
+                td.onmouseup=(e)=>{
+                  if(barDrag.active)return;
+                  if(_childLongPress){clearTimeout(_childLongPress);_childLongPress=null;}
+                };
+                td.onmousemove=(e)=>{
+                  if(!_childLongPress)return;
+                  if(Math.abs(e.clientX-_childLPX)>10||Math.abs(e.clientY-_childLPY)>10){
+                    clearTimeout(_childLongPress);_childLongPress=null;
+                  }
+                };
               });
             }
             frag.appendChild(childRow);
@@ -1319,12 +1327,7 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){
-      c.periods[idx][key]=val;
-      _expandProcPeriods(p);
-      saveData();
-      return;
-    }
+    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
   }
 }
 
@@ -1332,15 +1335,10 @@ function delChildPeriod(procId,childId,idx){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods){
-      c.periods.splice(idx,1);
-      const allChildPeriods=p.children.flatMap(ch=>ch.periods||[]).filter(pd=>pd.startD&&pd.endD);
-      if(!allChildPeriods.length){p.periods=[];}
-      else{_expandProcPeriods(p);}
-    }
+    if(c&&c.periods)c.periods.splice(idx,1);
     break;
   }
-  saveData();render();
+  saveData();
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
@@ -1350,8 +1348,7 @@ function saveChild(procId,childId){
   const area=document.getElementById('c_area').value.trim();
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
-  const trackOrder=document.getElementById('c_track_order')?document.getElementById('c_track_order').checked:false;
-  const ordered=trackOrder?document.getElementById('c_ordered').checked:undefined;
+  const ordered=document.getElementById('c_ordered').checked;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(childId===null){
       const newPeriods=[];
@@ -1365,7 +1362,6 @@ function saveChild(procId,childId){
       const c=p.children.find(x=>x.id===childId);
       if(c)Object.assign(c,{name,area,note,material,ordered});
     }
-    _expandProcPeriods(p);
     break;
   }
   closeModal();
@@ -1374,7 +1370,7 @@ function saveChild(procId,childId){
 function toggleChildOrdered(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c)c.ordered=c.ordered===undefined?true:!c.ordered;
+    if(c)c.ordered=!c.ordered;
     break;
   }
   saveData();render();
@@ -1384,7 +1380,7 @@ function delChild(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  saveData();closeModal();
+  closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
@@ -1547,7 +1543,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     '.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}th.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}'+
     '.day-col{width:34px!important;min-width:34px!important}'+
-    '.btn-sm:not(.dropbox-btn){display:none!important}.sp-hide{display:none!important}'+
+    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn){display:none!important}.sp-hide{display:none!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
