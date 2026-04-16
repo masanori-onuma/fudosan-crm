@@ -281,11 +281,9 @@ function _expandProcPeriods(proc){
   const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
   const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
   if(!proc.periods||!proc.periods.length){
-    // 親バーがなければ子バーの範囲で生成
     proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];
     return;
   }
-  // 親バーを全子バーのmin/maxに合わせる（拡張・縮小両対応）
   proc.periods[0].startD=toDate(minN);
   proc.periods[0].endD=toDate(maxN);
 }
@@ -373,14 +371,6 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW){
 }
 
 function render(){
-  try{
-  _renderInner();
-  }catch(e){
-    console.error('render error:',e.message,e.stack);
-    showSyncStatus('render error:'+e.message.slice(0,40),10000);
-  }
-}
-function _renderInner(){
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
@@ -663,16 +653,22 @@ function _renderInner(){
             days.forEach((day,di)=>{
               const td=document.createElement('td');
               td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-              td.dataset.ischild='1';td.dataset.di=di;
-              td.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();return false;};
+              td.dataset.ischild='1';
+              td.dataset.di=di;
+              td.onmousedown=(e)=>{
+                if(barDrag.active)return;
+                e.preventDefault();e.stopPropagation();return false;
+              };
               td.onclick=(e)=>{e.preventDefault();e.stopPropagation();return false;};
-              td.onmouseup=(e)=>{e.stopPropagation();};
+              td.onmouseup=(e)=>{
+                if(barDrag.active)return;
+                e.stopPropagation();
+              };
               childRow.appendChild(td);
               childDayCells.push(td);
             });
-            // 子バーの期間：child.periodsがあればそれを使う、なければ親のperiodsを流用
+            // 子バーの期間：child.periodsがあればそれを使う、なければ表示しない
             const childPeriods=(child.periods&&child.periods.length)?child.periods:[];
-              if(!childPeriods.length)return;
             childPeriods.forEach((period,pi)=>{
               if(!period.startD||!period.endD)return;
               const psN=toN(parseD(period.startD));
@@ -805,7 +801,7 @@ document.addEventListener('mousemove',function(e){
       di=parseInt(cell.dataset.di);break;
     }
   }
-  if(di===null||isNaN(di))return;
+  if(di===null)return;
 
   if(barDrag.isKouki){
     const site=sites.find(x=>x.id===barDrag.siteId);
@@ -951,13 +947,13 @@ document.addEventListener('mouseup',function(e){
 },true);
 
 function allChildrenDone(procId){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     return p.children.length>0&&p.children.every(x=>x.done);
   }
   return false;
 }
 function toggleChildDone(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){
       if(!c.done){openChildDoneModal(procId,childId);return;}
@@ -980,7 +976,7 @@ function openChildDoneModal(procId,childId){
 }
 function saveChildDone(procId,childId){
   const date=document.getElementById('child_done_date').value;
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){c.done=true;c.doneDate=date;if(p.children.every(x=>x.done)){p.done=true;p.doneDate=date;}}
     break;
@@ -988,7 +984,7 @@ function saveChildDone(procId,childId){
   closeModal();
 }
 function toggleChildren(procId){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.childCollapsed=!p.childCollapsed;break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
   render();
 }
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
@@ -1168,28 +1164,28 @@ function updateChildFromSel(sel,procId,idx){
 }
 
 function updateChild(procId,idx,key,val){
-  if(procId==null){
+  if(procId===null){
     const rows=document.querySelectorAll('#childList > div');
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(p.children[idx])p.children[idx][key]=val;break;
   }
   saveData();
 }
 function delChildInModal(procId,idx){
-  if(procId==null){
+  if(procId===null){
     document.querySelectorAll('#childList > div')[idx]&&document.querySelectorAll('#childList > div')[idx].remove();
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.children.splice(idx,1);break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.splice(idx,1);break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
 function addChildInModal(procId){
   const selOpts='<option value="">-- 選択 --</option>'+masters.procNames.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(procId==null){
+  if(procId===null){
     const list=document.getElementById('childList');
     const div=document.createElement('div');
     div.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
@@ -1203,24 +1199,24 @@ function addChildInModal(procId){
     if(areaField)areaField.style.display='none';
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.children.push({id:nextCid++,name:'',area:''});break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.push({id:nextCid++,name:'',area:''});break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
 function updatePeriod(procId,idx,key,val){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods[idx][key]=val;break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods[idx][key]=val;break;}
   saveData();
 }
 function delPeriod(procId,idx){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods.splice(idx,1);break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.splice(idx,1);break;}
   saveData();
   // モーダルを再描画
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
 function addPeriodInModal(procId){
-  if(procId==null){
+  if(procId===null){
     // 新規工程の場合はperiodListに行追加のみ
     const list=document.getElementById('periodList');
     const i=list.children.length;
@@ -1233,9 +1229,9 @@ function addPeriodInModal(procId){
     list.appendChild(div);
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){p.periods.push({startD:'',endD:''});break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.push({startD:'',endD:''});break;}
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
 
@@ -1298,13 +1294,13 @@ function addChildPeriodInModal(procId,childId){
     list.appendChild(div);
     return;
   }
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){if(!c.periods)c.periods=[];c.periods.push({startD:'',endD:''});}
     break;
   }
   saveData();
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
 
@@ -1323,11 +1319,10 @@ function updateChildPeriod(childId,idx,key,val){
 
 function delChildPeriod(procId,childId,idx){
   if(childId===null)return;
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c&&c.periods){
       c.periods.splice(idx,1);
-      // 全子バーが空になったら親バーも削除
       const allChildPeriods=p.children.flatMap(ch=>ch.periods||[]).filter(pd=>pd.startD&&pd.endD);
       if(!allChildPeriods.length){
         p.periods=[];
@@ -1338,7 +1333,7 @@ function delChildPeriod(procId,childId,idx){
     break;
   }
   saveData();render();
-  const site=sites.find(s=>s.processes.some(p=>p.id==procId));
+  const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
 
@@ -1348,7 +1343,7 @@ function saveChild(procId,childId){
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
   const ordered=document.getElementById('c_ordered').checked;
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(childId===null){
       const newPeriods=[];
       document.querySelectorAll('#childPeriodList > div').forEach(row=>{
@@ -1368,7 +1363,7 @@ function saveChild(procId,childId){
 }
 
 function toggleChildOrdered(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c)c.ordered=!c.ordered;
     break;
@@ -1377,10 +1372,10 @@ function toggleChildOrdered(procId,childId){
 }
 
 function delChild(procId,childId){
-  for(const s of sites)for(const p of s.processes)if(p.id==procId){
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  saveData();closeModal();
+  closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
@@ -1415,7 +1410,7 @@ function saveProc(siteId,procId){
     if(nm&&nm.value.trim())newChildren.push({id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''});
   });
 
-  if(procId==null){
+  if(procId===null){
     const periods=[];
     document.querySelectorAll('#periodList > div').forEach(row=>{
       const inputs=row.querySelectorAll('input[type=date]');
