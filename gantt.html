@@ -221,24 +221,21 @@ async function loadData(){
   const v=await gasLoad('gantt_sites');
   if(v){
     try{
+      // localStorageと同じデータならrender()不要（スクロール位置を保持）
+      if(v===_lastSaved){showSyncStatus('✓ 同期済み',2000);return;}
       const parsed=JSON.parse(v);
-      console.log('parse ok:',parsed.length);
       const normed=normalizeSites(parsed);
-      console.log('normalize ok:',normed.length);
       sites=normed;
       localStorage.setItem('gantt_sites',v);
       _lastSaved=v;
-      console.log('before render');
-      const _prevScrollLeft=document.getElementById('ganttScroll')?document.getElementById('ganttScroll').scrollLeft:0;
-      const _firstLoad=_prevScrollLeft===0;
+      const _gs2=document.getElementById('ganttScroll');
+      const _prevScrollLeft=_gs2?_gs2.scrollLeft:0;
+      const _prevScrollTop=_gs2?_gs2.scrollTop:0;
       render();
-      if(_firstLoad)scrollToToday();
-      else document.getElementById('ganttScroll').scrollLeft=_prevScrollLeft;
-      console.log('render ok');
+      if(_gs2){_gs2.scrollLeft=_prevScrollLeft;_gs2.scrollTop=_prevScrollTop;}
       showSyncStatus('✓ 同期済み',2000);
     }catch(e){
       console.error('loadData error:',e.message);
-      console.error('stack:',e.stack);
       showSyncStatus('読込エラー:'+e.message.slice(0,30),5000);
     }
   }
