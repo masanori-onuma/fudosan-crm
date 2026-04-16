@@ -291,6 +291,7 @@ function scrollToToday(){
   const rect=th.getBoundingClientRect();
   const gsRect=gs.getBoundingClientRect();
   gs.scrollLeft+=rect.left-gsRect.left-(gsRect.width/2);
+  _savedScrollLeft=gs.scrollLeft;
 }
 function undoLast(){
   if(!_undoStack.length)return;
@@ -327,6 +328,14 @@ document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_kouki
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 let _isTouching=false;
 let _savedScrollLeft=undefined;
+
+// ganttScrollの横スクロール位置を常時保存
+window.addEventListener('load',function(){
+  const _gs=document.getElementById('ganttScroll');
+  if(_gs)_gs.addEventListener('scroll',function(){
+    if(_gs.style.overflowX!=='hidden'&&_gs.scrollLeft>0)_savedScrollLeft=_gs.scrollLeft;
+  },{passive:true});
+});
 
 function makeBar(col,spanCount,label,isDone,isShort,dayW){
   if(!dayW)dayW=DAY_W;
@@ -803,7 +812,7 @@ function _renderInner(){
   });
 
   const _gs=document.getElementById('ganttScroll');
-  const _sl=(_savedScrollLeft!==undefined)?_savedScrollLeft:(_gs?_gs.scrollLeft:0);
+  const _sl=(_savedScrollLeft!==undefined&&_savedScrollLeft>0)?_savedScrollLeft:(_gs?_gs.scrollLeft:0);
   const _st=_gs?_gs.scrollTop:0;
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
@@ -1524,7 +1533,10 @@ document.addEventListener('touchstart',function(e){
 document.addEventListener('touchmove',function(){_tmv=true;if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
 document.addEventListener('touchend',function(e){
   // 慣性スクロールが収まるまで_isTouchingをtrueに保持
-  setTimeout(()=>{_isTouching=false;},300);
+  const _waitForScrollStop=setInterval(()=>{
+    if(!_scrolling){clearInterval(_waitForScrollStop);_isTouching=false;}
+  },50);
+  setTimeout(()=>{clearInterval(_waitForScrollStop);_isTouching=false;},1000);
   if(_lpt){clearTimeout(_lpt);_lpt=null;}
   if(barDrag.active){barDrag.active=false;barDrag.isNew=false;saveData();}
 },{passive:true});
@@ -1630,7 +1642,7 @@ if(_isSP){
         const sl=_savedScrollLeft!==undefined?_savedScrollLeft:_gs.scrollLeft;
         _gs.style.overflowX='auto';
         _gs.scrollLeft=sl;
-        _savedScrollLeft=undefined;
+        _savedScrollLeft=sl;// 値を保持し続ける
       }
     },300);
     _dirLocked=false;
@@ -1641,7 +1653,7 @@ if(_isSP){
         const sl=_savedScrollLeft!==undefined?_savedScrollLeft:_gs.scrollLeft;
         _gs.style.overflowX='auto';
         _gs.scrollLeft=sl;
-        _savedScrollLeft=undefined;
+        _savedScrollLeft=sl;// 値を保持し続ける
       }
     },300);
     _dirLocked=false;
