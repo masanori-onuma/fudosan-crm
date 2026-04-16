@@ -326,6 +326,7 @@ let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
 let _isTouching=false;
+let _savedScrollLeft=undefined;
 
 function makeBar(col,spanCount,label,isDone,isShort,dayW){
   if(!dayW)dayW=DAY_W;
@@ -802,7 +803,7 @@ function _renderInner(){
   });
 
   const _gs=document.getElementById('ganttScroll');
-  const _sl=_gs?_gs.scrollLeft:0;
+  const _sl=(_savedScrollLeft!==undefined)?_savedScrollLeft:(_gs?_gs.scrollLeft:0);
   const _st=_gs?_gs.scrollTop:0;
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
@@ -1522,7 +1523,8 @@ document.addEventListener('touchstart',function(e){
 },{passive:true});
 document.addEventListener('touchmove',function(){_tmv=true;if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
 document.addEventListener('touchend',function(e){
-  _isTouching=false;
+  // 慣性スクロールが収まるまで_isTouchingをtrueに保持
+  setTimeout(()=>{_isTouching=false;},300);
   if(_lpt){clearTimeout(_lpt);_lpt=null;}
   if(barDrag.active){barDrag.active=false;barDrag.isNew=false;saveData();}
 },{passive:true});
@@ -1586,12 +1588,12 @@ if(_isSP){
   const _COL_W=180;
   let _tsX=0,_tsY=0,_dirLocked=false,_isHorizontal=false;
   let _lastScrollTop=0,_scrolling=false,_scrollTimer=null;
-  let _savedScrollLeft=undefined;
   _gs.addEventListener('scroll',function(){
     _scrolling=true;
     clearTimeout(_scrollTimer);
     _scrollTimer=setTimeout(function(){_scrolling=false;},150);
     _lastScrollTop=_gs.scrollTop;
+    if(_gs.style.overflowX!=='hidden')_savedScrollLeft=_gs.scrollLeft;
   },{passive:true});
   _gs.addEventListener('touchstart',function(e){
     _tsX=e.touches[0].clientX;
