@@ -109,6 +109,54 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .master-add input{flex:1;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid #ccc;height:28px}
 .master-add button{height:28px;padding:0 10px;font-size:12px;border-radius:6px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;cursor:pointer;white-space:nowrap}
 
+/* === 親工程と子項目の階層表示 === */
+/* 子項目を持つ親行：左に色バーを付けて強調 */
+tr.row-proc.row-parent td.col-info{
+  background:linear-gradient(to right,#eef3fa 0,#eef3fa 4px,#fff 4px);
+  border-left:none;
+  position:relative;
+}
+tr.row-proc.row-parent td.col-info::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:#4A90D9;
+}
+tr.row-proc.row-parent .proc-name{
+  font-weight:600;color:#0C447C;font-size:12.5px;
+}
+tr.row-proc.row-parent.done .proc-name{color:#888}
+tr.row-proc.row-parent.done td.col-info::before{background:#999}
+
+/* 子項目行：背景を薄い灰色＋左インデント＋縦線でツリー感 */
+tr.row-child td.col-info{
+  background:#f7f9fb;
+  position:relative;
+}
+tr.row-child td.col-info::before{
+  content:'';position:absolute;left:14px;top:0;bottom:0;width:2px;
+  background:#cfd9e5;
+}
+tr.row-child td.col-info::after{
+  content:'';position:absolute;left:14px;top:10px;width:10px;height:2px;
+  background:#cfd9e5;
+}
+/* 子項目を持つ親の下の子行グループの最後の子で縦線を途中まで */
+tr.row-child:last-of-type td.col-info::before{
+  bottom:auto;height:11px;
+}
+/* 子行の文字サイズを明示的に小さく */
+tr.row-child .proc-inner > span[style*="font-size:11px"]{
+  color:#555;
+}
+/* 子の└記号は不要になったので非表示 */
+tr.row-child .proc-inner > span:first-child + span{
+  /* 元の└記号を消す代わりにCSSで描画している */
+}
+
+/* 子行の day-cell にも薄い区別 */
+tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
+  background:#fafbfd;
+}
+
 
 </style>
 </head>
@@ -559,7 +607,7 @@ function _renderInner(){
         const procWarn=isWarn&&!hasPeriod;
 
         const procRow=document.createElement('tr');
-        procRow.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'');
+        procRow.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'')+((proc.children&&proc.children.length>0)?' row-parent':'');
         procRow.style.height=ROW_H+'px';
         const procTd=document.createElement('td');
         procTd.className='col-info';
@@ -681,7 +729,7 @@ function _renderInner(){
         if(!proc.childCollapsed&&children.length>0){
           children.forEach(child=>{
             const childRow=document.createElement('tr');
-            childRow.className='row-proc'+(proc.done?' done':'');
+            childRow.className='row-proc row-child'+(proc.done?' done':'')+(child.done?' child-done':'');
             childRow.style.height='22px';
             childRow.style.position='relative';
             childRow.style.zIndex='5';
@@ -690,8 +738,7 @@ function _renderInner(){
             const _trackOrder=child.ordered!==undefined;
             const _cColor=child.done?'#aaa':(_trackOrder&&!child.ordered?'#E74C3C':'#555');
             const _oMark=_trackOrder?`<span style="font-size:10px;flex-shrink:0;cursor:pointer;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}" onclick="toggleChildOrdered(${proc.id},${child.id})" title="${child.ordered?'材料発注済み（タップで解除）':'材料未発注（タップで発注済みに）'}">${child.ordered?'発注済':'未発注'}</span>`:'';
-            childTd.innerHTML=`<div class="proc-inner" style="padding-left:28px">
-              <span style="font-size:10px;color:#aaa;flex-shrink:0;padding-right:4px">└</span>
+            childTd.innerHTML=`<div class="proc-inner" style="padding-left:32px">
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
               <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px"> '+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               ${_oMark}
