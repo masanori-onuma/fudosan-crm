@@ -529,7 +529,10 @@ function _renderInner(){
         if(sc){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
-          const bar=makeBar('#3949ab',span,'工期',false,span<=3,_dayW);
+          // 全工程完了なら工期バーもグレー（工程バーと同じ挙動）
+          const _allDone=site.processes&&site.processes.length>0&&site.processes.every(p=>p.done);
+          const _koukiColor=_allDone?'#999':'#3949ab';
+          const bar=makeBar(_koukiColor,span,_allDone?'工期 ✓完了':'工期',_allDone,span<=3,_dayW);
           bar.style.cursor='pointer';
           bar.onclick=()=>openKoukiModal(site.id);
           bar.onmousedown=(e)=>{
