@@ -128,6 +128,8 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     <button class="btn" onclick="applyRange()">適用</button>
     <button class="btn btn-primary sp-hide" onclick="openSiteModal(null)">＋ 物件追加</button>
     <button class="btn sp-hide" onclick="exportCSV()">CSV出力</button>
+    <button class="btn sp-hide" onclick="exportJSON()" title="全データをJSONファイルとして保存">💾 バックアップ</button>
+    <button class="btn sp-hide" onclick="importJSON()" title="JSONバックアップから復元">📂 復元</button>
   </div>
   <div class="filter-bar">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
@@ -1516,6 +1518,53 @@ function exportCSV(){
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
   a.download='工程表_'+fmt(new Date())+'.csv';a.click();
+}
+
+function exportJSON(){
+  const backup={
+    exportedAt:new Date().toISOString(),
+    version:1,
+    siteCount:sites.length,
+    sites:sites,
+    masters:masters
+  };
+  const json=JSON.stringify(backup,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='工程表バックアップ_'+fmt(new Date())+'.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function importJSON(){
+  const input=document.createElement('input');
+  input.type='file';input.accept='.json,application/json';
+  input.onchange=(e)=>{
+    const f=e.target.files[0];if(!f)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!data.sites||!Array.isArray(data.sites)){alert('このファイルは工程表バックアップではありません');return;}
+        const msg='バックアップを読み込みます。\n\n'
+          +'エクスポート日時: '+(data.exportedAt||'不明')+'\n'
+          +'物件数: '+data.siteCount+'件\n\n'
+          +'【重要】現在の全データが上書きされます。\n'
+          +'本当に復元しますか？';
+        if(!confirm(msg))return;
+        if(!confirm('最終確認：現在のデータは完全に消えます。よろしいですか？'))return;
+        sites=normalizeSites(data.sites);
+        if(data.masters)masters=data.masters;
+        saveData();saveMasters();render();
+        alert('復元が完了しました。'+sites.length+'件の物件を読み込みました。');
+      }catch(err){
+        alert('ファイルの読み込みに失敗しました: '+err.message);
+      }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
 }
 
 // タッチ対応（長押しで完了切替）
