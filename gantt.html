@@ -167,9 +167,9 @@ const HOLIDAYS=new Set(['2025-01-01','2025-01-13','2025-02-11','2025-02-23','202
 function isHoliday(d){return HOLIDAYS.has(fmt(d));}
 
 
-function toN(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function toN(d){if(!d||typeof d.getFullYear!=='function')return 0;return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
 function parseD(s){if(!s)return null;let p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
-function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmt(d){if(!d||typeof d.getFullYear!=='function')return'';return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fmtD(s){if(!s)return'';const d=parseD(s);return(d.getMonth()+1)+'/'+d.getDate();}
 function addDays(d,n){let r=new Date(d);r.setDate(r.getDate()+n);return r}
 function isWk(d){return d.getDay()===0||d.getDay()===6}
@@ -823,6 +823,7 @@ function _renderInner(){
 document.addEventListener('mousemove',function(e){
   if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
+  if(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
   // マウス位置からdi計算
@@ -1017,7 +1018,7 @@ function saveChildDone(procId,childId){
     if(c){c.done=true;c.doneDate=date;if(p.children.every(x=>x.done)){p.done=true;p.doneDate=date;}}
     break;
   }
-  closeModal();
+  saveData();closeModal();
 }
 function toggleChildren(procId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
@@ -1057,7 +1058,7 @@ function saveDone(pid){
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
     p.done=true;p.doneDate=date;break;
   }
-  closeModal();
+  saveData();closeModal();
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
 }
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
@@ -1080,7 +1081,7 @@ function openKoukiModal(siteId){
     </div></div></div>`;
 }
 function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();saveData();render();}
-function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';closeModal();render();}
+function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';saveData();closeModal();}
 
 function openSiteModal(id){
   const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:'',dropboxUrl:''};
@@ -1388,7 +1389,7 @@ function saveChild(procId,childId){
     }
     break;
   }
-  closeModal();
+  saveData();closeModal();
 }
 
 function toggleChildOrdered(procId,childId){
@@ -1419,9 +1420,9 @@ function saveSite(id){
   const koukiEnd=document.getElementById('s_kouki_end').value;
   if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,collapsed:false,koukiStart,koukiEnd,processes:[]});
   else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation,koukiStart,koukiEnd});}
-  closeModal();
+  saveData();closeModal();
 }
-function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);closeModal();}
+function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
 
 function saveProc(siteId,procId){
   const name=(document.getElementById('p_name_sel').value||document.getElementById('p_name_inp').value).trim();if(!name)return;
@@ -1453,11 +1454,11 @@ function saveProc(siteId,procId){
       if(newChildren.length>0)p.children=[...p.children,...newChildren];
     }
   }
-  closeModal();
+  saveData();closeModal();
 }
 function delProc(siteId,procId){
   const site=sites.find(x=>x.id===siteId);if(!site)return;
-  site.processes=site.processes.filter(x=>x.id!==procId);closeModal();
+  site.processes=site.processes.filter(x=>x.id!==procId);saveData();closeModal();
 }
 
 // マスター
