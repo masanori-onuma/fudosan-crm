@@ -1041,7 +1041,28 @@ function saveChildDone(procId,childId){
   const date=document.getElementById('child_done_date').value;
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
-    if(c){c.done=true;c.doneDate=date;if(p.children.every(x=>x.done)){p.done=true;p.doneDate=date;}}
+    if(c){
+      c.done=true;c.doneDate=date;
+      // 子項目の期間終了日を完了日に合わせる
+      if(date&&c.periods&&c.periods.length>0){
+        const lastIdx=c.periods.length-1;
+        c.periods[lastIdx].endD=date;
+        if(c.periods[lastIdx].startD&&c.periods[lastIdx].startD>date){
+          c.periods[lastIdx].startD=date;
+        }
+      }
+      // 全子項目が完了したら親工程も完了、親の期間終了日も更新
+      if(p.children.every(x=>x.done)){
+        p.done=true;p.doneDate=date;
+        if(date&&p.periods&&p.periods.length>0){
+          const lastIdx=p.periods.length-1;
+          p.periods[lastIdx].endD=date;
+          if(p.periods[lastIdx].startD&&p.periods[lastIdx].startD>date){
+            p.periods[lastIdx].startD=date;
+          }
+        }
+      }
+    }
     break;
   }
   saveData();closeModal();
@@ -1082,7 +1103,17 @@ function openDoneModal(pid){
 function saveDone(pid){
   const date=document.getElementById('done_date').value;
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
-    p.done=true;p.doneDate=date;break;
+    p.done=true;p.doneDate=date;
+    // 完了日で工程の終了日を上書き（最後の期間のendDを完了日に合わせる）
+    if(date&&p.periods&&p.periods.length>0){
+      const lastIdx=p.periods.length-1;
+      p.periods[lastIdx].endD=date;
+      // 完了日が開始日より前なら開始日も揃える（短すぎる期間を防ぐ）
+      if(p.periods[lastIdx].startD&&p.periods[lastIdx].startD>date){
+        p.periods[lastIdx].startD=date;
+      }
+    }
+    break;
   }
   saveData();closeModal();
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
