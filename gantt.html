@@ -130,6 +130,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
     <button class="btn sp-hide" onclick="exportCSV()">CSV出力</button>
     <button class="btn sp-hide" onclick="exportJSON()" title="全データをJSONファイルとして保存">💾 バックアップ</button>
     <button class="btn sp-hide" onclick="importJSON()" title="JSONバックアップから復元">📂 復元</button>
+    <button class="btn sp-hide" onclick="openArchiveView()" title="アーカイブ済み物件を閲覧">📦 アーカイブ閲覧</button>
   </div>
   <div class="filter-bar">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
@@ -197,6 +198,9 @@ let masters={clients:[],persons:[],procNames:[]};
 const GAS_URL='https://script.google.com/macros/s/AKfycbxOI40LdSvyva9VFC8J04qpvqlCqqkf1eMx3QlDY0ecjjrWCDbEUEtpe-UHjapoqI0/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
+async function gasArchiveSite(siteId,by){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'archive_site',site_id:String(siteId),archived_by:by||'manual'})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
+async function gasUnarchiveSite(siteId){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'unarchive_site',site_id:String(siteId)})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
+async function gasLoadArchived(){try{const r=await fetch(GAS_URL+'?action=load_archived');const j=await r.json();if(!j.ok)return null;return j.value?JSON.parse(j.value):[];}catch(e){return null;}}
 let _syncTimer=null;
 function showSyncStatus(msg,ms){const el=document.getElementById('syncStatus');if(el)el.textContent=msg;if(_syncTimer)clearTimeout(_syncTimer);if(ms)_syncTimer=setTimeout(()=>{if(el)el.textContent='';},ms);}
 
@@ -1089,6 +1093,7 @@ function openSiteModal(id){
   const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:'',dropboxUrl:''};
   const isNew=!id;
   const delBtn=!isNew?`<button class="btn btn-danger" onclick="delSite(${id})">削除</button>`:'';
+  const archBtn=!isNew?`<button class="btn" onclick="archiveSite(${id})" title="完了物件を整理整頓（アーカイブへ移動）" style="color:#1D9E75;border-color:#9ECDB3">📦 アーカイブ</button>`:'';
   const cval=s.client||'';
   const cInList=masters.clients.includes(cval);
   const cOpts=masters.clients.map(v=>`<option value="${esc(v)}"${v===cval?' selected':''}>${esc(v)}</option>`).join('')
@@ -1112,6 +1117,7 @@ function openSiteModal(id){
     <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
     <div class="modal-btns">
       ${delBtn}
+      ${archBtn}
       <button class="btn" onclick="closeModal()">キャンセル</button>
       <button class="btn btn-primary" onclick="saveSite(${id||'null'})">${isNew?'追加':'保存'}</button>
     </div></div></div>`;
@@ -1425,6 +1431,223 @@ function saveSite(id){
   saveData();closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
+
+// =============================================================
+// アーカイブ機能
+// =============================================================
+let _archivedCache=null;  // アーカイブ物件のメモリキャッシュ
+
+async function archiveSite(id){
+  const s=sites.find(x=>x.id===id);if(!s)return;
+  const procs=s.processes||[];
+  const allDone=procs.length>0&&procs.every(p=>p.done);
+  let msg='この物件をアーカイブしますか？\n\n';
+  msg+='物件: '+s.name+'\n';
+  if(!allDone&&procs.length>0){
+    const notDone=procs.filter(p=>!p.done).length;
+    msg+='\n⚠ 未完了の工程が'+notDone+'個あります。\n本当にアーカイブしますか？';
+  }else if(procs.length===0){
+    msg+='\n⚠ 工程が未登録です。\n本当にアーカイブしますか？';
+  }else{
+    msg+='\n全'+procs.length+'工程が完了しています。';
+  }
+  if(!confirm(msg))return;
+
+  showSyncStatus('アーカイブ中…');
+  // GASでアーカイブ実行
+  const r=await gasArchiveSite(id,'manual');
+  if(!r.ok){
+    showSyncStatus('アーカイブ失敗',3000);
+    alert('アーカイブに失敗しました: '+r.error);
+    return;
+  }
+  // ローカルのsitesからも削除
+  sites=sites.filter(x=>x.id!==id);
+  // _lastSavedを更新してGAS側と整合
+  _lastSaved=JSON.stringify(sites);
+  localStorage.setItem('gantt_sites',_lastSaved);
+  // キャッシュは無効化（次回閲覧時に再取得）
+  _archivedCache=null;
+  showSyncStatus('✓ アーカイブしました',3000);
+  closeModal();
+}
+
+async function unarchiveSite(id){
+  if(!confirm('この物件を現役に戻しますか？'))return;
+  showSyncStatus('復元中…');
+  const r=await gasUnarchiveSite(id);
+  if(!r.ok){
+    showSyncStatus('復元失敗',3000);
+    alert('復元に失敗しました: '+r.error);
+    return;
+  }
+  // キャッシュ無効化＋現役側を再読込
+  _archivedCache=null;
+  await loadData();
+  showSyncStatus('✓ 現役に戻しました',3000);
+  // アーカイブ画面を再表示（更新反映）
+  openArchiveView();
+}
+
+async function openArchiveView(){
+  // モーダルで表示
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="max-width:900px;width:95%;max-height:90vh;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #eee">
+          <h3 style="margin:0">📦 アーカイブ閲覧</h3>
+          <span id="archCount" style="font-size:12px;color:#888"></span>
+          <button class="btn btn-sm" onclick="reloadArchived()" style="margin-left:auto" title="再読込">🔄</button>
+          <button class="btn btn-sm" onclick="closeModal()">閉じる</button>
+        </div>
+        <div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #eee;flex-wrap:wrap">
+          <input id="archSearch" placeholder="物件名・所在地で検索" oninput="renderArchiveList()" style="flex:1;min-width:180px;height:28px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px">
+          <select id="archFilterClient" onchange="renderArchiveList()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px"><option value="">元受：すべて</option></select>
+          <select id="archFilterYear" onchange="renderArchiveList()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px"><option value="">完成年：すべて</option></select>
+        </div>
+        <div id="archBody" style="flex:1;overflow-y:auto;padding-top:8px">
+          <div style="text-align:center;padding:40px;color:#888">読み込み中...</div>
+        </div>
+      </div>
+    </div>`;
+
+  // キャッシュがあればそれを使う
+  if(_archivedCache){
+    renderArchiveList();
+    return;
+  }
+  // 初回読込
+  const data=await gasLoadArchived();
+  if(data===null){
+    document.getElementById('archBody').innerHTML='<div style="text-align:center;padding:40px;color:#c00">読み込みに失敗しました</div>';
+    return;
+  }
+  _archivedCache=data;
+  renderArchiveList();
+}
+
+async function reloadArchived(){
+  _archivedCache=null;
+  const body=document.getElementById('archBody');
+  if(body)body.innerHTML='<div style="text-align:center;padding:40px;color:#888">再読み込み中...</div>';
+  const data=await gasLoadArchived();
+  if(data===null){
+    if(body)body.innerHTML='<div style="text-align:center;padding:40px;color:#c00">読み込みに失敗しました</div>';
+    return;
+  }
+  _archivedCache=data;
+  renderArchiveList();
+}
+
+function renderArchiveList(){
+  const list=_archivedCache||[];
+  const cntEl=document.getElementById('archCount');
+  if(cntEl)cntEl.textContent='全'+list.length+'件';
+
+  // フィルタ選択肢を動的構築
+  const clientSel=document.getElementById('archFilterClient');
+  const yearSel=document.getElementById('archFilterYear');
+  if(clientSel&&clientSel.options.length<=1){
+    const clients=[...new Set(list.map(s=>s.client).filter(Boolean))].sort();
+    clients.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;clientSel.appendChild(o);});
+  }
+  if(yearSel&&yearSel.options.length<=1){
+    const years=[...new Set(list.map(s=>(s.koukiEnd||s.archivedAt||'').slice(0,4)).filter(Boolean))].sort().reverse();
+    years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y+'年';yearSel.appendChild(o);});
+  }
+
+  // フィルタ適用
+  const q=(document.getElementById('archSearch')?.value||'').toLowerCase();
+  const fc=document.getElementById('archFilterClient')?.value||'';
+  const fy=document.getElementById('archFilterYear')?.value||'';
+  let filtered=list;
+  if(q)filtered=filtered.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.addr||'').toLowerCase().includes(q));
+  if(fc)filtered=filtered.filter(s=>s.client===fc);
+  if(fy)filtered=filtered.filter(s=>(s.koukiEnd||s.archivedAt||'').startsWith(fy));
+
+  // 年月でグルーピング
+  const groups={};
+  filtered.forEach(s=>{
+    const ym=(s.koukiEnd||s.archivedAt||'不明').slice(0,7);
+    if(!groups[ym])groups[ym]=[];
+    groups[ym].push(s);
+  });
+  const sortedYms=Object.keys(groups).sort().reverse();
+
+  const body=document.getElementById('archBody');
+  if(!body)return;
+  if(filtered.length===0){
+    body.innerHTML='<div style="text-align:center;padding:40px;color:#888">該当する物件がありません</div>';
+    return;
+  }
+  body.innerHTML=sortedYms.map(ym=>{
+    const items=groups[ym];
+    const ymLabel=ym==='不明'?'日付不明':ym.replace('-','年')+'月';
+    return `
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:#555;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px">▼ ${ymLabel} (${items.length}件)</div>
+        ${items.map(s=>`
+          <div onclick="openArchivedSiteDetail(${s.id})" style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #eee;border-radius:6px;margin-bottom:4px;cursor:pointer;background:#fafafa" onmouseover="this.style.background='#f0f7fc'" onmouseout="this.style.background='#fafafa'">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:500">${esc(s.name||'(無題)')}</div>
+              <div style="font-size:11px;color:#888;margin-top:2px">${esc(s.addr||'')}${s.client?' / '+esc(s.client):''}${s.koukiEnd?' / 完成:'+s.koukiEnd:''}</div>
+            </div>
+            <div style="font-size:10px;color:#aaa;white-space:nowrap">${s.archivedBy==='auto'?'自動':'手動'}<br>${(s.archivedAt||'').slice(0,10)}</div>
+          </div>
+        `).join('')}
+      </div>`;
+  }).join('');
+}
+
+function openArchivedSiteDetail(id){
+  const s=(_archivedCache||[]).find(x=>x.id===id);if(!s)return;
+  const procs=s.processes||[];
+  const procsHtml=procs.length===0?'<div style="color:#888;padding:8px">工程なし</div>':procs.map(p=>{
+    const periods=(p.periods||[]).map(pd=>pd.startD+'〜'+pd.endD).join(', ')||'期間未設定';
+    const children=(p.children||[]).length>0?
+      '<div style="margin-top:4px;padding-left:16px">'+
+      (p.children||[]).map(c=>`<div style="font-size:11px;color:#555">└ ${c.done?'✓ ':''}${esc(c.name||'')}${c.area?' <span style="color:#aaa">('+esc(c.area)+')</span>':''}</div>`).join('')+
+      '</div>':'';
+    return `
+      <div style="padding:6px 8px;border:1px solid #eee;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:10px;height:10px;background:${p.color||'#7cb9ff'};border-radius:2px;display:inline-block"></span>
+          <strong style="font-size:12px">${p.done?'✓ ':''}${esc(p.name||'')}</strong>
+          ${p.person?'<span style="font-size:11px;color:#888">/ '+esc(p.person)+'</span>':''}
+          ${p.area?'<span style="font-size:11px;color:#888">/ '+esc(p.area)+'</span>':''}
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:2px">${periods}${p.done&&p.doneDate?' / 完了:'+p.doneDate:''}</div>
+        ${children}
+      </div>`;
+  }).join('');
+
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this)openArchiveView()">
+      <div class="modal" style="max-width:700px;width:95%;max-height:90vh;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #eee">
+          <button class="btn btn-sm" onclick="openArchiveView()" title="一覧に戻る">← 一覧</button>
+          <h3 style="margin:0;flex:1">${esc(s.name||'(無題)')}</h3>
+          <button class="btn btn-sm" onclick="closeModal()">閉じる</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:8px 0">
+          <div style="display:grid;grid-template-columns:100px 1fr;gap:4px 12px;font-size:12px;margin-bottom:12px">
+            <div style="color:#888">所在地</div><div>${esc(s.addr||'')}</div>
+            <div style="color:#888">元受会社</div><div>${esc(s.client||'')}</div>
+            <div style="color:#888">工期</div><div>${s.koukiStart||''} 〜 ${s.koukiEnd||''}</div>
+            ${s.keyLocation?'<div style="color:#888">鍵所在</div><div>'+esc(s.keyLocation)+'</div>':''}
+            ${s.dropboxUrl?'<div style="color:#888">Dropbox</div><div><a href="'+esc(s.dropboxUrl)+'" target="_blank" style="color:#185FA5">フォルダを開く</a></div>':''}
+            <div style="color:#888">アーカイブ</div><div>${(s.archivedAt||'').slice(0,10)} (${s.archivedBy==='auto'?'自動':'手動'})</div>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:4px;padding-bottom:2px;border-bottom:1px solid #eee">工程（${procs.length}件）</div>
+          ${procsHtml}
+        </div>
+        <div class="modal-btns" style="border-top:1px solid #eee;padding-top:8px">
+          <button class="btn" onclick="unarchiveSite(${s.id})" style="color:#185FA5;border-color:#85B7EB">🔄 現役に戻す</button>
+          <button class="btn" onclick="openArchiveView()">← 一覧へ</button>
+        </div>
+      </div>
+    </div>`;
+}
 
 function saveProc(siteId,procId){
   const name=(document.getElementById('p_name_sel').value||document.getElementById('p_name_inp').value).trim();if(!name)return;
