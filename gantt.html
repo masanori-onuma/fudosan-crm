@@ -224,6 +224,21 @@ function normalizeSites(raw){
   return raw;
 }
 async function loadData(){
+  // アーカイブモード中は、現役データを _activeSitesBackup に読み込む
+  if(_viewMode==='archived'){
+    showSyncStatus('現役データ更新中…');
+    const v=await gasLoad('gantt_sites');
+    if(v){
+      try{
+        const normed=normalizeSites(JSON.parse(v));
+        _activeSitesBackup=normed;
+        localStorage.setItem('gantt_sites',v);
+        _lastSaved=v;
+        showSyncStatus('✓ 現役データ更新',1500);
+      }catch(e){showSyncStatus('読込エラー',3000);}
+    }
+    return;
+  }
   try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();scrollToToday();}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
   showSyncStatus('読み込み中…');
   const v=await gasLoad('gantt_sites');
@@ -269,6 +284,8 @@ async function loadData(){
 let _undoStack=[];
 let _lastSaved=null;
 function saveData(){
+  // アーカイブ閲覧モード中は保存しない（重要: sitesがアーカイブデータなのでGASに書き込むと大惨事）
+  if(_viewMode==='archived'){console.warn('saveData: archived mode, skip');return;}
   // 保存前の状態をundoスタックに積む
   if(_lastSaved!==null){
     _undoStack.push(_lastSaved);
@@ -1090,6 +1107,11 @@ function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStar
 function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';saveData();closeModal();}
 
 function openSiteModal(id){
+  // アーカイブ閲覧モード: 読み取り専用＋復元ボタンのモーダル
+  if(_viewMode==='archived'&&id){
+    openArchivedSiteModal(id);
+    return;
+  }
   const s=id?sites.find(x=>x.id===id):{name:'',addr:'',client:'',dropboxUrl:''};
   const isNew=!id;
   const delBtn=!isNew?`<button class="btn btn-danger" onclick="delSite(${id})">削除</button>`:'';
@@ -1124,6 +1146,11 @@ function openSiteModal(id){
 }
 
 function openProcModal(siteId,procId){
+  // アーカイブモード中は工程の編集を無効化（物件クリックで詳細モーダルを開く）
+  if(_viewMode==='archived'){
+    openArchivedSiteModal(siteId);
+    return;
+  }
   const site=sites.find(x=>x.id===siteId);
   const p=procId?site.processes.find(x=>x.id===procId):{name:'',person:'',area:'',periods:[],done:false,color:PC[0],children:[]};
   const isNew=!procId;
@@ -1436,8 +1463,13 @@ function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.fil
 // アーカイブ機能
 // =============================================================
 let _archivedCache=null;  // アーカイブ物件のメモリキャッシュ
+let _viewMode='active';   // 'active' or 'archived'
+let _activeSitesBackup=null; // アーカイブモード中の現役sites退避
+let _archiveMonthsBack=6;    // アーカイブ表示期間（ヶ月）
+let _archiveSearch='';       // アーカイブ検索クエリ
 
 async function archiveSite(id){
+  if(_viewMode==='archived'){alert('アーカイブ閲覧中は操作できません');return;}
   const s=sites.find(x=>x.id===id);if(!s)return;
   const procs=s.processes||[];
   const allDone=procs.length>0&&procs.every(p=>p.done);
@@ -1481,129 +1513,157 @@ async function unarchiveSite(id){
     alert('復元に失敗しました: '+r.error);
     return;
   }
-  // キャッシュ無効化＋現役側を再読込
-  _archivedCache=null;
+  // キャッシュから該当物件を除去
+  if(_archivedCache)_archivedCache=_archivedCache.filter(x=>x.id!==id);
+  // 現役側を再読込
   await loadData();
   showSyncStatus('✓ 現役に戻しました',3000);
-  // アーカイブ画面を再表示（更新反映）
-  openArchiveView();
+  // 閲覧中ならアーカイブ画面を再描画
+  if(_viewMode==='archived')renderArchiveView();
+  else closeModal();
 }
+
+// =============================================================
+// アーカイブ閲覧モード（ガントチャート流用）
+// =============================================================
+// _viewMode: 'active'（現役）/ 'archived'（アーカイブ閲覧中）
+// _activeSitesBackup: アーカイブモード中、現役sitesの退避先
+// _archiveMonthsBack: アーカイブ表示期間（月数、初期6ヶ月）
 
 async function openArchiveView(){
-  // モーダルで表示
-  document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="max-width:900px;width:95%;max-height:90vh;display:flex;flex-direction:column">
-        <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #eee">
-          <h3 style="margin:0">📦 アーカイブ閲覧</h3>
-          <span id="archCount" style="font-size:12px;color:#888"></span>
-          <button class="btn btn-sm" onclick="reloadArchived()" style="margin-left:auto" title="再読込">🔄</button>
-          <button class="btn btn-sm" onclick="closeModal()">閉じる</button>
-        </div>
-        <div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #eee;flex-wrap:wrap">
-          <input id="archSearch" placeholder="物件名・所在地で検索" oninput="renderArchiveList()" style="flex:1;min-width:180px;height:28px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px">
-          <select id="archFilterClient" onchange="renderArchiveList()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px"><option value="">元受：すべて</option></select>
-          <select id="archFilterYear" onchange="renderArchiveList()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px"><option value="">完成年：すべて</option></select>
-        </div>
-        <div id="archBody" style="flex:1;overflow-y:auto;padding-top:8px">
-          <div style="text-align:center;padding:40px;color:#888">読み込み中...</div>
-        </div>
-      </div>
-    </div>`;
+  if(_viewMode==='archived')return; // 既にアーカイブモード
 
-  // キャッシュがあればそれを使う
-  if(_archivedCache){
-    renderArchiveList();
-    return;
+  // 初回ロード
+  if(_archivedCache===null){
+    showSyncStatus('アーカイブ読込中…');
+    const data=await gasLoadArchived();
+    if(data===null){
+      showSyncStatus('読込失敗',3000);
+      alert('アーカイブの読み込みに失敗しました');
+      return;
+    }
+    _archivedCache=data;
+    showSyncStatus('✓ 読込完了',1500);
   }
-  // 初回読込
-  const data=await gasLoadArchived();
-  if(data===null){
-    document.getElementById('archBody').innerHTML='<div style="text-align:center;padding:40px;color:#c00">読み込みに失敗しました</div>';
-    return;
-  }
-  _archivedCache=data;
-  renderArchiveList();
+
+  // 現役を退避してアーカイブモードへ
+  _activeSitesBackup=sites;
+  _viewMode='archived';
+  _archiveMonthsBack=6;
+  _archiveSearch='';
+  applyArchiveFilter();
+  updateArchiveBanner();
+  render();
+  scrollToToday();
 }
 
-async function reloadArchived(){
-  _archivedCache=null;
-  const body=document.getElementById('archBody');
-  if(body)body.innerHTML='<div style="text-align:center;padding:40px;color:#888">再読み込み中...</div>';
-  const data=await gasLoadArchived();
-  if(data===null){
-    if(body)body.innerHTML='<div style="text-align:center;padding:40px;color:#c00">読み込みに失敗しました</div>';
-    return;
-  }
-  _archivedCache=data;
-  renderArchiveList();
+function exitArchiveView(){
+  if(_viewMode!=='archived')return;
+  // 現役データに復帰
+  sites=_activeSitesBackup||[];
+  _activeSitesBackup=null;
+  _viewMode='active';
+  updateArchiveBanner();
+  render();
+  scrollToToday();
 }
 
-function renderArchiveList(){
-  const list=_archivedCache||[];
-  const cntEl=document.getElementById('archCount');
-  if(cntEl)cntEl.textContent='全'+list.length+'件';
+// アーカイブキャッシュから期間＋検索でフィルタしてsitesに入れる
+function applyArchiveFilter(){
+  if(_viewMode!=='archived'||!_archivedCache){sites=[];return;}
+  // 表示期間: 現在から _archiveMonthsBack ヶ月前まで（完成日ベース）
+  const now=new Date();
+  const from=new Date(now.getFullYear(),now.getMonth()-_archiveMonthsBack,1);
+  const fromN=from.getFullYear()*10000+(from.getMonth()+1)*100+from.getDate();
+  const q=(_archiveSearch||'').toLowerCase().trim();
 
-  // フィルタ選択肢を動的構築
-  const clientSel=document.getElementById('archFilterClient');
-  const yearSel=document.getElementById('archFilterYear');
-  if(clientSel&&clientSel.options.length<=1){
-    const clients=[...new Set(list.map(s=>s.client).filter(Boolean))].sort();
-    clients.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;clientSel.appendChild(o);});
-  }
-  if(yearSel&&yearSel.options.length<=1){
-    const years=[...new Set(list.map(s=>(s.koukiEnd||s.archivedAt||'').slice(0,4)).filter(Boolean))].sort().reverse();
-    years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y+'年';yearSel.appendChild(o);});
-  }
-
-  // フィルタ適用
-  const q=(document.getElementById('archSearch')?.value||'').toLowerCase();
-  const fc=document.getElementById('archFilterClient')?.value||'';
-  const fy=document.getElementById('archFilterYear')?.value||'';
-  let filtered=list;
-  if(q)filtered=filtered.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.addr||'').toLowerCase().includes(q));
-  if(fc)filtered=filtered.filter(s=>s.client===fc);
-  if(fy)filtered=filtered.filter(s=>(s.koukiEnd||s.archivedAt||'').startsWith(fy));
-
-  // 年月でグルーピング
-  const groups={};
-  filtered.forEach(s=>{
-    const ym=(s.koukiEnd||s.archivedAt||'不明').slice(0,7);
-    if(!groups[ym])groups[ym]=[];
-    groups[ym].push(s);
+  sites=_archivedCache.filter(s=>{
+    // 検索があれば期間無視で全件対象
+    if(q){
+      const hit=(s.name||'').toLowerCase().includes(q)||(s.addr||'').toLowerCase().includes(q);
+      if(!hit)return false;
+    }else{
+      // 期間フィルタ: koukiEnd が範囲内
+      if(!s.koukiEnd)return false; // 完成日なしは検索時のみ表示
+      const parts=s.koukiEnd.split('-');
+      const kN=parseInt(parts[0])*10000+parseInt(parts[1])*100+parseInt(parts[2]);
+      if(kN<fromN)return false;
+    }
+    return true;
   });
-  const sortedYms=Object.keys(groups).sort().reverse();
-
-  const body=document.getElementById('archBody');
-  if(!body)return;
-  if(filtered.length===0){
-    body.innerHTML='<div style="text-align:center;padding:40px;color:#888">該当する物件がありません</div>';
-    return;
-  }
-  body.innerHTML=sortedYms.map(ym=>{
-    const items=groups[ym];
-    const ymLabel=ym==='不明'?'日付不明':ym.replace('-','年')+'月';
-    return `
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px;font-weight:600;color:#555;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px">▼ ${ymLabel} (${items.length}件)</div>
-        ${items.map(s=>`
-          <div onclick="openArchivedSiteDetail(${s.id})" style="display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #eee;border-radius:6px;margin-bottom:4px;cursor:pointer;background:#fafafa" onmouseover="this.style.background='#f0f7fc'" onmouseout="this.style.background='#fafafa'">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:500">${esc(s.name||'(無題)')}</div>
-              <div style="font-size:11px;color:#888;margin-top:2px">${esc(s.addr||'')}${s.client?' / '+esc(s.client):''}${s.koukiEnd?' / 完成:'+s.koukiEnd:''}</div>
-            </div>
-            <div style="font-size:10px;color:#aaa;white-space:nowrap">${s.archivedBy==='auto'?'自動':'手動'}<br>${(s.archivedAt||'').slice(0,10)}</div>
-          </div>
-        `).join('')}
-      </div>`;
-  }).join('');
+  // 完成日降順（新しい順）
+  sites.sort((a,b)=>(b.koukiEnd||'').localeCompare(a.koukiEnd||''));
 }
 
-function openArchivedSiteDetail(id){
+function updateArchiveBanner(){
+  let banner=document.getElementById('archiveBanner');
+  if(_viewMode!=='archived'){
+    if(banner)banner.remove();
+    return;
+  }
+  const total=_archivedCache?_archivedCache.length:0;
+  const shown=sites.length;
+  const periodLabel=_archiveSearch?'検索結果':('直近'+_archiveMonthsBack+'ヶ月');
+  const html=`
+    <div id="archiveBanner" style="background:#fff4e0;border:1px solid #f0c168;border-radius:6px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-weight:600;color:#a06000">📦 アーカイブ閲覧中</span>
+      <span style="font-size:12px;color:#555">${periodLabel}: ${shown}件 / 全${total}件</span>
+      <input id="archSearchInp" placeholder="検索（物件名・所在地）" value="${esc(_archiveSearch||'')}" oninput="onArchiveSearchInput(this.value)" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:180px">
+      ${_archiveSearch?'':`<button class="btn btn-sm" onclick="expandArchivePeriod()" title="表示期間を1年延長">＋ もっと古い期間</button>`}
+      <button class="btn btn-sm" onclick="reloadArchivedData()" title="再読込">🔄</button>
+      <button class="btn btn-sm btn-primary" onclick="exitArchiveView()" style="margin-left:auto">◀ 現役に戻る</button>
+    </div>`;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=html.trim();
+  const newBanner=tmp.firstElementChild;
+  if(banner){
+    banner.replaceWith(newBanner);
+  }else{
+    const container=document.querySelector('.container');
+    const outer=document.querySelector('.gantt-outer');
+    if(container&&outer)container.insertBefore(newBanner,outer);
+  }
+}
+
+let _archiveSearchTimer=null;
+function onArchiveSearchInput(v){
+  _archiveSearch=v;
+  if(_archiveSearchTimer)clearTimeout(_archiveSearchTimer);
+  _archiveSearchTimer=setTimeout(()=>{
+    applyArchiveFilter();
+    updateArchiveBanner();
+    render();
+    // フォーカス維持
+    const inp=document.getElementById('archSearchInp');
+    if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  },200);
+}
+
+function expandArchivePeriod(){
+  _archiveMonthsBack+=12;
+  applyArchiveFilter();
+  updateArchiveBanner();
+  render();
+}
+
+async function reloadArchivedData(){
+  _archivedCache=null;
+  showSyncStatus('再読込中…');
+  const data=await gasLoadArchived();
+  if(data===null){showSyncStatus('読込失敗',3000);return;}
+  _archivedCache=data;
+  applyArchiveFilter();
+  updateArchiveBanner();
+  render();
+  showSyncStatus('✓ 読込完了',1500);
+}
+
+// アーカイブ物件の読み取り専用モーダル（現役に戻すボタン付き）
+function openArchivedSiteModal(id){
   const s=(_archivedCache||[]).find(x=>x.id===id);if(!s)return;
   const procs=s.processes||[];
-  const procsHtml=procs.length===0?'<div style="color:#888;padding:8px">工程なし</div>':procs.map(p=>{
-    const periods=(p.periods||[]).map(pd=>pd.startD+'〜'+pd.endD).join(', ')||'期間未設定';
+  const procsHtml=procs.length===0?'<div style="color:#888;padding:8px;font-size:12px">工程なし</div>':procs.map(p=>{
+    const periods=(p.periods||[]).map(pd=>(pd.startD||'?')+'〜'+(pd.endD||'?')).join(', ')||'期間未設定';
     const children=(p.children||[]).length>0?
       '<div style="margin-top:4px;padding-left:16px">'+
       (p.children||[]).map(c=>`<div style="font-size:11px;color:#555">└ ${c.done?'✓ ':''}${esc(c.name||'')}${c.area?' <span style="color:#aaa">('+esc(c.area)+')</span>':''}</div>`).join('')+
@@ -1622,15 +1682,14 @@ function openArchivedSiteDetail(id){
   }).join('');
 
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)openArchiveView()">
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="max-width:700px;width:95%;max-height:90vh;display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #eee">
-          <button class="btn btn-sm" onclick="openArchiveView()" title="一覧に戻る">← 一覧</button>
-          <h3 style="margin:0;flex:1">${esc(s.name||'(無題)')}</h3>
-          <button class="btn btn-sm" onclick="closeModal()">閉じる</button>
+          <span style="background:#fff4e0;color:#a06000;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">📦 アーカイブ</span>
+          <h3 style="margin:0;flex:1;font-size:15px">${esc(s.name||'(無題)')}</h3>
         </div>
         <div style="flex:1;overflow-y:auto;padding:8px 0">
-          <div style="display:grid;grid-template-columns:100px 1fr;gap:4px 12px;font-size:12px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:90px 1fr;gap:4px 12px;font-size:12px;margin-bottom:12px">
             <div style="color:#888">所在地</div><div>${esc(s.addr||'')}</div>
             <div style="color:#888">元受会社</div><div>${esc(s.client||'')}</div>
             <div style="color:#888">工期</div><div>${s.koukiStart||''} 〜 ${s.koukiEnd||''}</div>
@@ -1643,11 +1702,12 @@ function openArchivedSiteDetail(id){
         </div>
         <div class="modal-btns" style="border-top:1px solid #eee;padding-top:8px">
           <button class="btn" onclick="unarchiveSite(${s.id})" style="color:#185FA5;border-color:#85B7EB">🔄 現役に戻す</button>
-          <button class="btn" onclick="openArchiveView()">← 一覧へ</button>
+          <button class="btn" onclick="closeModal()">閉じる</button>
         </div>
       </div>
     </div>`;
 }
+
 
 function saveProc(siteId,procId){
   const name=(document.getElementById('p_name_sel').value||document.getElementById('p_name_inp').value).trim();if(!name)return;
