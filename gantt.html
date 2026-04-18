@@ -67,9 +67,9 @@ tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
 .sort-handle-site:hover{color:#185FA5;background:#e8f0fa}
 .sort-handle-site:active{cursor:grabbing}
 tr.row-proc.sort-dragging td{background:#e8f4ff!important;opacity:0.5}
-tr.row-proc.sort-over td{border-top:3px solid #185FA5!important;box-shadow:inset 0 2px 0 0 #185FA5}
+tr.row-proc.sort-over td{border-top:2px solid #185FA5!important}
 tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.5}
-tr.row-site.site-drag-over td{border-top:4px solid #0C447C!important;box-shadow:inset 0 3px 0 0 #0C447C}
+tr.row-site.site-drag-over td{border-top:2px solid #0C447C!important}
 td{padding:0;border-bottom:1px solid #ddd;border-right:1px solid #e8e8e8;vertical-align:middle;overflow:hidden}
 td.col-info{border-right:1px solid #bbb;padding:0;touch-action:pan-y}
 td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:pan-x pan-y}
@@ -116,7 +116,7 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 tr.row-proc.row-parent td.col-info{
   background:linear-gradient(to right,#eef3fa 0,#eef3fa 4px,#fff 4px);
   border-left:none;
-  position:relative;
+  /* position:stickyは.col-infoで設定済み。上書きしない */
 }
 tr.row-proc.row-parent td.col-info::before{
   content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
@@ -131,7 +131,7 @@ tr.row-proc.row-parent.done td.col-info::before{background:#999}
 /* 子項目行：背景を薄い灰色＋左インデント＋縦線でツリー感 */
 tr.row-child td.col-info{
   background:#f7f9fb;
-  position:relative;
+  /* position:stickyは.col-infoで設定済み。上書きしない */
 }
 tr.row-child td{
   border-bottom:1px solid #d0d7e0;
@@ -1067,7 +1067,7 @@ document.addEventListener('mouseup',function(e){
       const fi=sites.findIndex(x=>x.id===siteDrag.siteId);
       const ti=sites.findIndex(x=>x.id===siteDrag.overSiteId);
       if(fi>=0&&ti>=0){const[m]=sites.splice(fi,1);sites.splice(ti,0,m);}
-      render();
+      saveData();render();
     }
     siteDrag={active:false,siteId:null,overSiteId:null};return;
   }
@@ -1080,7 +1080,7 @@ document.addEventListener('mouseup',function(e){
         const ti=site.processes.findIndex(p=>p.id===sortDrag.overProcId);
         if(fi>=0&&ti>=0){const[m]=site.processes.splice(fi,1);site.processes.splice(ti,0,m);}
       }
-      render();
+      saveData();render();
     }
     sortDrag={active:false,siteId:null,procId:null,overProcId:null};return;
   }
@@ -1146,11 +1146,11 @@ function saveChildDone(procId,childId){
 }
 function toggleChildren(procId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
-  render();
+  saveData();render();
 }
-function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;render();}
-function expandAll(){sites.forEach(s=>s.collapsed=false);render();}
-function collapseAll(){sites.forEach(s=>s.collapsed=true);render();}
+function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;saveData();render();}
+function expandAll(){sites.forEach(s=>s.collapsed=false);saveData();render();}
+function collapseAll(){sites.forEach(s=>s.collapsed=true);saveData();render();}
 function toggleDone(pid){
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
     if(!p.done){
@@ -1371,12 +1371,24 @@ function addChildInModal(procId){
   if(procId===null){
     const list=document.getElementById('childList');
     const div=document.createElement('div');
-    div.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
-    div.innerHTML=`<span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
-      <input placeholder="工事項目名" class="new-child-name" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <input placeholder="数量" class="new-child-area" style="width:60px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <input placeholder="備考" class="new-child-note" style="width:80px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <button class="btn btn-sm btn-danger" onclick="this.parentNode.remove()" style="flex-shrink:0">×</button>`;
+    div.style.cssText='display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:4px 4px 4px 0;border-bottom:1px dashed #eee';
+    div.innerHTML=`<div style="display:flex;gap:4px;align-items:center">
+        <span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
+        <input placeholder="工事項目名" class="new-child-name" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <input placeholder="数量" class="new-child-area" style="width:60px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <input placeholder="備考" class="new-child-note" style="width:80px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <button class="btn btn-sm btn-danger" onclick="this.closest('div').parentNode.remove()" style="flex-shrink:0">×</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;padding-left:16px;font-size:11px;color:#555">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" class="new-child-track-order" onchange="var ob=this.closest('div').querySelector('.new-child-ordered-wrap');if(ob)ob.style.display=this.checked?'flex':'none'" style="cursor:pointer">
+          発注管理する
+        </label>
+        <label class="new-child-ordered-wrap" style="display:none;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" class="new-child-ordered" style="cursor:pointer">
+          発注済み
+        </label>
+      </div>`;
     list.appendChild(div);
     const areaField=document.getElementById('areaField');
     if(areaField)areaField.style.display='none';
@@ -1833,7 +1845,13 @@ function saveProc(siteId,procId){
     const nm=row.querySelector('.new-child-name');
     const ar=row.querySelector('.new-child-area');
     const nt=row.querySelector('.new-child-note');
-    if(nm&&nm.value.trim())newChildren.push({id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''});
+    const trk=row.querySelector('.new-child-track-order');
+    const ord=row.querySelector('.new-child-ordered');
+    if(nm&&nm.value.trim()){
+      const child={id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''};
+      if(trk&&trk.checked)child.ordered=!!(ord&&ord.checked);
+      newChildren.push(child);
+    }
   });
 
   if(procId===null){
