@@ -501,15 +501,53 @@ function _renderInner(){
     const isWarn=hasUnset&&koukiEndN!==null&&koukiEndN>=todayN&&koukiEndN<=toN(addDays(new Date(),warnDays));
 
     // 物件行
+    // === 工期とミニバーの配置を計算（siteRow内で描画するための事前計算） ===
+    const ks=site.koukiStart,ke=site.koukiEnd;
+    // ミニバー用のレーン計算
+    const barItems=[];
+    procs.forEach(proc=>{
+      (proc.periods||[]).forEach(period=>{
+        if(!period.startD||!period.endD)return;
+        const sN=toN(parseD(period.startD));
+        const eN=toN(parseD(period.endD));
+        if(isNaN(sN)||isNaN(eN))return;
+        barItems.push({proc,period,startN:sN,endN:eN,lane:-1});
+      });
+    });
+    barItems.sort((a,b)=>a.startN-b.startN||a.endN-b.endN);
+    const laneEnds=[];
+    barItems.forEach(item=>{
+      let assignedLane=-1;
+      for(let i=0;i<laneEnds.length;i++){
+        if(laneEnds[i]<item.startN){assignedLane=i;break;}
+      }
+      if(assignedLane<0){assignedLane=laneEnds.length;laneEnds.push(item.endN);}
+      else{laneEnds[assignedLane]=item.endN;}
+      item.lane=assignedLane;
+    });
+    const laneCount=Math.max(1,laneEnds.length);
+    const LANE_H=14;
+    const LANE_GAP=2;
+    // レイアウト：上段=工期(18px) + 余白2px + ミニバー(laneCount段) + 下余白4px
+    const KOUKI_BAR_H=18;
+    const TOP_PAD=3;
+    const MID_GAP=2;
+    const BOTTOM_PAD=4;
+    const miniAreaH=barItems.length>0?(laneCount*LANE_H+(laneCount-1)*LANE_GAP):0;
+    const contentH=TOP_PAD+KOUKI_BAR_H+MID_GAP+miniAreaH+BOTTOM_PAD;
+    const rowHeight=Math.max(SITE_H,contentH);
+
     const siteRow=document.createElement('tr');
     siteRow.className='row-site'+(isWarn?' site-warn':'');
-    siteRow.style.height=SITE_H+'px';
+    siteRow.style.height=rowHeight+'px';
     const siteTd=document.createElement('td');
     siteTd.className='col-info';
     const ndBadge=nd>0?`<span class="badge-nd">未定${nd}</span>`:'';
     const warnBadge='';
     const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
+    const koukiLabel=(ks&&ke)?`工期 ${fmtD(ks)} 〜 ${fmtD(ke)}`:'<span style="color:#185FA5">＋工期設定</span>';
+    const procInfoLabel=procs.length>0?`工程 ${procs.length}件${laneCount>1?' / '+laneCount+'段':''}`:'';
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
@@ -520,25 +558,15 @@ function _renderInner(){
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key">🔑 ${esc(site.keyLocation)}</div>`:''}
+      <div class="site-sub" style="display:flex;gap:8px;align-items:center;padding-left:16px;font-size:10px">
+        <span style="color:#555;cursor:pointer" onclick="openKoukiModal(${site.id})">${koukiLabel}</span>
+        ${procInfoLabel?`<span style="color:#888">${procInfoLabel}</span>`:''}
+      </div>
       </div>`;
     siteRow.appendChild(siteTd);
-    days.forEach(day=>{
-      const td=document.createElement('td');
-      td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-      siteRow.appendChild(td);
-    });
-    frag.appendChild(siteRow);
 
-    // 工期行
-    const koukiRow=document.createElement('tr');
-    koukiRow.className='row-kouki';
-    koukiRow.style.height=ROW_H+'px';
-    const koukiTd=document.createElement('td');
-    koukiTd.className='col-info';
-    const ks=site.koukiStart,ke=site.koukiEnd;
-    koukiTd.innerHTML=`<div class="proc-inner" style="padding-left:8px;cursor:pointer" onclick="openKoukiModal(${site.id})"><span style="font-size:11px;color:#555;font-weight:500">工期</span><span style="font-size:10px;color:#888;margin-left:6px">${(ks&&ke)?fmtD(ks)+' 〜 '+fmtD(ke):'<span style="color:#185FA5">＋設定</span>'}</span></div>`;
-    koukiRow.appendChild(koukiTd);
-    const koukiCells=[];
+    // 日付セルを作成
+    const siteDayCells=[];
     days.forEach((day,di)=>{
       const td=document.createElement('td');
       td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
@@ -546,6 +574,7 @@ function _renderInner(){
       // 工期行：長押し500msでバー作成開始
       td.onmousedown=(e)=>{
         if(e.target.closest('[data-handle]'))return;
+        if(e.target.closest('.mini-bar'))return;
         e.preventDefault();
         const d=days[di];
         const sid=site.id;
@@ -567,9 +596,11 @@ function _renderInner(){
         if(!_koukiLongPress)return;
         if(Math.abs(e.clientX-_koukiLPX)>10||Math.abs(e.clientY-_koukiLPY)>10){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
       };
-      koukiRow.appendChild(td);
-      koukiCells.push(td);
+      siteRow.appendChild(td);
+      siteDayCells.push(td);
     });
+
+    // 工期バーを上段に描画
     if(ks&&ke){
       const ksN=toN(parseD(ks)),keN=toN(parseD(ke));
       const si=days.findIndex(d=>toN(d)===ksN);
@@ -577,15 +608,17 @@ function _renderInner(){
       const asi=si>=0?si:(toN(days[0])>ksN?0:-1);
       const aei=ei>=0?ei:(toN(days[days.length-1])<keN?days.length-1:-1);
       if(asi>=0&&aei>=0){
-        const cells=koukiRow.querySelectorAll('td.day-cell');
-        const sc=cells[asi];
+        const sc=siteDayCells[asi];
         if(sc){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
-          // 全工程完了なら工期バーもグレー（工程バーと同じ挙動）
           const _allDone=site.processes&&site.processes.length>0&&site.processes.every(p=>p.done);
           const _koukiColor=_allDone?'#999':'#3949ab';
           const bar=makeBar(_koukiColor,span,_allDone?'工期 ✓完了':'工期',_allDone,span<=3,_dayW);
+          // 上段に配置（既存makeBarはtop:3/bottom:3なので、上段固定用にtop/heightをオーバーライド）
+          bar.style.top=TOP_PAD+'px';
+          bar.style.bottom='auto';
+          bar.style.height=KOUKI_BAR_H+'px';
           bar.style.cursor='pointer';
           bar.onclick=()=>openKoukiModal(site.id);
           bar.onmousedown=(e)=>{
@@ -603,128 +636,81 @@ function _renderInner(){
         }
       }
     }
-    frag.appendChild(koukiRow);
 
-    // === 折りたたみ時のミニバー行 ===
-    if(site.collapsed&&procs.length>0){
-      // 全期間を集めて段(lane)を計算
-      // 各項目: {proc, period, startN, endN, lane}
-      const barItems=[];
-      procs.forEach(proc=>{
-        (proc.periods||[]).forEach(period=>{
-          if(!period.startD||!period.endD)return;
-          const sN=toN(parseD(period.startD));
-          const eN=toN(parseD(period.endD));
-          if(isNaN(sN)||isNaN(eN))return;
-          barItems.push({proc,period,startN:sN,endN:eN,lane:-1});
-        });
+    // ミニバーを下段に描画
+    barItems.forEach(item=>{
+      const {proc,period,lane}=item;
+      const psi=days.findIndex(d=>toN(d)===item.startN);
+      const pei=days.findIndex(d=>toN(d)===item.endN);
+      const asi=psi>=0?psi:(toN(days[0])>item.startN?0:-1);
+      const aei=pei>=0?pei:(toN(days[days.length-1])<item.endN?days.length-1:-1);
+      if(asi<0||aei<0)return;
+      const sc=siteDayCells[asi];
+      if(!sc)return;
+      sc.style.position='relative';
+      sc.style.overflow='visible';
+      const span=aei-asi+1;
+      const mini=document.createElement('div');
+      mini.className='mini-bar';
+      const barColor=proc.color||'#7cb9ff';
+      const topPx=TOP_PAD+KOUKI_BAR_H+MID_GAP+lane*(LANE_H+LANE_GAP);
+      let bg,boxShadow;
+      if(proc.done){
+        bg='linear-gradient(to bottom,#5a5a5a,#333333)';
+        boxShadow='inset 0 0 0 1px #7d7d7d';
+      }else{
+        bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
+        boxShadow='inset 0 0 0 1px #f5c800';
+      }
+      mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
+      const lbl=document.createElement('span');
+      const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
+      lbl.style.cssText='font-size:9px;font-weight:500;color:'+(proc.done||!isLight?'#fff':'#333')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight&&!proc.done?'0':'0.3')+')';
+      lbl.textContent=proc.name;
+      mini.appendChild(lbl);
+      // ミニバーをクリックしても折りたたみ切り替えしない（展開時も表示されるため）
+      mini.onclick=(e)=>{e.stopPropagation();};
+      // 子項目リスト付きツールチップ
+      const _children=proc.children||[];
+      mini.addEventListener('mouseenter',function(ev){
+        let tip=document.getElementById('childTip');
+        if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
+        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+        const body=_children.length>0
+          ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+          :'';
+        tip.innerHTML=hdr+body;
+        tip.style.display='block';
+        tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';
+        tip.style.top=Math.max(ev.clientY-20,4)+'px';
       });
-      // 開始日で昇順ソート → 各項目に最小の空きレーンを割り当て
-      barItems.sort((a,b)=>a.startN-b.startN||a.endN-b.endN);
-      const laneEnds=[]; // 各レーンで最後に占有している日付(endN)
-      barItems.forEach(item=>{
-        let assignedLane=-1;
-        for(let i=0;i<laneEnds.length;i++){
-          if(laneEnds[i]<item.startN){assignedLane=i;break;}
-        }
-        if(assignedLane<0){assignedLane=laneEnds.length;laneEnds.push(item.endN);}
-        else{laneEnds[assignedLane]=item.endN;}
-        item.lane=assignedLane;
+      mini.addEventListener('mousemove',function(ev){
+        const tip=document.getElementById('childTip');
+        if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';tip.style.top=Math.max(ev.clientY-20,4)+'px';}
       });
-      const laneCount=Math.max(1,laneEnds.length);
-      const LANE_H=14; // 1段の高さ
-      const LANE_GAP=2; // 段と段の隙間
-      const rowH=Math.max(20,laneCount*LANE_H+(laneCount-1)*LANE_GAP+6);
+      mini.addEventListener('mouseleave',function(){
+        const tip=document.getElementById('childTip');if(tip)tip.style.display='none';
+      });
+      mini.addEventListener('touchstart',function(ev){
+        let tip=document.getElementById('childTip');
+        if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
+        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+        const body=_children.length>0
+          ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+          :'';
+        tip.innerHTML=hdr+body;
+        tip.style.display='block';
+        const t=ev.touches[0];
+        tip.style.left=Math.min(t.clientX+12,window.innerWidth-200)+'px';
+        tip.style.top=Math.max(t.clientY-40,4)+'px';
+        setTimeout(()=>{if(tip)tip.style.display='none';},2500);
+      },{passive:true});
+      sc.appendChild(mini);
+    });
 
-      const miniRow=document.createElement('tr');
-      miniRow.className='row-kouki row-mini';
-      miniRow.style.height=rowH+'px';
-      const miniTd=document.createElement('td');
-      miniTd.className='col-info';
-      miniTd.innerHTML=`<div style="padding-left:28px;font-size:10px;color:#888">工程 ${procs.length}件${laneCount>1?' / '+laneCount+'段':''}</div>`;
-      miniRow.appendChild(miniTd);
-      // 各日付のtdを作る
-      const miniDayCells=[];
-      days.forEach((day,di)=>{
-        const td=document.createElement('td');
-        td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
-        miniRow.appendChild(td);
-        miniDayCells.push(td);
-      });
-      // 各バーをレーンに合わせて配置
-      barItems.forEach(item=>{
-        const {proc,period,lane}=item;
-        const psi=days.findIndex(d=>toN(d)===item.startN);
-        const pei=days.findIndex(d=>toN(d)===item.endN);
-        const asi=psi>=0?psi:(toN(days[0])>item.startN?0:-1);
-        const aei=pei>=0?pei:(toN(days[days.length-1])<item.endN?days.length-1:-1);
-        if(asi<0||aei<0)return;
-        const sc=miniDayCells[asi];
-        if(!sc)return;
-        sc.style.position='relative';
-        sc.style.overflow='visible';
-        const span=aei-asi+1;
-        const mini=document.createElement('div');
-        const barColor=proc.color||'#7cb9ff';
-        const topPx=3+lane*(LANE_H+LANE_GAP);
-        // 通常バーと同じデザイン：グラデーション＋黄色ボーダー、完了なら暗いグラデ
-        let bg,boxShadow;
-        if(proc.done){
-          bg='linear-gradient(to bottom,#5a5a5a,#333333)';
-          boxShadow='inset 0 0 0 1px #7d7d7d';
-        }else{
-          bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
-          boxShadow='inset 0 0 0 1px #f5c800';
-        }
-        mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
-        // ラベル
-        const lbl=document.createElement('span');
-        const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
-        lbl.style.cssText='font-size:9px;font-weight:500;color:'+(proc.done||!isLight?'#fff':'#333')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight&&!proc.done?'0':'0.3')+')';
-        lbl.textContent=proc.name;
-        mini.appendChild(lbl);
-        mini.onclick=(e)=>{e.stopPropagation();toggleSite(site.id);};
-        // 子項目リスト付きツールチップ（通常バーと同じchildTipを再利用）
-        const _children=proc.children||[];
-        mini.addEventListener('mouseenter',function(ev){
-          let tip=document.getElementById('childTip');
-          if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
-          const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
-          const body=_children.length>0
-            ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
-            :'';
-          tip.innerHTML=hdr+body;
-          tip.style.display='block';
-          tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';
-          tip.style.top=Math.max(ev.clientY-20,4)+'px';
-        });
-        mini.addEventListener('mousemove',function(ev){
-          const tip=document.getElementById('childTip');
-          if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';tip.style.top=Math.max(ev.clientY-20,4)+'px';}
-        });
-        mini.addEventListener('mouseleave',function(){
-          const tip=document.getElementById('childTip');if(tip)tip.style.display='none';
-        });
-        // スマホ: タップで同じツールチップ表示（2.5秒で消える）
-        mini.addEventListener('touchstart',function(ev){
-          let tip=document.getElementById('childTip');
-          if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
-          const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
-          const body=_children.length>0
-            ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
-            :'';
-          tip.innerHTML=hdr+body;
-          tip.style.display='block';
-          const t=ev.touches[0];
-          tip.style.left=Math.min(t.clientX+12,window.innerWidth-200)+'px';
-          tip.style.top=Math.max(t.clientY-40,4)+'px';
-          setTimeout(()=>{if(tip)tip.style.display='none';},2500);
-        },{passive:true});
-        sc.appendChild(mini);
-      });
-      frag.appendChild(miniRow);
-    }
+    frag.appendChild(siteRow);
 
+    // === 折りたたみ時は工期行・ミニバー行を追加しない（siteRowに統合済み） ===
     if(!site.collapsed){
       procs.forEach(proc=>{
         const periods=proc.periods||[];
@@ -1226,7 +1212,7 @@ function toggleChildDone(procId,childId){
 function openChildDoneModal(procId,childId){
   const today=fmt(new Date());
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay"><div class="modal">
     <h3>完了日を入力</h3>
     <div class="field"><label>完了日</label><input type="date" id="child_done_date" value="${today}"></div>
     <div class="modal-btns">
@@ -1289,7 +1275,7 @@ function toggleDone(pid){
 function openDoneModal(pid){
   const today=fmt(new Date());
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay"><div class="modal">
     <h3>完了日を入力</h3>
     <div class="field"><label>完了日</label><input type="date" id="done_date" value="${today}"></div>
     <div class="modal-btns">
@@ -1322,7 +1308,7 @@ function clearFilters(){document.getElementById('filterClient').value='';documen
 function openKoukiModal(siteId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay"><div class="modal">
     <h3>工期を編集</h3>
     <div class="row2">
       <div class="field"><label>着工日</label><input type="date" id="k_start" value="${s.koukiStart||''}"></div>
@@ -1354,7 +1340,7 @@ function openSiteModal(id){
   const cInpStyle=(!cInList&&cval)?'':'display:none';
   const cInpVal=(!cInList&&cval)?esc(cval):'';
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay"><div class="modal">
     <h3>${isNew?'物件を追加':'物件を編集'}</h3>
     <div class="field"><label>物件名</label><input id="s_name" value="${esc(s.name||'')}"></div>
     <div class="field"><label>所在地</label><input id="s_addr" value="${esc(s.addr||'')}"></div>
@@ -1416,7 +1402,7 @@ function openProcModal(siteId,procId){
   const hasChildren=children.length>0;
 
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:440px;max-width:98vw">
+    <div class="modal-overlay"><div class="modal" style="width:440px;max-width:98vw">
     <h3>${isNew?'工程を追加':'工程を編集'}</h3>
     <div class="field"><label>工程名</label>
       <select id="p_name_sel" onchange="document.getElementById('p_name_inp').value=this.value" style="width:100%;font-size:13px;padding:5px 6px;border:1px solid #ccc;border-radius:6px">${nOpts}</select>
@@ -1574,7 +1560,7 @@ function openChildModal(siteId,procId,childId){
     </div>`).join('');
   const _trackOrder=child.ordered!==undefined;
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <div class="modal-overlay"><div class="modal">
     <h3>${isNew?'子項目を追加':'子項目を編集'}</h3>
     <div class="field"><label>項目名</label><input id="c_name" style="touch-action:manipulation" value="${esc(child.name||'')}"></div>
     <div class="field"><label>数量・面積</label><input id="c_area" style="touch-action:manipulation" value="${esc(child.area||'')}"></div>
@@ -1925,7 +1911,7 @@ function openArchivedSiteModal(id){
   }).join('');
 
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-overlay">
       <div class="modal" style="max-width:700px;width:95%;max-height:90vh;display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid #eee">
           <span style="background:#fff4e0;color:#a06000;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">📦 アーカイブ</span>
@@ -2010,7 +1996,7 @@ function openMasterModal(){
     </div>`).join('');
   }
   document.getElementById('modalEl').innerHTML=`
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="width:400px">
+    <div class="modal-overlay"><div class="modal" style="width:400px">
     <h3>マスター設定</h3>
     <div class="master-section"><h4>元受会社</h4>
       <div class="master-list">${listHtml(masters.clients,'clients')}</div>
