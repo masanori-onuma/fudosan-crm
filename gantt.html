@@ -575,6 +575,8 @@ function _renderInner(){
       td.onmousedown=(e)=>{
         if(e.target.closest('[data-handle]'))return;
         if(e.target.closest('.mini-bar'))return;
+        // 工期バー本体の上ならスキップ（バー側で処理済み）
+        if(e.target.closest('[data-barclass="kouki"]'))return;
         e.preventDefault();
         const d=days[di];
         const sid=site.id;
@@ -615,6 +617,7 @@ function _renderInner(){
           const _allDone=site.processes&&site.processes.length>0&&site.processes.every(p=>p.done);
           const _koukiColor=_allDone?'#999':'#3949ab';
           const bar=makeBar(_koukiColor,span,_allDone?'工期 ✓完了':'工期',_allDone,span<=3,_dayW);
+          bar.dataset.barclass='kouki';
           // 上段に配置（既存makeBarはtop:3/bottom:3なので、上段固定用にtop/heightをオーバーライド）
           bar.style.top=TOP_PAD+'px';
           bar.style.bottom='auto';
@@ -622,8 +625,8 @@ function _renderInner(){
           bar.style.cursor='pointer';
           bar.onclick=()=>openKoukiModal(site.id);
           bar.onmousedown=(e)=>{
-            if(e.target.dataset.handle)return;
-            e.preventDefault();
+            if(e.target.closest('[data-handle]'))return;
+            e.preventDefault();e.stopPropagation();
             barDrag={active:true,type:'move',isKouki:true,siteId:site.id,procId:null,periodIdx:null,
               startMouseDi:asi+Math.floor((e.clientX-sc.getBoundingClientRect().left)/_dayW),
               origStart:ks,origEnd:ke};
@@ -784,10 +787,10 @@ function _renderInner(){
           const col=proc.done?'#999':proc.color;
           const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
-          bar.onclick=(e)=>{if(e.target.dataset.handle)return;openProcModal(site.id,proc.id);};
+          bar.onclick=(e)=>{if(e.target.closest('[data-handle]'))return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
-            if(e.target.dataset.handle)return;
-            e.preventDefault();
+            if(e.target.closest('[data-handle]'))return;
+            e.preventDefault();e.stopPropagation();
             const cellRect=sc.getBoundingClientRect();
             barDrag={active:true,type:'move',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,
               startMouseDi:asi+Math.floor((e.clientX-cellRect.left)/_dayW),
@@ -940,7 +943,7 @@ function _renderInner(){
                 cbar.dataset.siteId=site.id;
                 cbar.dataset.periodIdx=pi;
                 cbar.onmousedown=(e)=>{
-                  if(e.target.dataset.handle)return;
+                  if(e.target.closest('[data-handle]'))return;
                   e.preventDefault();e.stopPropagation();
                   barDrag={active:true,type:'move',isKouki:false,isChild:true,
                     siteId:site.id,procId:proc.id,childId:child.id,periodIdx:pi,
@@ -988,8 +991,11 @@ function _renderInner(){
                     if(!c2)return;
                     if(!c2.periods)c2.periods=[];
                     c2.periods.push({startD:fmt(d),endD:fmt(d)});
+                    const newPeriodIdx=c2.periods.length-1;
+                    // 親バーを即座に拡張（mousemove前に親バーを表示）
+                    _expandProcPeriods(p2);
                     barDrag={active:true,type:'right',isKouki:false,isChild:true,isNew:true,
-                      siteId:sid,procId:pid,childId:cid,periodIdx:0,
+                      siteId:sid,procId:pid,childId:cid,periodIdx:newPeriodIdx,
                       startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
                     render();
                   },300);
@@ -1026,7 +1032,8 @@ function _renderInner(){
 document.addEventListener('mousemove',function(e){
   if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
-  if(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi))return;
+  // moveの時だけstartMouseDiが必要（リサイズ時は不要）
+  if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
   // マウス位置からdi計算
@@ -1114,6 +1121,12 @@ document.addEventListener('mousemove',function(e){
 
 document.addEventListener('mouseup',function(e){
   if(barDrag.active){
+    // 子バードラッグ終了時、親バーを最終同期
+    if(barDrag.isChild&&barDrag.procId){
+      const site=sites.find(x=>x.id===barDrag.siteId);
+      const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
+      if(proc)_expandProcPeriods(proc);
+    }
     barDrag.active=false;
     barDrag.isNew=false;
     barDrag._lastDi=null;
@@ -1580,18 +1593,12 @@ function openChildModal(siteId,procId,childId){
     <div class="field"><label>数量・面積</label><input id="c_area" style="touch-action:manipulation" value="${esc(child.area||'')}"></div>
     <div class="field"><label>材料名・数量</label><input id="c_material" style="touch-action:manipulation" placeholder="例：サンゲツ RE-7512　148m²" value="${esc(child.material||'')}"></div>
     <div class="field"><label>備考</label><input id="c_note" style="touch-action:manipulation" placeholder="品番・メモなど" value="${esc(child.note||'')}"></div>
-    <div class="field" style="display:flex;flex-direction:column;gap:8px">
+    ${_trackOrder?`<div class="field" style="display:flex;flex-direction:column;gap:8px">
       <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="c_track_order" ${_trackOrder?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation" onchange="document.getElementById('c_ordered_wrap').style.display=this.checked?'flex':'none'">
-        <span>発注管理する</span>
+        <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation">
+        <span>発注済み</span>
       </label>
-      <div id="c_ordered_wrap" style="display:${_trackOrder?'flex':'none'};align-items:center;gap:8px;padding-left:26px">
-        <label style="margin:0;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="c_ordered" ${child.ordered?'checked':''} style="width:18px;height:18px;cursor:pointer;touch-action:manipulation">
-          <span>発注済み</span>
-        </label>
-      </div>
-    </div>
+    </div>`:''}
     <div class="field"><label>期間 <span style="font-size:10px;color:#888">（未設定なら親工程と同じ期間）</span></label>
       <div id="childPeriodList">${periodRows}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:4px" onclick="addChildPeriodInModal(${procId},${childId||'null'})">＋ 期間を追加</button>
@@ -1650,21 +1657,30 @@ function saveChild(procId,childId){
   const area=document.getElementById('c_area').value.trim();
   const note=document.getElementById('c_note').value.trim();
   const material=document.getElementById('c_material').value.trim();
-  const trackOrder=document.getElementById('c_track_order')?document.getElementById('c_track_order').checked:false;
-  const ordered=trackOrder?document.getElementById('c_ordered').checked:undefined;
+  // 発注済みチェック：発注管理対象の子項目（既存childにorderedフィールドあり）のみ更新
+  const orderedCheckbox=document.getElementById('c_ordered');
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(childId===null){
       const newPeriods=[];
       document.querySelectorAll('#childPeriodList > div').forEach(row=>{
         const starts=row.querySelectorAll('.new-child-period-start');
         const ends=row.querySelectorAll('.new-child-period-end');
-        if(starts.length&&ends.length)newPeriods.push({startD:starts[0].value,endD:ends[0].value});
+        if(starts.length&&ends.length&&starts[0].value&&ends[0].value)newPeriods.push({startD:starts[0].value,endD:ends[0].value});
       });
-      p.children.push({id:nextCid++,name,area,note,material,ordered,periods:newPeriods});
+      // 新規追加は子項目モーダル経由では発注管理なし（orderedなし）
+      p.children.push({id:nextCid++,name,area,note,material,periods:newPeriods});
     }else{
       const c=p.children.find(x=>x.id===childId);
-      if(c)Object.assign(c,{name,area,note,material,ordered});
+      if(c){
+        Object.assign(c,{name,area,note,material});
+        // 発注管理対象のみ ordered を更新
+        if(orderedCheckbox&&c.ordered!==undefined){
+          c.ordered=orderedCheckbox.checked;
+        }
+      }
     }
+    // 子項目の期間変更 or 追加後、親バーを自動拡張
+    _expandProcPeriods(p);
     break;
   }
   saveData();closeModal();
