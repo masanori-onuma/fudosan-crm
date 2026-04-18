@@ -605,6 +605,110 @@ function _renderInner(){
     }
     frag.appendChild(koukiRow);
 
+    // === 折りたたみ時のミニバー行 ===
+    if(site.collapsed&&procs.length>0){
+      // 全期間を集めて段(lane)を計算
+      // 各項目: {proc, period, startN, endN, lane}
+      const barItems=[];
+      procs.forEach(proc=>{
+        (proc.periods||[]).forEach(period=>{
+          if(!period.startD||!period.endD)return;
+          const sN=toN(parseD(period.startD));
+          const eN=toN(parseD(period.endD));
+          if(isNaN(sN)||isNaN(eN))return;
+          barItems.push({proc,period,startN:sN,endN:eN,lane:-1});
+        });
+      });
+      // 開始日で昇順ソート → 各項目に最小の空きレーンを割り当て
+      barItems.sort((a,b)=>a.startN-b.startN||a.endN-b.endN);
+      const laneEnds=[]; // 各レーンで最後に占有している日付(endN)
+      barItems.forEach(item=>{
+        let assignedLane=-1;
+        for(let i=0;i<laneEnds.length;i++){
+          if(laneEnds[i]<item.startN){assignedLane=i;break;}
+        }
+        if(assignedLane<0){assignedLane=laneEnds.length;laneEnds.push(item.endN);}
+        else{laneEnds[assignedLane]=item.endN;}
+        item.lane=assignedLane;
+      });
+      const laneCount=Math.max(1,laneEnds.length);
+      const LANE_H=14; // 1段の高さ
+      const LANE_GAP=2; // 段と段の隙間
+      const rowH=Math.max(20,laneCount*LANE_H+(laneCount-1)*LANE_GAP+6);
+
+      const miniRow=document.createElement('tr');
+      miniRow.className='row-kouki row-mini';
+      miniRow.style.height=rowH+'px';
+      const miniTd=document.createElement('td');
+      miniTd.className='col-info';
+      miniTd.innerHTML=`<div style="padding-left:28px;font-size:10px;color:#888">工程 ${procs.length}件${laneCount>1?' / '+laneCount+'段':''}</div>`;
+      miniRow.appendChild(miniTd);
+      // 各日付のtdを作る
+      const miniDayCells=[];
+      days.forEach((day,di)=>{
+        const td=document.createElement('td');
+        td.className='day-cell'+(isToday(day)?' tod-cell':(isWk(day)||isHoliday(day))?' wk-cell':'');
+        miniRow.appendChild(td);
+        miniDayCells.push(td);
+      });
+      // 各バーをレーンに合わせて配置
+      barItems.forEach(item=>{
+        const {proc,period,lane}=item;
+        const psi=days.findIndex(d=>toN(d)===item.startN);
+        const pei=days.findIndex(d=>toN(d)===item.endN);
+        const asi=psi>=0?psi:(toN(days[0])>item.startN?0:-1);
+        const aei=pei>=0?pei:(toN(days[days.length-1])<item.endN?days.length-1:-1);
+        if(asi<0||aei<0)return;
+        const sc=miniDayCells[asi];
+        if(!sc)return;
+        sc.style.position='relative';
+        sc.style.overflow='visible';
+        const span=aei-asi+1;
+        const mini=document.createElement('div');
+        const barColor=proc.done?'#999':(proc.color||'#7cb9ff');
+        const topPx=3+lane*(LANE_H+LANE_GAP);
+        mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:2px;background:${barColor};display:flex;align-items:center;padding:0 3px;overflow:hidden;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25);`;
+        // ラベル
+        const lbl=document.createElement('span');
+        const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
+        lbl.style.cssText='font-size:9px;font-weight:500;color:'+(isLight?'#333':'#fff')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1';
+        lbl.textContent=proc.name;
+        mini.appendChild(lbl);
+        // ツールチップ用情報
+        mini.title=proc.name+(proc.person?' / '+proc.person:'')+' ('+period.startD+'〜'+period.endD+')';
+        mini.onclick=(e)=>{e.stopPropagation();toggleSite(site.id);};
+        // PC: ホバーで工程名ツールチップ
+        mini.addEventListener('mouseenter',function(ev){
+          let tip=document.getElementById('miniTip');
+          if(!tip){tip=document.createElement('div');tip.id='miniTip';tip.style.cssText='position:fixed;z-index:3000;background:#333;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap';document.body.appendChild(tip);}
+          tip.textContent=mini.title;
+          tip.style.display='block';
+          tip.style.left=Math.min(ev.clientX+12,window.innerWidth-200)+'px';
+          tip.style.top=Math.max(ev.clientY-28,4)+'px';
+        });
+        mini.addEventListener('mousemove',function(ev){
+          const tip=document.getElementById('miniTip');
+          if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-200)+'px';tip.style.top=Math.max(ev.clientY-28,4)+'px';}
+        });
+        mini.addEventListener('mouseleave',function(){
+          const tip=document.getElementById('miniTip');if(tip)tip.style.display='none';
+        });
+        // スマホ: タップでツールチップ表示
+        mini.addEventListener('touchstart',function(ev){
+          let tip=document.getElementById('miniTip');
+          if(!tip){tip=document.createElement('div');tip.id='miniTip';tip.style.cssText='position:fixed;z-index:3000;background:#333;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap';document.body.appendChild(tip);}
+          tip.textContent=mini.title;
+          tip.style.display='block';
+          const t=ev.touches[0];
+          tip.style.left=Math.min(t.clientX+12,window.innerWidth-200)+'px';
+          tip.style.top=Math.max(t.clientY-36,4)+'px';
+          setTimeout(()=>{if(tip)tip.style.display='none';},1800);
+        },{passive:true});
+        sc.appendChild(mini);
+      });
+      frag.appendChild(miniRow);
+    }
+
     if(!site.collapsed){
       procs.forEach(proc=>{
         const periods=proc.periods||[];
