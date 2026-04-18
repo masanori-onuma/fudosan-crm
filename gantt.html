@@ -654,15 +654,25 @@ function _renderInner(){
       mini.className='mini-bar';
       const barColor=proc.color||'#7cb9ff';
       const topPx=TOP_PAD+KOUKI_BAR_H+MID_GAP+lane*(LANE_H+LANE_GAP);
+      // 未発注判定：発注管理する子項目で、まだ発注されていないものがあるか
+      const _unordered=(proc.children||[]).some(c=>c.ordered===false);
       let bg,boxShadow;
       if(proc.done){
         bg='linear-gradient(to bottom,#5a5a5a,#333333)';
         boxShadow='inset 0 0 0 1px #7d7d7d';
       }else{
         bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
-        boxShadow='inset 0 0 0 1px #f5c800';
+        // 未発注がある場合は赤いボーダー、なければ通常の黄色
+        boxShadow=_unordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #f5c800';
       }
       mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
+      // 未発注マーク（ラベルの左に赤い⚠）
+      if(_unordered&&!proc.done){
+        const warnMark=document.createElement('span');
+        warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin-right:3px;flex-shrink:0;line-height:1;pointer-events:none';
+        warnMark.textContent='未';
+        mini.appendChild(warnMark);
+      }
       const lbl=document.createElement('span');
       const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
       lbl.style.cssText='font-size:9px;font-weight:500;color:'+(proc.done||!isLight?'#fff':'#333')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight&&!proc.done?'0':'0.3')+')';
@@ -677,7 +687,11 @@ function _renderInner(){
         if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
         const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
         const body=_children.length>0
-          ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+          ?_children.map(c=>{
+            const trackOrder=c.ordered!==undefined;
+            const orderMark=trackOrder?(c.ordered?' <span style="color:#27AE60;font-size:9px;font-weight:600">発注済</span>':' <span style="color:#E74C3C;font-size:9px;font-weight:600">未発注</span>'):'';
+            return '<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+orderMark+'</div>';
+          }).join('')
           :'';
         tip.innerHTML=hdr+body;
         tip.style.display='block';
@@ -696,7 +710,11 @@ function _renderInner(){
         if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
         const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
         const body=_children.length>0
-          ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+          ?_children.map(c=>{
+            const trackOrder=c.ordered!==undefined;
+            const orderMark=trackOrder?(c.ordered?' <span style="color:#27AE60;font-size:9px;font-weight:600">発注済</span>':' <span style="color:#E74C3C;font-size:9px;font-weight:600">未発注</span>'):'';
+            return '<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+orderMark+'</div>';
+          }).join('')
           :'';
         tip.innerHTML=hdr+body;
         tip.style.display='block';
@@ -1487,12 +1505,8 @@ function addChildInModal(procId){
       </div>
       <div style="display:flex;gap:10px;align-items:center;padding-left:16px;font-size:11px;color:#555">
         <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-          <input type="checkbox" class="new-child-track-order" onchange="var ob=this.closest('div').querySelector('.new-child-ordered-wrap');if(ob)ob.style.display=this.checked?'flex':'none'" style="cursor:pointer">
+          <input type="checkbox" class="new-child-track-order" style="cursor:pointer">
           発注管理する
-        </label>
-        <label class="new-child-ordered-wrap" style="display:none;align-items:center;gap:4px;cursor:pointer">
-          <input type="checkbox" class="new-child-ordered" style="cursor:pointer">
-          発注済み
         </label>
       </div>`;
     list.appendChild(div);
@@ -1952,10 +1966,9 @@ function saveProc(siteId,procId){
     const ar=row.querySelector('.new-child-area');
     const nt=row.querySelector('.new-child-note');
     const trk=row.querySelector('.new-child-track-order');
-    const ord=row.querySelector('.new-child-ordered');
     if(nm&&nm.value.trim()){
       const child={id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''};
-      if(trk&&trk.checked)child.ordered=!!(ord&&ord.checked);
+      if(trk&&trk.checked)child.ordered=false; // 発注管理ONなら未発注からスタート
       newChildren.push(child);
     }
   });
