@@ -60,14 +60,16 @@ tr.proc-warn td{background:#fff5f5!important}
 tr.proc-warn td.wk-cell{background:#ffe8e8!important}
 tr.proc-warn td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
-.sort-handle{font-size:13px;color:#bbb;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
-.sort-handle:hover{color:#888}
-.sort-handle-site{font-size:14px;color:#7aabcf;cursor:grab;flex-shrink:0;padding:0 3px;user-select:none;line-height:1}
-.sort-handle-site:hover{color:#185FA5}
-tr.row-proc.sort-dragging td{background:#e8f4ff!important;opacity:0.6}
-tr.row-proc.sort-over td{border-top:2px solid #4A90D9!important}
-tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.6}
-tr.row-site.site-drag-over td{border-top:3px solid #0C447C!important}
+.sort-handle{font-size:15px;color:#aaa;cursor:grab;flex-shrink:0;padding:4px 5px;user-select:none;line-height:1;border-radius:3px;transition:background 0.12s}
+.sort-handle:hover{color:#444;background:#e8f0fa}
+.sort-handle:active{cursor:grabbing}
+.sort-handle-site{font-size:16px;color:#7aabcf;cursor:grab;flex-shrink:0;padding:4px 5px;user-select:none;line-height:1;border-radius:3px;transition:background 0.12s}
+.sort-handle-site:hover{color:#185FA5;background:#e8f0fa}
+.sort-handle-site:active{cursor:grabbing}
+tr.row-proc.sort-dragging td{background:#e8f4ff!important;opacity:0.5}
+tr.row-proc.sort-over td{border-top:3px solid #185FA5!important;box-shadow:inset 0 2px 0 0 #185FA5}
+tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.5}
+tr.row-site.site-drag-over td{border-top:4px solid #0C447C!important;box-shadow:inset 0 3px 0 0 #0C447C}
 td{padding:0;border-bottom:1px solid #ddd;border-right:1px solid #e8e8e8;vertical-align:middle;overflow:hidden}
 td.col-info{border-right:1px solid #bbb;padding:0;touch-action:pan-y}
 td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:pan-x pan-y}
@@ -131,6 +133,9 @@ tr.row-child td.col-info{
   background:#f7f9fb;
   position:relative;
 }
+tr.row-child td{
+  border-bottom:1px solid #d0d7e0;
+}
 tr.row-child td.col-info::before{
   content:'';position:absolute;left:30px;top:0;bottom:0;width:2px;
   background:#cfd9e5;
@@ -139,17 +144,17 @@ tr.row-child td.col-info::after{
   content:'';position:absolute;left:30px;top:10px;width:14px;height:2px;
   background:#cfd9e5;
 }
-/* 子項目を持つ親の下の子行グループの最後の子で縦線を途中まで */
-tr.row-child:last-of-type td.col-info::before{
+/* 最後の子行の縦線を途中まで（LastChildクラスで明示） */
+tr.row-child-last td.col-info::before{
   bottom:auto;height:11px;
+}
+/* 最後の子行の下境界線は濃く（次が親工程になるので区切りを強調） */
+tr.row-child-last td{
+  border-bottom:1px solid #b8c2cc;
 }
 /* 子行の文字サイズを明示的に小さく */
 tr.row-child .proc-inner > span[style*="font-size:11px"]{
   color:#555;
-}
-/* 子の└記号は不要になったので非表示 */
-tr.row-child .proc-inner > span:first-child + span{
-  /* 元の└記号を消す代わりにCSSで描画している */
 }
 
 /* 子行の day-cell にも薄い区別 */
@@ -727,9 +732,10 @@ function _renderInner(){
 
         // 子項目行
         if(!proc.childCollapsed&&children.length>0){
-          children.forEach(child=>{
+          children.forEach((child,_childIdx)=>{
+            const _isLastChild=(_childIdx===children.length-1);
             const childRow=document.createElement('tr');
-            childRow.className='row-proc row-child'+(proc.done?' done':'')+(child.done?' child-done':'');
+            childRow.className='row-proc row-child'+(_isLastChild?' row-child-last':'')+(proc.done?' done':'')+(child.done?' child-done':'');
             childRow.style.height='22px';
             childRow.style.position='relative';
             childRow.style.zIndex='5';
@@ -1017,14 +1023,38 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.active)return;
   if(siteDrag.active){
     document.querySelectorAll('tr.site-drag-over').forEach(r=>r.classList.remove('site-drag-over'));
-    const h=e.target.closest('.sort-handle-site');
-    if(h){const sid=parseInt(h.dataset.site);if(sid!==siteDrag.siteId){siteDrag.overSiteId=sid;h.closest('tr').classList.add('site-drag-over');}}
+    // マウス位置の要素から tr.row-site を探す
+    const targetEl=document.elementFromPoint(e.clientX,e.clientY);
+    const siteRow=targetEl?targetEl.closest('tr.row-site'):null;
+    if(siteRow){
+      const siteHandle=siteRow.querySelector('.sort-handle-site');
+      if(siteHandle){
+        const sid=parseInt(siteHandle.dataset.site);
+        if(sid!==siteDrag.siteId){siteDrag.overSiteId=sid;siteRow.classList.add('site-drag-over');}
+        else{siteDrag.overSiteId=null;}
+      }
+    }else{
+      siteDrag.overSiteId=null;
+    }
     return;
   }
   if(sortDrag.active){
     document.querySelectorAll('tr.sort-over').forEach(r=>r.classList.remove('sort-over'));
-    const h=e.target.closest(`.sort-handle[data-site="${sortDrag.siteId}"]`);
-    if(h){const pid=parseInt(h.dataset.proc);if(pid!==sortDrag.procId){sortDrag.overProcId=pid;h.closest('tr').classList.add('sort-over');}}
+    // マウス位置の要素から該当物件内の工程行（sort-handle付き）を探す
+    const targetEl=document.elementFromPoint(e.clientX,e.clientY);
+    const procRow=targetEl?targetEl.closest('tr'):null;
+    if(procRow){
+      const h=procRow.querySelector(`.sort-handle[data-site="${sortDrag.siteId}"]`);
+      if(h){
+        const pid=parseInt(h.dataset.proc);
+        if(pid!==sortDrag.procId){sortDrag.overProcId=pid;procRow.classList.add('sort-over');}
+        else{sortDrag.overProcId=null;}
+      }else{
+        sortDrag.overProcId=null;
+      }
+    }else{
+      sortDrag.overProcId=null;
+    }
     return;
   }
 },true);
