@@ -665,44 +665,60 @@ function _renderInner(){
         sc.style.overflow='visible';
         const span=aei-asi+1;
         const mini=document.createElement('div');
-        const barColor=proc.done?'#999':(proc.color||'#7cb9ff');
+        const barColor=proc.color||'#7cb9ff';
         const topPx=3+lane*(LANE_H+LANE_GAP);
-        mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:2px;background:${barColor};display:flex;align-items:center;padding:0 3px;overflow:hidden;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25);`;
+        // 通常バーと同じデザイン：グラデーション＋黄色ボーダー、完了なら暗いグラデ
+        let bg,boxShadow;
+        if(proc.done){
+          bg='linear-gradient(to bottom,#5a5a5a,#333333)';
+          boxShadow='inset 0 0 0 1px #7d7d7d';
+        }else{
+          bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
+          boxShadow='inset 0 0 0 1px #f5c800';
+        }
+        mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
         // ラベル
         const lbl=document.createElement('span');
         const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
-        lbl.style.cssText='font-size:9px;font-weight:500;color:'+(isLight?'#333':'#fff')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1';
+        lbl.style.cssText='font-size:9px;font-weight:500;color:'+(proc.done||!isLight?'#fff':'#333')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight&&!proc.done?'0':'0.3')+')';
         lbl.textContent=proc.name;
         mini.appendChild(lbl);
-        // ツールチップ用情報
-        mini.title=proc.name+(proc.person?' / '+proc.person:'')+' ('+period.startD+'〜'+period.endD+')';
         mini.onclick=(e)=>{e.stopPropagation();toggleSite(site.id);};
-        // PC: ホバーで工程名ツールチップ
+        // 子項目リスト付きツールチップ（通常バーと同じchildTipを再利用）
+        const _children=proc.children||[];
         mini.addEventListener('mouseenter',function(ev){
-          let tip=document.getElementById('miniTip');
-          if(!tip){tip=document.createElement('div');tip.id='miniTip';tip.style.cssText='position:fixed;z-index:3000;background:#333;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap';document.body.appendChild(tip);}
-          tip.textContent=mini.title;
+          let tip=document.getElementById('childTip');
+          if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
+          const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+          const body=_children.length>0
+            ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+            :'';
+          tip.innerHTML=hdr+body;
           tip.style.display='block';
-          tip.style.left=Math.min(ev.clientX+12,window.innerWidth-200)+'px';
-          tip.style.top=Math.max(ev.clientY-28,4)+'px';
+          tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';
+          tip.style.top=Math.max(ev.clientY-20,4)+'px';
         });
         mini.addEventListener('mousemove',function(ev){
-          const tip=document.getElementById('miniTip');
-          if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-200)+'px';tip.style.top=Math.max(ev.clientY-28,4)+'px';}
+          const tip=document.getElementById('childTip');
+          if(tip){tip.style.left=Math.min(ev.clientX+12,window.innerWidth-180)+'px';tip.style.top=Math.max(ev.clientY-20,4)+'px';}
         });
         mini.addEventListener('mouseleave',function(){
-          const tip=document.getElementById('miniTip');if(tip)tip.style.display='none';
+          const tip=document.getElementById('childTip');if(tip)tip.style.display='none';
         });
-        // スマホ: タップでツールチップ表示
+        // スマホ: タップで同じツールチップ表示（2.5秒で消える）
         mini.addEventListener('touchstart',function(ev){
-          let tip=document.getElementById('miniTip');
-          if(!tip){tip=document.createElement('div');tip.id='miniTip';tip.style.cssText='position:fixed;z-index:3000;background:#333;color:#fff;padding:4px 8px;border-radius:4px;font-size:11px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap';document.body.appendChild(tip);}
-          tip.textContent=mini.title;
+          let tip=document.getElementById('childTip');
+          if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
+          const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+          const body=_children.length>0
+            ?_children.map(c=>'<div style="color:#555;padding:2px 0;border-bottom:1px solid #f0f0f0">└ '+esc(c.name)+(c.area?' <span style="color:#aaa">'+esc(c.area)+'</span>':'')+'</div>').join('')
+            :'';
+          tip.innerHTML=hdr+body;
           tip.style.display='block';
           const t=ev.touches[0];
           tip.style.left=Math.min(t.clientX+12,window.innerWidth-200)+'px';
-          tip.style.top=Math.max(t.clientY-36,4)+'px';
-          setTimeout(()=>{if(tip)tip.style.display='none';},1800);
+          tip.style.top=Math.max(t.clientY-40,4)+'px';
+          setTimeout(()=>{if(tip)tip.style.display='none';},2500);
         },{passive:true});
         sc.appendChild(mini);
       });
