@@ -1420,15 +1420,24 @@ function openProcModal(siteId,procId){
 
   const children=p.children||[];
   const selOpts=`<option value="">-- 選択 --</option>`+masters.procNames.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  const childRows=children.map((c,i)=>`
-    <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
-      <span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
-
-      <input value="${esc(c.name||'')}" placeholder="工事項目名" onchange="updateChild(${procId||'null'},${i},'name',this.value)" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:50px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <input value="${esc(c.note||'')}" placeholder="備考" onchange="updateChild(${procId||'null'},${i},'note',this.value)" style="width:70px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
-      <button class="btn btn-sm btn-danger" onclick="delChildInModal(${procId||'null'},${i})" style="flex-shrink:0">×</button>
-    </div>`).join('');
+  const childRows=children.map((c,i)=>{
+    const _trk=c.ordered!==undefined;
+    return `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:6px;padding:4px 4px 4px 0;border-bottom:1px dashed #eee">
+      <div style="display:flex;gap:4px;align-items:center">
+        <span style="font-size:11px;color:#aaa;flex-shrink:0">└</span>
+        <input value="${esc(c.name||'')}" placeholder="工事項目名" onchange="updateChild(${procId||'null'},${i},'name',this.value)" style="flex:2;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <input value="${esc(c.area||'')}" placeholder="数量" onchange="updateChild(${procId||'null'},${i},'area',this.value)" style="width:50px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <input value="${esc(c.note||'')}" placeholder="備考" onchange="updateChild(${procId||'null'},${i},'note',this.value)" style="width:70px;flex-shrink:0;font-size:12px;padding:4px;border:1px solid #ccc;border-radius:4px">
+        <button class="btn btn-sm btn-danger" onclick="delChildInModal(${procId||'null'},${i})" style="flex-shrink:0">×</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;padding-left:16px;font-size:11px;color:#555">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" ${_trk?'checked':''} onchange="updateChildTrackOrder(${procId||'null'},${i},this.checked)" style="cursor:pointer">
+          発注管理する
+        </label>
+      </div>
+    </div>`;
+  }).join('');
 
   const hasChildren=children.length>0;
 
@@ -1490,6 +1499,22 @@ function updateChild(procId,idx,key,val){
   }
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(p.children[idx])p.children[idx][key]=val;break;
+  }
+  saveData();
+}
+function updateChildTrackOrder(procId,idx,checked){
+  if(procId===null)return;
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    const c=p.children[idx];
+    if(!c)break;
+    if(checked){
+      // 発注管理ON：既に発注済みでなければ未発注（ordered:false）にセット
+      if(c.ordered===undefined)c.ordered=false;
+    }else{
+      // 発注管理OFF：orderedプロパティを削除
+      delete c.ordered;
+    }
+    break;
   }
   saveData();
 }
