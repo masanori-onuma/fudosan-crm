@@ -248,7 +248,7 @@ let sites=[];
 let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 let masters={clients:[],persons:[],procNames:[]};
-const GAS_URL='https://script.google.com/macros/s/AKfycbxOI40LdSvyva9VFC8J04qpvqlCqqkf1eMx3QlDY0ecjjrWCDbEUEtpe-UHjapoqI0/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
 async function gasArchiveSite(siteId,by){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'archive_site',site_id:String(siteId),archived_by:by||'manual'})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
