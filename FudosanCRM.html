@@ -625,7 +625,22 @@ function App(){
   const getList=useCallback(()=>{let r=data.filter(c=>c.mode===mode);if(!isAdmin)r=r.filter(c=>c.staff===myName);if(isAdmin&&staffFilter!=="all")r=r.filter(c=>c.staff===staffFilter);if(filter==="all")r=r.filter(c=>c.s!=="成約");else r=r.filter(c=>c.s===filter);if(sq){const q=sq.toLowerCase();r=r.filter(c=>[c.n,c.k,c.a,c.ar,c.m,c.p,c.sp_addr].some(v=>(v||"").toLowerCase().includes(q)));}r.sort((a,b)=>{let v=0;if(sort.k==="no")v=a.id-b.id;else if(sort.k==="name")v=(a.n||"").localeCompare(b.n||"","ja");else if(sort.k==="prospect")v=pOrd(a.pr)-pOrd(b.pr);else if(sort.k==="action")v=(a.ad||"9999").localeCompare(b.ad||"9999");else if(sort.k==="staff")v=(a.staff||"").localeCompare(b.staff||"","ja");return sort.asc?v:-v;});return r;},[data,mode,isAdmin,myName,staffFilter,filter,sq,sort]);
   const ff=(k,v)=>setForm(f=>({...f,[k]:v}));
   const openNew=()=>{const base={mode,staff:myName,s:mode==="buy"?"未接触":"査定前",pr:"",d:"",ad:"",at:"",ate:"",ac:"",al:"",aa:[],am:"",n:"",k:"",p:"",e:"",a:"",m:"",history:[]};const ex=mode==="buy"?{t:"",ar:"",b:"",l:""}:{sp_addr:"",sp_type:"",sp_area:"",sp_assess:"",sp_price:"",sp_reason:"",sp_timing:"",sp_nairanCount:"0",sp_nairanNote:"",buyers:[]};setForm({...base,...ex});setFormTab("info");setModal("new");};
-  const openEdit=c=>{setForm({...c});setFormTab("info");setModal("edit");};
+  const openEdit=async c=>{
+    // アクション日が過去なら、開いた時点で履歴に移動＆即保存（Gカレの予定は記録として残す）
+    if(c.ad&&c.ac&&c.ad<new Date().toISOString().slice(0,10)){
+      const movedEntry={id:Date.now(),date:c.ad,content:c.ac,done:true,comment:"",fromAction:true,calEventId:c.calEventId||""};
+      const cleaned={...c,history:[movedEntry,...(c.history||[])],ad:"",at:"",ate:"",ac:"",al:"",aa:[],am:"",calEventId:""};
+      const nd=data.map(x=>x.id===c.id?cleaned:x);
+      setData(nd);
+      try{await store.set("fudo",JSON.stringify(nd));}catch(e){}
+      try{await gasPost({action:"save",customers:nd});flash("✓ 期限切れアクションを履歴へ移動");}catch(e){}
+      setForm(cleaned);
+    }else{
+      setForm({...c});
+    }
+    setFormTab("info");
+    setModal("edit");
+  };
   const closeModal=()=>setModal(null);
   const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}if(form.ad&&!form.at){alert("開始時間を入力してください");return;}let currentForm={...form};
     // 編集時に古いカレンダーイベントがあれば削除（履歴移動・新規登録どちらの場合も先に消す）
