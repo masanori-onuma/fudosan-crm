@@ -329,7 +329,7 @@ input,select,textarea,button{font-family:'Noto Sans JP',sans-serif}
 const { useState, useEffect, useCallback, useRef } = React;
 
 // ═══ GAS経由SharePoint設定 ═══
-const GAS_URL   = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
+const GAS_URL   = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
 const ADMIN_PASS = "admin1234";
 
 // GAS GET リクエスト
@@ -589,7 +589,7 @@ function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
 }
 
 function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(false);const [clocking,setClocking]=useState(false);const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(false);const [clocking,setClocking]=useState(false);const [staffMaster,setStaffMaster]=useState([]);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
   const fetchGAS=useCallback(async(background=false)=>{
@@ -614,7 +614,7 @@ function App(){
     setSyncing(false);setLoaded(true);
   },[]);
   const saveGAS=useCallback(async(nd)=>{setSyncMsg("保存中…");try{await store.set("fudo",JSON.stringify(nd));await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ オフライン（ローカル保存済）");}},[]);
-  useEffect(()=>{if(!user)return;fetchGAS(false);const t=setInterval(()=>fetchGAS(true),120000);return()=>clearInterval(t);},[user]);
+  useEffect(()=>{if(!user)return;fetchGAS(false);loadStaffFromSP().then(list=>{if(list.length>0)setStaffMaster(list);}).catch(()=>{});const t=setInterval(()=>fetchGAS(true),120000);return()=>clearInterval(t);},[user]);
   const fetchSurveyCount=useCallback(async()=>{try{const surveys=await loadSurveysFromGAS();setSurveyCount(surveys.length);}catch(e){}},[]);
   useEffect(()=>{if(!user||isAdmin)return;fetchSurveyCount();const t=setInterval(fetchSurveyCount,600000);return()=>clearInterval(t);},[user,isAdmin]);
   const persist=useCallback(nd=>{setData(nd);clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>saveGAS(nd),1500);},[saveGAS]);
@@ -636,7 +636,7 @@ function App(){
         const datetime=currentForm.ad+"T"+currentForm.at+":00";
         const endtime=currentForm.ate?currentForm.ad+"T"+currentForm.ate+":00":"";
         const alarms=JSON.stringify(currentForm.aa||[]);
-        const params=new URLSearchParams({action:"createCalEvent",title:currentForm.ac,datetime,endtime,location:currentForm.al||"",description:currentForm.am||"",alarms,staffName:currentForm.staff||myName});
+        const staffCalId=staffMaster.find(s=>s.name===(currentForm.staff||myName))?.calendarId||"";const params=new URLSearchParams({action:"createCalEvent",title:currentForm.ac,datetime,endtime,location:currentForm.al||"",description:currentForm.am||"",alarms,staffName:currentForm.staff||myName,calendarId:staffCalId});
         const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
         const json=await res.json();
         if(json.ok&&json.data)currentForm={...currentForm,calEventId:json.data};
@@ -1178,7 +1178,7 @@ async function svGetToken() {
 
 async function svSubmitToSP(data) {
   // GAS経由でSharePointに送信（no-corsでCORSエラー回避）
-  const GAS = "https://script.google.com/macros/s/AKfycbzBWrUivKHfcatqoBXsFOWKWybwLBV_WGnU0W2N5jkndD1RGW-mNF3zbjwGaJ_ESvI1/exec";
+  const GAS = "https://script.google.com/macros/s/AKfycbzyc73u5jGHRLQh3g-0xU86XJyIyh2bxueUePRSjxLz5BWSx0fEcU3n0pzUlbijckLgeA/exec";
   try {
     await fetch(GAS, {
       method: "POST",
