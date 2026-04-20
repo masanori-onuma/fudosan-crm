@@ -628,13 +628,25 @@ function App(){
   const openEdit=c=>{setForm({...c});setFormTab("info");setModal("edit");};
   const closeModal=()=>setModal(null);
   const save=async()=>{if(!form.n?.trim()){alert("氏名は必須です");return;}if(form.ad&&!form.at){alert("開始時間を入力してください");return;}let currentForm={...form};
-    // アクション日が過去なら履歴に自動移動してクリア
+    // 編集時に古いカレンダーイベントがあれば削除（履歴移動・新規登録どちらの場合も先に消す）
+    const deleteOldCalEvent=async(eventId,staffName)=>{
+      if(!eventId)return;
+      try{
+        const staffCalId=staffMaster.find(s=>s.name===staffName)?.calendarId||"";
+        const delParams=new URLSearchParams({action:"deleteCalEvent",eventId,calendarId:staffCalId});
+        await fetch(`${GAS_URL}?${delParams}`,{redirect:"follow"});
+      }catch(e){console.log("旧カレンダーイベント削除失敗",e);}
+    };
+    // アクション日が過去なら履歴に自動移動してクリア（Gカレの予定は記録として残す）
     if(currentForm.ad&&currentForm.ac&&currentForm.ad<new Date().toISOString().slice(0,10)){
       const movedEntry={id:Date.now(),date:currentForm.ad,content:currentForm.ac,done:true,comment:"",fromAction:true,calEventId:currentForm.calEventId||""};
       currentForm={...currentForm,history:[movedEntry,...(currentForm.history||[])],ad:"",at:"",ate:"",ac:"",al:"",aa:[],am:"",calEventId:""};
     }
-    // 次回アクションがあればカレンダーに登録
+    // 次回アクションがあればカレンダーに登録（編集時は旧イベントを先に削除）
     if(currentForm.ad&&currentForm.at&&currentForm.ac){
+      // 編集で日時やタイトルが変わる可能性があるので、既存イベントがあれば一度削除して作り直す
+      await deleteOldCalEvent(currentForm.calEventId,currentForm.staff||myName);
+      currentForm={...currentForm,calEventId:""};
       try{
         const datetime=currentForm.ad+"T"+currentForm.at+":00";
         const endtime=currentForm.ate?currentForm.ad+"T"+currentForm.ate+":00":"";
@@ -644,6 +656,10 @@ function App(){
         const json=await res.json();
         if(json.ok&&json.data)currentForm={...currentForm,calEventId:json.data};
       }catch(e){console.log("カレンダー登録失敗",e);}
+    }else if(!currentForm.ad&&form.calEventId){
+      // アクション欄を空にした場合もGカレから削除
+      await deleteOldCalEvent(form.calEventId,form.staff||myName);
+      currentForm={...currentForm,calEventId:""};
     }
     const c={...currentForm,b:parseInt(currentForm.b)||0,staff:currentForm.staff||myName};let nd;if(modal==="edit"){nd=data.map(x=>x.id===c.id?c:x);}else{c.id=data.length?Math.max(...data.map(x=>x.id))+1:1;nd=[...data,c];}setData(nd);try{await store.set("fudo",JSON.stringify(nd));}catch(e){}closeModal();setSyncMsg("保存中…");try{await gasPost({action:"save",customers:nd});flash("✓ 保存完了");}catch(e){flash("⚠️ 保存失敗");}};
   // カードから直接ステータス変更して即保存
