@@ -466,7 +466,7 @@ function _renderInner(){
   const fp=document.getElementById('filterPerson').value;
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
-  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
 
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
@@ -1035,7 +1035,7 @@ document.addEventListener('mousemove',function(e){
   // moveの時だけstartMouseDiが必要（リサイズ時は不要）
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
-  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?34:DAY_W);}return _isSP?34:DAY_W;})();
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
   // マウス位置からdi計算
   let di=null;
   const cells=document.querySelectorAll('td.day-cell');
@@ -2180,15 +2180,22 @@ function showDonePopup(sid,pid,cx,cy){
 
 // スマホ判定（実デバイス幅で判定、プレビューに影響しない）
 if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  // 画面幅に応じてcol-info幅を動的計算（35%、最小120px、最大180px）
+  const _spColWidth=Math.max(120,Math.min(180,Math.floor(window.innerWidth*0.35)));
   const sp=document.createElement('style');
   sp.textContent=
-    '.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}th.col-info{width:180px!important;min-width:180px!important;max-width:180px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}'+
-    '.day-col{width:34px!important;min-width:34px!important}'+
+    `.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}th.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}`+
+    '.day-col{width:24px!important;min-width:24px!important}td.day-cell{width:24px!important;min-width:24px!important}'+
     '.btn-sm:not(.dropbox-btn):not(.child-edit-btn){display:none!important}.sp-hide{display:none!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
     '.badge-nd,.badge-warn,.badge-procwarn,.badge-nodate{display:none!important}'+
+    '.site-inner{padding:0 2px 0 2px!important;gap:0!important}'+
+    '.site-top{gap:2px!important}'+
+    '.toggle{width:10px!important;font-size:11px!important}'+
+    '.dropbox-btn{padding:0!important}'+
+    '.dropbox-btn svg{width:11px!important;height:11px!important}'+
     '.site-sub{font-size:9px!important;color:#555!important;padding-left:0!important}.site-key{display:block!important;font-size:9px;color:#555}'+
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
