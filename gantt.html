@@ -38,6 +38,13 @@ thead th.col-info{z-index:30;text-align:left;padding:0 8px;font-size:12px}
 thead th.wk{color:#E24B4A}
 thead th.tod{font-weight:700;background:#1D9E75!important;color:#fff!important;position:relative}
 thead th.tod::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:#0e7a5a}
+/* 物件ゼブラ(PC/スマホ共通) - 完了済み行も含めて同じ色の帯にする */
+tr.site-group-even td,tr.site-group-even.row-proc.done td,tr.site-group-even.row-proc.done td.day-cell{background:#eef2f6!important}
+tr.site-group-even td.wk-cell,tr.site-group-even.row-proc.done td.day-cell.wk-cell{background:#dfe6ed!important}
+tr.site-group-odd td,tr.site-group-odd.row-proc.done td,tr.site-group-odd.row-proc.done td.day-cell{background:#ffffff!important}
+tr.site-group-odd td.wk-cell,tr.site-group-odd.row-proc.done td.day-cell.wk-cell{background:#f0f0f0!important}
+tr.site-group-even td.tod-cell,tr.site-group-odd td.tod-cell{background:rgba(50,180,100,0.12)!important}
+tr.site-group-even.row-proc.done td.tod-cell,tr.site-group-odd.row-proc.done td.tod-cell{background:rgba(50,180,100,0.15)!important}
 tr.row-site td{background:#f5f5f5}
 tr.row-proc td{background:#fff}
 tr.row-proc.done td{background:#f5f5f3}
@@ -2177,6 +2184,21 @@ function showDonePopup(sid,pid,cx,cy){
   setTimeout(()=>document.addEventListener('touchstart',()=>{const p=document.getElementById('donePopup');if(p)p.remove();},{once:true}),100);
 }
 
+// 物件ゼブラ(PC/スマホ共通): render後に物件グループごとに奇数/偶数クラスを付与
+(function(){
+  const _origRender=render;
+  window.render=function(){
+    _origRender();
+    const _rows=document.querySelectorAll('#ganttBody tr');
+    let _siteIdx=-1;
+    _rows.forEach(tr=>{
+      tr.classList.remove('site-group-even','site-group-odd');
+      if(tr.classList.contains('row-site'))_siteIdx++;
+      if(_siteIdx<0)return;
+      tr.classList.add(_siteIdx%2===0?'site-group-even':'site-group-odd');
+    });
+  };
+})();
 
 // スマホ判定（実デバイス幅で判定、プレビューに影響しない）
 if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
@@ -2199,29 +2221,15 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.site-sub{font-size:9px!important;color:#555!important;padding-left:0!important}.site-key{display:block!important;font-size:9px;color:#555}'+
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
-    '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}'+
-    // 物件ゼブラ(スマホのみ)
-    'tr.site-group-even td{background:#eef2f6!important}'+
-    'tr.site-group-even td.wk-cell{background:#dfe6ed!important}'+
-    'tr.site-group-odd td{background:#ffffff!important}'+
-    'tr.site-group-odd td.wk-cell{background:#f0f0f0!important}'+
-    'tr.row-site td{border-top:1px solid #bbb!important}';
+    '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}';
   document.head.appendChild(sp);
-  // スマホでは担当者のみ表示（数量を非表示）+ 物件ゼブラ
+  // スマホでは担当者のみ表示（数量を非表示）
   const _origRender=render;
   window.render=function(){
     _origRender();
     document.querySelectorAll('.proc-meta').forEach(el=>{
       const txt=el.textContent;
       if(txt.includes('·')){el.textContent=txt.split('·')[0].trim();}
-    });
-    // 物件グループごとに奇数/偶数クラスを付与（工程行・子項目行も含めて同じ色の帯に）
-    const _rows=document.querySelectorAll('#ganttBody tr');
-    let _siteIdx=-1;
-    _rows.forEach(tr=>{
-      if(tr.classList.contains('row-site'))_siteIdx++;
-      if(_siteIdx<0)return;
-      tr.classList.add(_siteIdx%2===0?'site-group-even':'site-group-odd');
     });
   };
 }
