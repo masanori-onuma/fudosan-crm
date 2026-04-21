@@ -1251,11 +1251,32 @@ function allChildrenDone(procId){
   }
   return false;
 }
+// 発注管理対象の子項目を完了にしてよいかチェック。NGならアラートを出して false を返す
+function canCompleteChild(c){
+  if(!c||c.ordered===undefined)return true; // 発注管理対象外はそのまま許可
+  const material=(c.material||'').trim();
+  if(!material&&c.ordered!==true){
+    alert('完了にするには材料名の入力と発注済みチェックが必要です。');
+    return false;
+  }
+  if(!material){
+    alert('完了にするには材料名を入力してください。');
+    return false;
+  }
+  if(c.ordered!==true){
+    alert('完了にするには発注済みチェックを入れてください。');
+    return false;
+  }
+  return true;
+}
 function toggleChildDone(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){
-      if(!c.done){openChildDoneModal(procId,childId);return;}
+      if(!c.done){
+        if(!canCompleteChild(c))return;
+        openChildDoneModal(procId,childId);return;
+      }
       else{c.done=false;c.doneDate='';p.done=false;}
     }
     break;
@@ -1278,6 +1299,7 @@ function saveChildDone(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     const c=p.children.find(x=>x.id===childId);
     if(c){
+      if(!canCompleteChild(c))return;
       c.done=true;c.doneDate=date;
       // 子項目の期間終了日を完了日に合わせる
       if(date&&c.periods&&c.periods.length>0){
