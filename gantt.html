@@ -2200,13 +2200,12 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
     '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}'+
-    // 物件ゼブラ(スマホのみ) + 物件名stickyヘッダ
+    // 物件ゼブラ(スマホのみ)
     'tr.site-group-even td{background:#eef2f6!important}'+
     'tr.site-group-even td.wk-cell{background:#dfe6ed!important}'+
     'tr.site-group-odd td{background:#ffffff!important}'+
     'tr.site-group-odd td.wk-cell{background:#f0f0f0!important}'+
-    'tr.row-site td{border-top:1px solid #bbb!important}'+
-    'tr.row-site td.col-info{position:sticky!important;left:0!important;top:36px!important;z-index:15!important}';
+    'tr.row-site td{border-top:1px solid #bbb!important}';
   document.head.appendChild(sp);
   // スマホでは担当者のみ表示（数量を非表示）+ 物件ゼブラ
   const _origRender=render;
