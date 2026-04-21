@@ -1910,8 +1910,8 @@ function applyArchiveFilter(){
     }
     return true;
   });
-  // 完成日降順（新しい順）
-  sites.sort((a,b)=>(b.koukiEnd||'').localeCompare(a.koukiEnd||''));
+  // 完成日昇順（古い順→下にいくほど新しい、通常画面の工期の流れに合わせる）
+  sites.sort((a,b)=>(a.koukiEnd||'').localeCompare(b.koukiEnd||''));
 }
 
 function updateArchiveBanner(){
