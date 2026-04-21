@@ -420,31 +420,39 @@ window.addEventListener('load',function(){
   },{passive:true});
 });
 
-function makeBar(col,spanCount,label,isDone,isShort,dayW){
+function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   if(!dayW)dayW=DAY_W;
   const bar=document.createElement('div');
   bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#5a5a5a,#333333)';
-    bar.style.boxShadow='inset 0 0 0 1px #7d7d7d';
+    // 完了済みでも未発注があれば赤ボーダーで警告を維持
+    bar.style.boxShadow=isUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #7d7d7d';
   }else{
     bar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
-    bar.style.boxShadow='inset 0 0 0 1px #f5c800';
+    bar.style.boxShadow=isUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #f5c800';
   }
   // 左リサイズハンドル
   const lh=document.createElement('div');
-  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isDone?'#7d7d7d':'#f5c800')+';border-radius:3px 0 0 3px;opacity:0.85;';
+  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:3px 0 0 3px;opacity:0.85;';
   lh.dataset.handle='left';
   bar.appendChild(lh);
   // ラベル
   const lbl=document.createElement('span');
   const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(col);
   lbl.style.cssText='font-size:11px;font-weight:500;color:'+(isLight?'#333':'#fff')+';padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight?'0':'0.3')+')';
+  // 未発注があれば「未」マーク先頭に
+  if(isUnordered){
+    const warnMark=document.createElement('span');
+    warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;margin-right:2px;flex-shrink:0;line-height:1;pointer-events:none';
+    warnMark.textContent='未';
+    bar.appendChild(warnMark);
+  }
   lbl.textContent=label;
   bar.appendChild(lbl);
   // 右リサイズハンドル
   const rh=document.createElement('div');
-  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isDone?'#7d7d7d':'#f5c800')+';border-radius:0 3px 3px 0;opacity:0.85;';
+  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
@@ -669,15 +677,16 @@ function _renderInner(){
       let bg,boxShadow;
       if(proc.done){
         bg='linear-gradient(to bottom,#5a5a5a,#333333)';
-        boxShadow='inset 0 0 0 1px #7d7d7d';
+        // 完了済みでも未発注があれば赤ボーダーで警告を維持
+        boxShadow=_unordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #7d7d7d';
       }else{
         bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
         // 未発注がある場合は赤いボーダー、なければ通常の黄色
         boxShadow=_unordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #f5c800';
       }
       mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
-      // 未発注マーク（ラベルの左に赤い⚠）
-      if(_unordered&&!proc.done){
+      // 未発注マーク（ラベルの左に赤い⚠）完了済みでも表示
+      if(_unordered){
         const warnMark=document.createElement('span');
         warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin-right:3px;flex-shrink:0;line-height:1;pointer-events:none';
         warnMark.textContent='未';
@@ -792,7 +801,8 @@ function _renderInner(){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
-          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW);
+          const _procUnordered=(proc.children||[]).some(c=>c.ordered===false);
+          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW,_procUnordered);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
           bar.onclick=(e)=>{if(e.target.closest('[data-handle]'))return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
@@ -922,19 +932,24 @@ function _renderInner(){
               const cbar=document.createElement('div');
               const _dw=sc.getBoundingClientRect().width||DAY_W;
               const hasOwnPeriods=!!(child.periods&&child.periods.length);
+              // 子項目自身の未発注判定(ordered===false)
+              const _childUnordered=child.ordered===false;
               // 子バーは少し細く・透過して親バーと区別
               cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*_dw}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:2px;${hasOwnPeriods?'cursor:grab;':'pointer-events:none;'}user-select:none;-webkit-user-select:none;`;
               if(proc.done){
                 cbar.style.background='linear-gradient(to bottom,#6a6a6a,#444444)';
-                cbar.style.boxShadow='inset 0 0 0 1px #888';
+                // 完了済みでも未発注なら赤ボーダー
+                cbar.style.boxShadow=_childUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #888';
               }else{
                 cbar.style.background='linear-gradient(to bottom,'+lighten(col,40)+' 0%,'+lighten(col,10)+' 45%,'+darken(col,30)+' 100%)';
-                cbar.style.boxShadow='inset 0 0 0 1px rgba(255,200,0,0.7)';
+                cbar.style.boxShadow=_childUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px rgba(255,200,0,0.7)';
                 cbar.style.opacity='0.85';
               }
               if(hasOwnPeriods){
+                // ハンドル色: 未発注なら赤、完了済みならグレー、それ以外は黄色
+                const _handleBg=_childUnordered?'#E74C3C':(proc.done?'rgba(136,136,136,0.9)':'rgba(255,200,0,0.8)');
                 const lh=document.createElement('div');
-                lh.style.cssText='width:5px;height:100%;cursor:ew-resize;flex-shrink:0;background:rgba(255,200,0,0.8);border-radius:2px 0 0 2px;';
+                lh.style.cssText='width:5px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+_handleBg+';border-radius:2px 0 0 2px;';
                 lh.dataset.handle='left';
                 cbar.appendChild(lh);
                 const clbl=document.createElement('span');
@@ -942,7 +957,7 @@ function _renderInner(){
                 clbl.textContent=child.name+(child.area?' '+child.area:'')+(child.done&&child.doneDate?' ✓'+fmtD(child.doneDate):'');
                 cbar.appendChild(clbl);
                 const rh=document.createElement('div');
-                rh.style.cssText='width:5px;height:100%;cursor:ew-resize;flex-shrink:0;background:rgba(255,200,0,0.8);border-radius:0 2px 2px 0;';
+                rh.style.cssText='width:5px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+_handleBg+';border-radius:0 2px 2px 0;';
                 rh.dataset.handle='right';
                 cbar.appendChild(rh);
                 cbar.dataset.childId=child.id;
