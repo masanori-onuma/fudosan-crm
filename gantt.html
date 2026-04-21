@@ -561,8 +561,6 @@ function _renderInner(){
     const warnBadge='';
     const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
-    const koukiLabel=(ks&&ke)?`工期 ${fmtD(ks)} 〜 ${fmtD(ke)}`:'<span style="color:#185FA5">＋工期設定</span>';
-    const procInfoLabel=procs.length>0?`工程 ${procs.length}件${laneCount>1?' / '+laneCount+'段':''}`:'';
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
@@ -573,10 +571,7 @@ function _renderInner(){
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key">🔑 ${esc(site.keyLocation)}</div>`:''}
-      <div class="site-sub" style="display:flex;gap:8px;align-items:center;padding-left:16px;font-size:10px">
-        <span style="color:#555;cursor:pointer" onclick="openKoukiModal(${site.id})">${koukiLabel}</span>
-        ${procInfoLabel?`<span style="color:#888">${procInfoLabel}</span>`:''}
-      </div>
+      ${site.parking?`<div class="site-sub site-park">🚗 ${esc(site.parking)}</div>`:''}
       </div>`;
     siteRow.appendChild(siteTd);
 
@@ -1428,6 +1423,7 @@ function openSiteModal(id){
       <div class="field"><label>完成日</label><input type="date" id="s_kouki_end" value="${s.koukiEnd||''}"></div>
     </div>
     <div class="field"><label>🔑 鍵所在</label><input id="s_key" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}"></div>
+    <div class="field"><label>🚗 駐車場</label><input id="s_parking" placeholder="敷地内◯番・近隣コインP など" value="${esc(s.parking||'')}"></div>
     <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
     <div class="modal-btns">
       ${delBtn}
@@ -1770,10 +1766,11 @@ function saveSite(id){
   const client=document.getElementById('s_client_sel').value==='__custom__'?document.getElementById('s_client_inp').value.trim():document.getElementById('s_client_sel').value;
   const dropboxUrl=document.getElementById('s_dropbox').value.trim();
   const keyLocation=document.getElementById('s_key').value.trim();
+  const parking=document.getElementById('s_parking').value.trim();
   const koukiStart=document.getElementById('s_kouki_start').value;
   const koukiEnd=document.getElementById('s_kouki_end').value;
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,collapsed:false,koukiStart,koukiEnd,processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation,koukiStart,koukiEnd});}
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation,parking,koukiStart,koukiEnd});}
   saveData();closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
@@ -2013,6 +2010,7 @@ function openArchivedSiteModal(id){
             <div style="color:#888">元受会社</div><div>${esc(s.client||'')}</div>
             <div style="color:#888">工期</div><div>${s.koukiStart||''} 〜 ${s.koukiEnd||''}</div>
             ${s.keyLocation?'<div style="color:#888">鍵所在</div><div>'+esc(s.keyLocation)+'</div>':''}
+            ${s.parking?'<div style="color:#888">駐車場</div><div>'+esc(s.parking)+'</div>':''}
             ${s.dropboxUrl?'<div style="color:#888">Dropbox</div><div><a href="'+esc(s.dropboxUrl)+'" target="_blank" style="color:#185FA5">フォルダを開く</a></div>':''}
             <div style="color:#888">アーカイブ</div><div>${(s.archivedAt||'').slice(0,10)} (${s.archivedBy==='auto'?'自動':'手動'})</div>
           </div>
