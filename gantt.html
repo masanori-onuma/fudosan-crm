@@ -450,9 +450,10 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   }
   lbl.textContent=label;
   bar.appendChild(lbl);
-  // 右リサイズハンドル
+  // 右リサイズハンドル（バー右端に固定。flexから外してabsolute配置にすることで、
+  // バー幅が狭くてflex子要素がオーバーフローしても右端からはみ出さない）
   const rh=document.createElement('div');
-  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;';
+  rh.style.cssText='position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
