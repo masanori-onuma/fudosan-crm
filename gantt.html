@@ -467,12 +467,29 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   return bar;
 }
 
+let _lastUsedDayW=null;   // 直近のrenderで使った_dayW
+let _renderRetried=false; // 無限ループ防止用：この描画サイクルで既にリトライ済みか
 function render(){
   try{
   _renderInner();
   }catch(e){
     console.error('render error:',e.message,e.stack);
     showSyncStatus('render error:'+e.message.slice(0,40),10000);
+  }
+  // 描画後、実際の列幅と計算に使った_dayWがズレていたら1回だけ再描画する。
+  // 初回描画時やフォント読み込み前はth.day-colの幅が未確定で、バーの位置/幅がズレるため。
+  // ウィンドウリサイズや縮小操作で直る症状の根本修正。
+  if(!_renderRetried){
+    requestAnimationFrame(()=>{
+      const th=document.querySelector('th.day-col');
+      if(!th){_renderRetried=false;return;}
+      const actualW=th.getBoundingClientRect().width;
+      if(actualW>0&&_lastUsedDayW!==null&&Math.abs(actualW-_lastUsedDayW)>=1){
+        _renderRetried=true;      // リトライ実行中フラグON
+        try{_renderInner();}catch(e){console.error('render retry error:',e.message);}
+        _renderRetried=false;     // リトライ完了、次回の通常renderは再度リトライ可能
+      }
+    });
   }
 }
 function _renderInner(){
@@ -482,6 +499,7 @@ function _renderInner(){
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
+  _lastUsedDayW=_dayW; // 描画後に実際の列幅とズレを検出するため記録
 
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
