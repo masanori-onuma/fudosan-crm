@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <title>リフォーム工程表</title>
-<style>
+<style>h
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:13px;background:#f5f5f5;color:#111}
 header{background:#fff;border-bottom:1px solid #ddd;padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
@@ -452,7 +452,7 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   bar.appendChild(lbl);
   // 右リサイズハンドル
   const rh=document.createElement('div');
-  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;';
+  rh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;position:absolute;right:0;top:0;bottom:0;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
