@@ -423,7 +423,7 @@ window.addEventListener('load',function(){
 function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   if(!dayW)dayW=DAY_W;
   const bar=document.createElement('div');
-  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
+  bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:hidden;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#5a5a5a,#333333)';
     // 完了済みでも未発注があれば赤ボーダーで警告を維持
@@ -444,7 +444,7 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   // 未発注があれば「未」マーク先頭に
   if(isUnordered){
     const warnMark=document.createElement('span');
-    warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;margin-right:2px;flex-shrink:0;line-height:1;pointer-events:none';
+    warnMark.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#E74C3C;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;line-height:1;pointer-events:none;z-index:4;white-space:nowrap';
     warnMark.textContent='未';
     bar.appendChild(warnMark);
   }
@@ -457,13 +457,8 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
   bar.addEventListener('touchstart',function(e){e.preventDefault();},{passive:false});
-  // バー短い時は右外にラベル
-  if(isShort){
-    const ol=document.createElement('div');
-    ol.style.cssText=`position:absolute;top:4px;left:${spanCount*dayW+3}px;font-size:11px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
-    ol.textContent=label;
-    bar.appendChild(ol);
-  }
+// バー短い時はtitleでラベルを表示
+    if(isShort)bar.title=label;
   return bar;
 }
 
