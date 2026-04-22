@@ -678,7 +678,7 @@ function _renderInner(){
       // 未発注マーク（ラベルの左に赤い⚠）完了済みでも表示
       if(_unordered){
         const warnMark=document.createElement('span');
-        warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin-right:3px;flex-shrink:0;line-height:1;pointer-events:none';
+        warnMark.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#E74C3C;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;line-height:1;pointer-events:none;z-index:4;white-space:nowrap';
         warnMark.textContent='未';
         mini.appendChild(warnMark);
       }
