@@ -355,16 +355,32 @@ function saveData(){
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));
 }
-// 子バーの期間が親バーを超えたら親バーを自動拡張する
+// 子を持つ工程は、親の periods を子バーから自動計算する。
+// 子バーが日単位で連続している区間ごとに親 period を1本生成。
+// 子を持たない工程は従来通り proc.periods を触らない。
 function _expandProcPeriods(proc){
-  const allChildPeriods=(proc.children||[]).flatMap(c=>c.periods||[]).filter(p=>p.startD&&p.endD);
-  if(!allChildPeriods.length)return;
-  const minN=Math.min(...allChildPeriods.map(p=>toN(parseD(p.startD))));
-  const maxN=Math.max(...allChildPeriods.map(p=>toN(parseD(p.endD))));
-  const toDate=(n)=>fmt(new Date(Math.floor(n/10000),Math.floor((n%10000)/100)-1,n%100));
-  if(!proc.periods||!proc.periods.length){proc.periods=[{startD:toDate(minN),endD:toDate(maxN)}];return;}
-  proc.periods[0].startD=toDate(minN);
-  proc.periods[0].endD=toDate(maxN);
+  if(!proc.children||!proc.children.length)return;
+  const allChildPeriods=proc.children.flatMap(c=>c.periods||[]).filter(p=>p.startD&&p.endD);
+  if(!allChildPeriods.length){proc.periods=[];return;}
+  // 全子バーの各期間を日単位に展開 → Setで重複排除
+  const daySet=new Set();
+  allChildPeriods.forEach(p=>{
+    const s=parseD(p.startD),e=parseD(p.endD);
+    if(!s||!e)return;
+    for(let d=new Date(s);toN(d)<=toN(e);d=addDays(d,1))daySet.add(fmt(d));
+  });
+  const sortedDays=[...daySet].sort();
+  // 連続する日付の塊ごとに period を作る
+  const newPeriods=[];
+  let curStart=null,curEnd=null;
+  sortedDays.forEach(ds=>{
+    if(!curStart){curStart=ds;curEnd=ds;return;}
+    const next=fmt(addDays(parseD(curEnd),1));
+    if(ds===next){curEnd=ds;}
+    else{newPeriods.push({startD:curStart,endD:curEnd});curStart=ds;curEnd=ds;}
+  });
+  if(curStart)newPeriods.push({startD:curStart,endD:curEnd});
+  proc.periods=newPeriods;
 }
 
 function scrollToToday(){
