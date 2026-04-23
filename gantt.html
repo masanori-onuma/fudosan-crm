@@ -415,8 +415,20 @@ function getDays(){
 function rebuildSelects(){
   const fc=document.getElementById('filterClient'),fp=document.getElementById('filterPerson');
   const cv=fc.value,pv=fp.value;
-  fc.innerHTML='<option value="">すべて</option>'+[...new Set(sites.map(s=>s.client).filter(Boolean))].sort().map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
-  fp.innerHTML='<option value="">すべて</option>'+[...new Set(sites.flatMap(s=>s.processes.map(p=>p.person)).filter(Boolean))].sort().map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
+  // マスター順を優先し、マスターにない実データの値は末尾に追加する
+  const mergeByMaster=(masterList,actualSet)=>{
+    const seen=new Set();
+    const result=[];
+    (masterList||[]).forEach(v=>{if(v&&!seen.has(v)){result.push(v);seen.add(v);}});
+    [...actualSet].forEach(v=>{if(v&&!seen.has(v)){result.push(v);seen.add(v);}});
+    return result;
+  };
+  const clientActual=new Set(sites.map(s=>s.client).filter(Boolean));
+  const personActual=new Set(sites.flatMap(s=>s.processes.map(p=>p.person)).filter(Boolean));
+  const clientList=mergeByMaster(masters.clients,clientActual);
+  const personList=mergeByMaster(masters.persons,personActual);
+  fc.innerHTML='<option value="">すべて</option>'+clientList.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+  fp.innerHTML='<option value="">すべて</option>'+personList.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
   fc.value=cv;fp.value=pv;
 }
 
