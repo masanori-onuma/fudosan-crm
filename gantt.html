@@ -944,12 +944,12 @@ function _renderInner(){
               const span=aei-asi+1;
               const col=proc.done?'#999':proc.color;
               const cbar=document.createElement('div');
-              const _dw=sc.getBoundingClientRect().width||DAY_W;
+              // 子行セルは描画時点でDOM未接続のためgetBoundingClientRectが0を返す→親バーと同じ_dayWを使う
               const hasOwnPeriods=!!(child.periods&&child.periods.length);
               // 子項目自身の未発注判定(ordered===false)
               const _childUnordered=child.ordered===false;
               // 子バーは少し細く・透過して親バーと区別
-              cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*_dw}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:2px;${hasOwnPeriods?'cursor:grab;':'pointer-events:none;'}user-select:none;-webkit-user-select:none;`;
+              cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*_dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:2px;${hasOwnPeriods?'cursor:grab;':'pointer-events:none;'}user-select:none;-webkit-user-select:none;`;
               if(proc.done){
                 cbar.style.background='linear-gradient(to bottom,#6a6a6a,#444444)';
                 // 完了済みでも未発注なら赤ボーダー
@@ -1002,7 +1002,7 @@ function _renderInner(){
               }
               if(span<=3){
                 const col2=document.createElement('div');
-                col2.style.cssText=`position:absolute;top:2px;left:${span*_dw+3}px;font-size:9px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
+                col2.style.cssText=`position:absolute;top:2px;left:${span*_dayW+3}px;font-size:9px;font-weight:500;color:#444;white-space:nowrap;pointer-events:none;z-index:3`;
                 col2.textContent=child.name+(child.area?' '+child.area:'');
                 cbar.appendChild(col2);
               }
