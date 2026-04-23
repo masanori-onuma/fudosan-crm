@@ -8,6 +8,36 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <title>リフォーム工程表</title>
+<script>
+// === 自動更新チェック（ETag方式） ===
+// ページを開くたびにサーバー上のファイルが更新されていないかチェックし、
+// 更新されていれば自動的に最新版を読み込む。
+(function(){
+  try{
+    // リロード直後は再チェックしない（無限ループ防止）
+    if(sessionStorage.getItem('_justReloaded')==='1'){
+      sessionStorage.removeItem('_justReloaded');
+      return;
+    }
+    fetch(location.pathname,{method:'HEAD',cache:'no-store'})
+      .then(function(r){
+        var latest=r.headers.get('etag')||r.headers.get('last-modified');
+        if(!latest)return; // ETagもLast-Modifiedも無い場合は何もしない
+        var prev=localStorage.getItem('_pageVersion');
+        if(prev && prev!==latest){
+          // バージョンが変わっていたらリロード
+          sessionStorage.setItem('_justReloaded','1');
+          localStorage.setItem('_pageVersion',latest);
+          location.href=location.pathname+'?t='+Date.now();
+        }else{
+          // 初回または変更なし → 現在バージョンを記録
+          localStorage.setItem('_pageVersion',latest);
+        }
+      })
+      .catch(function(){/* オフライン等は何もしない */});
+  }catch(e){/* 予期せぬエラーでも画面表示は止めない */}
+})();
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:13px;background:#f5f5f5;color:#111}
