@@ -1008,8 +1008,9 @@ function _renderInner(){
               }
               sc.appendChild(cbar);
             });
-            // 独自期間がない場合、日付セルの長押しで期間設定できるようにする
-            if(!(child.periods&&child.periods.length)){
+            // 日付セルの長押しで新しい期間を追加できるようにする（既存の子バーがあっても休み明けなどに追加可）
+            // 既存バーの上で長押しした場合はバー側のonmousedownがstopPropagationするため、ここは反応しない
+            {
               let _childLongPress=null;
               let _childLPX=0,_childLPY=0;
               childDayCells.forEach((td,di)=>{
