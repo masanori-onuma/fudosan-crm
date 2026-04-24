@@ -343,6 +343,11 @@ async function loadData(){
 }
 let _undoStack=[];
 let _lastSaved=null;
+// 保存シリアライズ用の状態
+let _savingNow=false;       // GAS送信中かどうか
+let _pendingSave=false;     // 送信中に新しい保存要求が来たか
+let _lastSaveOkAt=0;        // 最後に保存成功した時刻（ポーリング抑制用）
+let _lastSaveAttemptAt=0;   // 最後に保存試行した時刻
 function saveData(){
   // アーカイブ閲覧モード中は保存しない（重要: sitesがアーカイブデータなのでGASに書き込むと大惨事）
   if(_viewMode==='archived'){console.warn('saveData: archived mode, skip');return;}
@@ -353,7 +358,93 @@ function saveData(){
     const el=document.getElementById('undoBtn');if(el)el.disabled=false;
   }
   _lastSaved=JSON.stringify(sites);
-  localStorage.setItem('gantt_sites',_lastSaved);showSyncStatus('保存中…');gasSave('gantt_sites',sites).then(ok=>showSyncStatus(ok?'✓ 保存済み':'保存失敗',2000));
+  localStorage.setItem('gantt_sites',_lastSaved);
+  // シリアライズ: 既に保存中ならフラグを立てて、現在の保存完了後にもう一度保存する
+  if(_savingNow){_pendingSave=true;showSyncStatus('保存待機中…',2000);return;}
+  _runSave();
+}
+function _runSave(){
+  _savingNow=true;
+  _pendingSave=false;
+  _lastSaveAttemptAt=Date.now();
+  showSyncStatus('保存中…');
+  const snapshot=_lastSaved; // この時点での内容を覚えておく
+  gasSave('gantt_sites',sites).then(ok=>{
+    _savingNow=false;
+    if(ok){
+      _lastSaveOkAt=Date.now();
+      hideSaveErrorBanner();
+      showSyncStatus('✓ 保存済み',2000);
+    }else{
+      showSyncStatus('保存失敗',3000);
+      showSaveErrorBanner();
+    }
+    // 保存中に新しい変更があったら続けて保存
+    if(_pendingSave && _lastSaved!==snapshot){
+      _runSave();
+    }
+  }).catch(e=>{
+    _savingNow=false;
+    console.error('gasSave error:',e);
+    showSyncStatus('保存失敗',3000);
+    showSaveErrorBanner();
+    if(_pendingSave){_runSave();}
+  });
+}
+// 保存失敗の目立つバナー
+function showSaveErrorBanner(){
+  let b=document.getElementById('saveErrorBanner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='saveErrorBanner';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;background:#E74C3C;color:#fff;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;justify-content:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+    b.innerHTML='<span>⚠ 保存に失敗しました。変更がサーバーに反映されていません。</span><button id="saveRetryBtn" style="background:#fff;color:#E74C3C;border:none;padding:4px 12px;border-radius:4px;font-weight:700;cursor:pointer">再試行</button><button id="saveErrorClose" style="background:transparent;color:#fff;border:1px solid #fff;padding:4px 10px;border-radius:4px;cursor:pointer">閉じる</button>';
+    document.body.appendChild(b);
+    document.getElementById('saveRetryBtn').onclick=()=>{hideSaveErrorBanner();_runSave();};
+    document.getElementById('saveErrorClose').onclick=()=>{hideSaveErrorBanner();};
+  }else{b.style.display='flex';}
+}
+function hideSaveErrorBanner(){
+  const b=document.getElementById('saveErrorBanner');
+  if(b)b.style.display='none';
+}
+// ポーリング: 定期的にGASから最新を取得して、他人の変更を画面に反映
+let _pollingTimer=null;
+async function _pollOnce(){
+  // スキップ条件
+  if(_viewMode==='archived')return;
+  if(_savingNow)return;                                   // 保存中はスキップ
+  if(Date.now()-_lastSaveOkAt<5000)return;                // 保存完了直後5秒はスキップ
+  if(Date.now()-_lastSaveAttemptAt<5000)return;           // 保存試行中/直後もスキップ
+  if(barDrag&&barDrag.active)return;                      // ドラッグ中はスキップ
+  if(document.querySelector('.modal-overlay'))return;     // モーダル表示中はスキップ
+  if(document.visibilityState!=='visible')return;         // タブ非表示中はスキップ
+  try{
+    const v=await gasLoad('gantt_sites');
+    if(!v)return; // 通信失敗等
+    if(v===_lastSaved)return; // 変化なし
+    // 変化あり → 画面を更新
+    const parsed=JSON.parse(v);
+    const normed=normalizeSites(parsed);
+    sites=normed;
+    _lastSaved=v;
+    localStorage.setItem('gantt_sites',v);
+    // スクロール位置を保持して再描画
+    const gs=document.getElementById('ganttScroll');
+    const sl=gs?gs.scrollLeft:0;
+    const st=gs?gs.scrollTop:0;
+    render();
+    if(gs){gs.scrollLeft=sl;gs.scrollTop=st;}
+    showSyncStatus('✓ 最新化',1500);
+  }catch(e){console.warn('poll error:',e.message);}
+}
+function startPolling(){
+  if(_pollingTimer)clearInterval(_pollingTimer);
+  _pollingTimer=setInterval(_pollOnce,30000); // 30秒間隔
+  // タブが再表示されたタイミングで即取得
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){_pollOnce();}
+  });
 }
 // 子を持つ工程は、親の periods を子バーから自動計算する。
 // 子バーが日単位で連続している区間ごとに親 period を1本生成。
@@ -2318,6 +2409,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 }
 loadMasters();
 loadData();
+startPolling();
 
 // スマホ：縦スクロール中は横スクロールをロック
 if(_isSP){
