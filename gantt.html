@@ -1099,7 +1099,9 @@ function _renderInner(){
               if(!sc)return;
               sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
               const span=aei-asi+1;
-              const col=proc.done?'#999':proc.color;
+              // 子バーの完了判定：親(proc.done)または子個別(child.done)のいずれか
+              const _childDone=proc.done||child.done;
+              const col=_childDone?'#999':proc.color;
               const cbar=document.createElement('div');
               // 子行セルは描画時点でDOM未接続のためgetBoundingClientRectが0を返す→親バーと同じ_dayWを使う
               const hasOwnPeriods=!!(child.periods&&child.periods.length);
@@ -1107,7 +1109,7 @@ function _renderInner(){
               const _childUnordered=child.ordered===false;
               // 子バーは少し細く・透過して親バーと区別
               cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*_dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:2px;${hasOwnPeriods?'cursor:grab;':'pointer-events:none;'}user-select:none;-webkit-user-select:none;`;
-              if(proc.done){
+              if(_childDone){
                 cbar.style.background='linear-gradient(to bottom,#6a6a6a,#444444)';
                 // 完了済みでも未発注なら赤ボーダー
                 cbar.style.boxShadow=_childUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #888';
@@ -1118,7 +1120,7 @@ function _renderInner(){
               }
               if(hasOwnPeriods){
                 // ハンドル色: 未発注なら赤、完了済みならグレー、それ以外は黄色
-                const _handleBg=_childUnordered?'#E74C3C':(proc.done?'rgba(136,136,136,0.9)':'rgba(255,200,0,0.8)');
+                const _handleBg=_childUnordered?'#E74C3C':(_childDone?'rgba(136,136,136,0.9)':'rgba(255,200,0,0.8)');
                 const lh=document.createElement('div');
                 lh.style.cssText='width:5px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+_handleBg+';border-radius:2px 0 0 2px;';
                 lh.dataset.handle='left';
