@@ -539,40 +539,49 @@ window.addEventListener('load',function(){
   },{passive:true});
 });
 
-function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered){
+function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered,isOverdue){
   if(!dayW)dayW=DAY_W;
   const bar=document.createElement('div');
   bar.style.cssText=`position:absolute;top:3px;bottom:3px;left:0;width:${spanCount*dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:3px;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;`;
+  // ボーダー色：未発注(赤)＞工期超過(オレンジ)＞通常(黄/グレー) の優先順
+  const _borderCol=isUnordered?'#E74C3C':(isOverdue?'#FF8C00':(isDone?'#7d7d7d':'#f5c800'));
+  const _borderW=(isUnordered||isOverdue)?'1.5px':'1px';
   if(isDone){
     bar.style.background='linear-gradient(to bottom,#5a5a5a,#333333)';
-    // 完了済みでも未発注があれば赤ボーダーで警告を維持
-    bar.style.boxShadow=isUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #7d7d7d';
+    bar.style.boxShadow='inset 0 0 0 '+_borderW+' '+_borderCol;
   }else{
     bar.style.background='linear-gradient(to bottom,'+lighten(col,60)+' 0%,'+lighten(col,20)+' 45%,'+darken(col,20)+' 55%,'+darken(col,40)+' 100%)';
-    bar.style.boxShadow=isUnordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #f5c800';
+    bar.style.boxShadow='inset 0 0 0 '+_borderW+' '+_borderCol;
   }
   // 左リサイズハンドル
   const lh=document.createElement('div');
-  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:3px 0 0 3px;opacity:0.85;';
+  lh.style.cssText='width:6px;height:100%;cursor:ew-resize;flex-shrink:0;background:'+_borderCol+';border-radius:3px 0 0 3px;opacity:0.85;';
   lh.dataset.handle='left';
   bar.appendChild(lh);
   // ラベル
   const lbl=document.createElement('span');
   const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(col);
   lbl.style.cssText='font-size:11px;font-weight:500;color:'+(isLight?'#333':'#fff')+';padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,'+(isLight?'0':'0.3')+')';
-  // 未発注があれば「未」マーク先頭に
+  // 未発注「未」マーク（赤）
   if(isUnordered){
     const warnMark=document.createElement('span');
     warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;margin-right:2px;flex-shrink:0;line-height:1;pointer-events:none';
     warnMark.textContent='未';
     bar.appendChild(warnMark);
   }
+  // 工期超過「過」マーク（オレンジ） 未発注と併発時も両方表示（緊急度が別のため）
+  if(isOverdue){
+    const overMark=document.createElement('span');
+    overMark.style.cssText='background:#FF8C00;color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:2px;margin-left:3px;margin-right:2px;flex-shrink:0;line-height:1;pointer-events:none';
+    overMark.textContent='過';
+    bar.appendChild(overMark);
+  }
   lbl.textContent=label;
   bar.appendChild(lbl);
   // 右リサイズハンドル（バー右端に固定。flexから外してabsolute配置にすることで、
   // バー幅が狭くてflex子要素がオーバーフローしても右端からはみ出さない）
   const rh=document.createElement('div');
-  rh.style.cssText='position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;background:'+(isUnordered?'#E74C3C':(isDone?'#7d7d7d':'#f5c800'))+';border-radius:0 3px 3px 0;opacity:0.85;';
+  rh.style.cssText='position:absolute;right:0;top:0;bottom:0;width:6px;cursor:ew-resize;background:'+_borderCol+';border-radius:0 3px 3px 0;opacity:0.85;';
   rh.dataset.handle='right';
   bar.appendChild(rh);
   // iOSのコピーメニューを防ぐ
@@ -652,6 +661,20 @@ function _renderInner(){
     const hasUnset=site.processes.some(p=>!p.periods||!p.periods.length);
     const koukiEndN=site.koukiEnd?toN(parseD(site.koukiEnd)):null;
     const isWarn=hasUnset&&koukiEndN!==null&&koukiEndN>=todayN&&koukiEndN<=toN(addDays(new Date(),warnDays));
+    // 工期超過判定：各工程の最終期間の終了日を過ぎても完了していないか
+    // （未完了＋最終期間の終了日 < 今日）。期間未設定の工程は判定対象外。
+    const _isProcOverdue=(p)=>{
+      if(p.done)return false;
+      const ps=p.periods||[];
+      if(!ps.length)return false;
+      let maxEndN=-Infinity;
+      ps.forEach(pd=>{
+        if(!pd.endD)return;
+        const n=toN(parseD(pd.endD));
+        if(!isNaN(n)&&n>maxEndN)maxEndN=n;
+      });
+      return maxEndN!==-Infinity&&maxEndN<todayN;
+    };
 
     // 物件行
     // === 工期とミニバーの配置を計算（siteRow内で描画するための事前計算） ===
@@ -811,23 +834,33 @@ function _renderInner(){
       const topPx=TOP_PAD+KOUKI_BAR_H+MID_GAP+lane*(LANE_H+LANE_GAP);
       // 未発注判定：発注管理する子項目で、まだ発注されていないものがあるか
       const _unordered=(proc.children||[]).some(c=>c.ordered===false);
+      // 工期超過判定（proc単位で判定済みのヘルパーを使用）
+      const _overdue=_isProcOverdue(proc);
+      // ボーダー色：未発注(赤)＞工期超過(オレンジ)＞通常(黄/グレー) の優先順
+      const _miniBorderCol=_unordered?'#E74C3C':(_overdue?'#FF8C00':(proc.done?'#7d7d7d':'#f5c800'));
+      const _miniBorderW=(_unordered||_overdue)?'1.5px':'1px';
       let bg,boxShadow;
       if(proc.done){
         bg='linear-gradient(to bottom,#5a5a5a,#333333)';
-        // 完了済みでも未発注があれば赤ボーダーで警告を維持
-        boxShadow=_unordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #7d7d7d';
+        boxShadow='inset 0 0 0 '+_miniBorderW+' '+_miniBorderCol;
       }else{
         bg='linear-gradient(to bottom,'+lighten(barColor,60)+' 0%,'+lighten(barColor,20)+' 45%,'+darken(barColor,20)+' 55%,'+darken(barColor,40)+' 100%)';
-        // 未発注がある場合は赤いボーダー、なければ通常の黄色
-        boxShadow=_unordered?'inset 0 0 0 1.5px #E74C3C':'inset 0 0 0 1px #f5c800';
+        boxShadow='inset 0 0 0 '+_miniBorderW+' '+_miniBorderCol;
       }
       mini.style.cssText=`position:absolute;top:${topPx}px;height:${LANE_H}px;left:0;width:${span*_dayW}px;z-index:2;border-radius:3px;background:${bg};box-shadow:${boxShadow};display:flex;align-items:center;padding:0 4px;overflow:hidden;cursor:pointer;`;
-      // 未発注マーク（ラベルの左に赤い⚠）完了済みでも表示
+      // 未発注マーク（赤「未」）完了済みでも表示
       if(_unordered){
         const warnMark=document.createElement('span');
         warnMark.style.cssText='background:#E74C3C;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin-right:3px;flex-shrink:0;line-height:1;pointer-events:none';
         warnMark.textContent='未';
         mini.appendChild(warnMark);
+      }
+      // 工期超過マーク（オレンジ「過」）未発注と併発時も両方表示
+      if(_overdue){
+        const overMark=document.createElement('span');
+        overMark.style.cssText='background:#FF8C00;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin-right:3px;flex-shrink:0;line-height:1;pointer-events:none';
+        overMark.textContent='過';
+        mini.appendChild(overMark);
       }
       const lbl=document.createElement('span');
       const isLight=['#ffffff','#f0f0f0','#cccccc','#E8D5A3','#A8D5A2','#FFFF00','#FFD700','#FFF176'].includes(barColor);
@@ -939,7 +972,8 @@ function _renderInner(){
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
           const _procUnordered=(proc.children||[]).some(c=>c.ordered===false);
-          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW,_procUnordered);
+          const _procOverdue=_isProcOverdue(proc);
+          const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW,_procUnordered,_procOverdue);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
           bar.onclick=(e)=>{if(e.target.closest('[data-handle]'))return;openProcModal(site.id,proc.id);};
           bar.onmousedown=(e)=>{
