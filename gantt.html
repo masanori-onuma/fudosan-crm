@@ -657,17 +657,21 @@ function _renderInner(){
     // === 工期とミニバーの配置を計算（siteRow内で描画するための事前計算） ===
     const ks=site.koukiStart,ke=site.koukiEnd;
     // ミニバー用のレーン計算
+    // ソート順：メイン工程バー（procs配列）の表示順と完全一致させる
+    // 同一proc内に複数periodがある場合は開始日順
     const barItems=[];
-    procs.forEach(proc=>{
+    procs.forEach((proc,procIdx)=>{
       (proc.periods||[]).forEach(period=>{
         if(!period.startD||!period.endD)return;
         const sN=toN(parseD(period.startD));
         const eN=toN(parseD(period.endD));
         if(isNaN(sN)||isNaN(eN))return;
-        barItems.push({proc,period,startN:sN,endN:eN,lane:-1});
+        barItems.push({proc,procIdx,period,startN:sN,endN:eN,lane:-1});
       });
     });
-    barItems.sort((a,b)=>a.startN-b.startN||a.endN-b.endN);
+    barItems.sort((a,b)=>a.procIdx-b.procIdx||a.startN-b.startN||a.endN-b.endN);
+    // レーン割り当て：procs順に上から詰めるため、各procに対して空きレーンを探す
+    // 同じproc内の重複しないperiodは同じレーンを共有可能
     const laneEnds=[];
     barItems.forEach(item=>{
       let assignedLane=-1;
