@@ -46,6 +46,7 @@ header a:hover{color:#185FA5}
 .smp-child .name{font-size:12px;color:#555}
 .smp-tag-done{font-size:9px;color:#0F6E56;background:#E1F5EE;padding:1px 5px;border-radius:6px;flex-shrink:0}
 .smp-add-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
+.smp-del-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #f0c0c0;background:#fff5f5;color:#c00;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
 .smp-fields{display:flex;gap:6px;align-items:center}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
 .smp-fields .f-num{flex:0 1 150px;min-width:0}
@@ -2468,6 +2469,13 @@ function renderSumpouMode(){
       orderedChildren.forEach(child=>{
         const hasMaterial=!!child.material;
         const parts=_splitMaterial(child.material||'');
+        // 同名（連番除去後）の子項目が他にあれば削除可能
+        const _baseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+        const _siblings=orderedChildren.filter(x=>{
+          const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+          return n===_baseName;
+        });
+        const _canDelete=_siblings.length>1;
         html+=`<div class="smp-child${hasMaterial?' done-input':''}" id="smpchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
@@ -2477,6 +2485,7 @@ function renderSumpouMode(){
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
             <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
             <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
+            ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
           </div>
         </div>`;
       });
@@ -2603,6 +2612,39 @@ function smpAddSibling(siteId,procId,baseChildId){
       if(inp)inp.focus();
     }
   },50);
+}
+
+// 連番付き子項目を削除（同名兄弟がいる時のみ可能）
+function smpDelSibling(siteId,procId,childId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  // 削除対象の同名子項目数を確認（最後の1個は削除させない）
+  const baseName=(c.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+  const siblings=p.children.filter(x=>{
+    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+    return n===baseName&&x.ordered!==undefined;
+  });
+  if(siblings.length<=1){alert('この項目は削除できません（最後の1件です）');return;}
+  // 確認
+  const label=c.material?`「${c.name}」（${c.material}）`:`「${c.name}」`;
+  if(!confirm(label+'を削除しますか？'))return;
+  // 削除
+  p.children=p.children.filter(x=>x.id!==childId);
+  // 残った同名子項目の連番を整理（1個になった場合は連番を外す）
+  const remainSibs=p.children.filter(x=>{
+    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+    return n===baseName&&x.ordered!==undefined;
+  });
+  if(remainSibs.length===1){
+    remainSibs[0].name=baseName;
+  }else{
+    // 連番を振り直し
+    const numerals=['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+    remainSibs.forEach((x,i)=>{x.name=baseName+numerals[Math.min(i,numerals.length-1)];});
+  }
+  saveData();
+  renderSumpouMode();
 }
 
 function openMasterModal(){
