@@ -45,10 +45,14 @@ header a:hover{color:#185FA5}
 .smp-child .name{font-size:12px;color:#555}
 .smp-tag-done{font-size:9px;color:#0F6E56;background:#E1F5EE;padding:1px 5px;border-radius:6px;flex-shrink:0}
 .smp-add-btn{margin-left:auto;font-size:10px;height:22px;padding:0 7px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:4px;cursor:pointer;flex-shrink:0}
-.smp-fields{display:flex;gap:6px}
+.smp-fields{display:flex;gap:8px;align-items:center}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
-.smp-fields .f-num{flex:1;min-width:0}
-.smp-fields .f-qty{width:120px}
+.smp-fields .f-num{flex:0 1 200px;min-width:0}
+.smp-fields .f-qty{flex:0 1 200px;min-width:0}
+@media (max-width:600px){
+  .smp-fields .f-num{flex:1 1 0}
+  .smp-fields .f-qty{flex:0 0 110px}
+}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px}
 .smp-saving{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#1D9E75;color:#fff;font-size:12px;padding:6px 14px;border-radius:14px;z-index:200;opacity:0;transition:opacity 0.2s}
 .smp-saving.show{opacity:1}
