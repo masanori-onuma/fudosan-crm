@@ -790,7 +790,7 @@ function _renderInner(){
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
       ${ndBadge}${warnBadge}${dropboxBtn}
       ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
-      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
+      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouWindow(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
       <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
@@ -2339,21 +2339,31 @@ function delProc(siteId,procId){
 // ============================================================
 let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
-// ヘッダの「📐 寸法入力」ボタンから呼ばれる：コンパクトウィンドウで開く（PC）
-// スマホはサイズ指定が効かないので、結果として通常タブで開く
-function openSumpouWindow(){
+// ヘッダの「📐 寸法入力」ボタン or 物件名横の「📐」ボタンから呼ばれる
+// jumpToSiteIdが指定されればその物件だけ表示、なければ全物件表示
+// PC：別ウィンドウ（500x900）で開く
+// スマホ：同じタブで切替
+function openSumpouWindow(jumpToSiteId){
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if(isMobile){
-    openSumpouMode();
+    openSumpouMode(jumpToSiteId);
     return;
   }
-  // PC：別ウィンドウで開く（500x900のコンパクトサイズ）
-  const baseSearch=location.search.replace(/[?&]mode=sumpou/g,'').replace(/^\?$/,'');
-  const url=location.pathname+(baseSearch?baseSearch+'&':'?')+'mode=sumpou';
-  const w=window.open(url,'sumpouWin','width=500,height=900,scrollbars=yes,resizable=yes');
+  // PC：別ウィンドウで開く
+  const baseSearch=location.search.replace(/[?&]mode=sumpou\b/g,'').replace(/[?&]site=\d+\b/g,'').replace(/^\?$/,'');
+  let qs='?mode=sumpou';
+  if(jumpToSiteId)qs+='&site='+jumpToSiteId;
+  if(baseSearch)qs=baseSearch+'&'+qs.substring(1);
+  const url=location.pathname+qs;
+  // 各物件で別ウィンドウ名にして同時に複数開けるようにする（物件ごとに別ウィンドウ）
+  const winName=jumpToSiteId?'sumpouWin_'+jumpToSiteId:'sumpouWin';
+  const w=window.open(url,winName,'width=500,height=900,scrollbars=yes,resizable=yes');
   if(!w){
     alert('ポップアップがブロックされました。同じタブで開きます。\n\nコンパクトウィンドウで使いたい場合は、ブラウザのポップアップ設定でこのサイトを許可してください。');
-    openSumpouMode();
+    openSumpouMode(jumpToSiteId);
+  }else{
+    // 既存ウィンドウが再利用された場合はフォーカスを戻す
+    try{w.focus();}catch(e){}
   }
 }
 
@@ -2938,8 +2948,11 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
 loadMasters();
 loadData().then(()=>{
   // URL ?mode=sumpou があれば、寸法入力モードを自動で開く
+  // ?site=123 があれば、その物件のみ表示モードで開く
   if(/[?&]mode=sumpou\b/.test(location.search)){
-    openSumpouMode();
+    const m=location.search.match(/[?&]site=(\d+)/);
+    const siteId=m?parseInt(m[1],10):null;
+    openSumpouMode(siteId);
   }
 });
 startPolling();
