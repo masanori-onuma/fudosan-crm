@@ -44,7 +44,7 @@ header a:hover{color:#185FA5}
 .smp-child .name-row{display:flex;align-items:center;gap:5px;margin-bottom:4px}
 .smp-child .name{font-size:12px;color:#555}
 .smp-tag-done{font-size:9px;color:#0F6E56;background:#E1F5EE;padding:1px 5px;border-radius:6px;flex-shrink:0}
-.smp-add-btn{margin-left:auto;font-size:10px;height:22px;padding:0 7px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:4px;cursor:pointer;flex-shrink:0}
+.smp-add-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
 .smp-fields{display:flex;gap:8px;align-items:center}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
 .smp-fields .f-num{flex:0 1 200px;min-width:0}
@@ -2467,11 +2467,11 @@ function renderSumpouMode(){
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
             ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
-            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
           </div>
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
             <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
+            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
           </div>
         </div>`;
       });
