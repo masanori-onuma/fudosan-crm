@@ -73,6 +73,17 @@ body.smp-modal-open{overflow:hidden}
   .smp-overlay{padding:0;align-items:stretch}
   .smp-panel{width:100%;max-width:100%;max-height:100vh;height:100vh;border-radius:0;animation:none}
 }
+/* 発注一覧モード（寸法入力と同じ構造を使う、追加スタイルだけ） */
+.smp-child.ord-done{background:#fafafa;opacity:0.55}
+.smp-child.ord-done .smp-fields input{background:#f5f5f5}
+.smp-child.ord-pending{background:#fffbf2}
+.smp-child.ord-disabled{background:#fff;opacity:0.85}
+.smp-child.ord-disabled .ord-check-wrap{opacity:0.4;pointer-events:none}
+.ord-check-wrap{display:flex;align-items:center;gap:6px;padding:6px 0 2px;cursor:pointer;user-select:none}
+.ord-check-wrap input[type=checkbox]{width:18px;height:18px;cursor:pointer;flex-shrink:0;margin:0}
+.ord-check-wrap .lbl-pending{color:#E74C3C;font-weight:500;font-size:12px}
+.ord-check-wrap .lbl-done{color:#1D9E75;font-weight:500;font-size:12px}
+.ord-warn-no-mat{font-size:10px;color:#854F0B;background:#fff7e6;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -231,6 +242,7 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <button class="btn btn-sm btn-primary" onclick="scrollToToday()" title="今日の列へ移動">今日</button>
   <button class="btn btn-sm" onclick="openSumpouMode()" title="現場で品番・数量を入力するモード">📐 寸法入力</button>
+  <button class="btn btn-sm" onclick="openOrderListMode()" title="発注対象の一覧を表示し、発注済みチェックする">📋 発注一覧</button>
   <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
@@ -797,6 +809,7 @@ function _renderInner(){
       ${ndBadge}${warnBadge}${dropboxBtn}
       ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
       ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
+      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="この物件の発注一覧へ">📋</button>`:''}
       <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
@@ -2703,6 +2716,221 @@ function smpDelSibling(siteId,procId,childId){
   }
   saveData();
   renderSumpouMode();
+}
+
+// ============================================================
+// 発注一覧モード（発注対象を一覧表示し発注済みチェック）
+// ============================================================
+let _orderFilter={search:'',mode:'pending',focusSiteId:null};
+
+function openOrderListMode(jumpToSiteId){
+  document.getElementById('sumpouView').style.display='';
+  document.body.classList.add('smp-modal-open');
+  if(jumpToSiteId){
+    _orderFilter.search='';
+    _orderFilter.mode='all';
+    _orderFilter.focusSiteId=jumpToSiteId;
+  }else{
+    _orderFilter.focusSiteId=null;
+  }
+  // どっちのモードを開いたかをsumpouViewに記憶
+  document.getElementById('sumpouView').dataset.mode='order';
+  renderOrderListMode();
+}
+function closeOrderListMode(){
+  document.getElementById('sumpouView').style.display='none';
+  document.getElementById('sumpouView').innerHTML='';
+  document.getElementById('sumpouView').dataset.mode='';
+  document.body.classList.remove('smp-modal-open');
+  _orderFilter.focusSiteId=null;
+}
+
+// 工期バッジ（寸法入力と同じロジック流用）
+function _ordKoukiBadge(site){return _smpKoukiBadge(site);}
+
+function renderOrderListMode(){
+  const v=document.getElementById('sumpouView');
+  const search=_orderFilter.search.trim().toLowerCase();
+  const mode=_orderFilter.mode; // 'pending' | 'all'
+  const focusId=_orderFilter.focusSiteId;
+
+  // 発注管理対象の子項目があり、アーカイブされていない物件のみ
+  let targetSites=sites.filter(s=>{
+    if(s.archived)return false;
+    return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+  });
+  if(focusId){
+    targetSites=targetSites.filter(s=>s.id===focusId);
+  }else{
+    if(search){
+      targetSites=targetSites.filter(s=>{
+        const hay=((s.name||'')+' '+(s.addr||'')).toLowerCase();
+        return hay.includes(search);
+      });
+    }
+    if(mode==='pending'){
+      // 未発注（ordered===false）の子項目を1つでも持つ物件
+      targetSites=targetSites.filter(s=>{
+        return s.processes.some(p=>(p.children||[]).some(c=>c.ordered===false));
+      });
+    }
+  }
+  targetSites=_smpSortSites(targetSites);
+
+  // 未発注件数（全物件合計）
+  let totalPending=0;
+  sites.forEach(s=>{
+    if(s.archived)return;
+    s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+      if(c.ordered===false)totalPending++;
+    }));
+  });
+
+  const focusSite=focusId?sites.find(s=>s.id===focusId):null;
+
+  let html=`<div class="smp-overlay" onclick="ordOverlayClick(event)"><div class="smp-panel" onclick="event.stopPropagation()">
+    <div class="smp-toolbar">
+      <button class="btn btn-sm smp-back-btn" onclick="closeOrderListMode()">✕ 閉じる</button>
+      <div style="font-size:13px;font-weight:500;margin-left:4px">📋 発注一覧</div>
+      ${focusId?`
+        <div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ表示中</div>
+        <button class="btn btn-sm smp-back-btn" onclick="ordShowAllSites()" style="font-size:10px">全物件表示</button>
+      `:`
+        <div style="font-size:11px;color:${totalPending>0?'#A32D2D':'#1D9E75'};margin-left:8px">未発注 ${totalPending}件</div>
+        <input id="ordSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_orderFilter.search)}" oninput="onOrderSearch(this.value)" style="flex:1;min-width:120px">
+        <select onchange="_orderFilter.mode=this.value;renderOrderListMode()">
+          <option value="pending" ${mode==='pending'?'selected':''}>未発注のみ</option>
+          <option value="all" ${mode==='all'?'selected':''}>すべて</option>
+        </select>
+      `}
+    </div>
+    <div class="smp-body">`;
+
+  if(!targetSites.length){
+    html+=`<div class="smp-empty">${mode==='pending'?'未発注の物件はありません 🎉':'発注管理対象の子項目を持つ物件がありません'}</div>`;
+  }else{
+    targetSites.forEach(site=>{
+      const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr||'');
+      // この物件で表示する子項目（mode=pendingなら未発注のみ、allなら全件）
+      let visibleChildren=[];
+      site.processes.forEach(proc=>{
+        (proc.children||[]).forEach(c=>{
+          if(c.ordered===undefined)return;
+          if(mode==='pending'&&c.ordered===true)return;
+          visibleChildren.push({proc,child:c});
+        });
+      });
+      if(!visibleChildren.length)return;
+
+      html+=`<div class="smp-block">
+        <div class="smp-site-head">
+          <div class="row1">
+            ${_ordKoukiBadge(site)}
+            <span class="smp-site-name">${esc(site.name)}</span>
+          </div>
+          <div class="smp-site-meta">
+            📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
+            🔑 ${site.keyLocation?esc(site.keyLocation):'<span style="color:#aaa">鍵所在未登録</span>'}
+          </div>
+        </div>`;
+
+      // 工程ごとにまとめる（同じ工程が連続する場合は工程ヘッダ1回だけ）
+      let lastProcId=null;
+      visibleChildren.forEach(({proc,child})=>{
+        if(proc.id!==lastProcId){
+          html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+          lastProcId=proc.id;
+        }
+        const isOrdered=(child.ordered===true);
+        const hasMaterial=!!child.material;
+        const parts=_splitMaterial(child.material||'');
+        // クラス：発注済み / 品番未入力で発注不可 / 通常未発注
+        let rowCls='smp-child';
+        if(isOrdered)rowCls+=' ord-done';
+        else if(!hasMaterial)rowCls+=' ord-disabled';
+        else rowCls+=' ord-pending';
+        html+=`<div class="${rowCls}" id="ordchild_${child.id}">
+          <div class="name-row">
+            <span class="name">${esc(child.name||'')}</span>
+          </div>
+          <div class="smp-fields">
+            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#ordchild_${child.id} .f-qty'))" ${isOrdered?'':''}>
+            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>
+          </div>
+          ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+          <label class="ord-check-wrap">
+            <input type="checkbox" ${isOrdered?'checked':''} ${!hasMaterial&&!isOrdered?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
+            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
+          </label>
+        </div>`;
+      });
+
+      html+='</div>';
+    });
+  }
+
+  html+=`</div><!-- /smp-body -->
+  </div><!-- /smp-panel --></div><!-- /smp-overlay -->
+  <div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+
+  v.innerHTML=html;
+}
+
+function ordOverlayClick(e){
+  if(e.target.classList.contains('smp-overlay'))closeOrderListMode();
+}
+
+function ordShowAllSites(){
+  _orderFilter.focusSiteId=null;
+  _orderFilter.mode='pending';
+  renderOrderListMode();
+}
+
+function onOrderSearch(v){
+  _orderFilter.search=v;
+  clearTimeout(window._ordSearchT);
+  window._ordSearchT=setTimeout(()=>{
+    renderOrderListMode();
+    const inp=document.getElementById('ordSearch');
+    if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  },300);
+}
+
+// 発注一覧モードの品番・数量更新（保存処理は寸法入力モードと同じ）
+function ordUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  const num=(numEl?numEl.value:'').trim();
+  const qty=(qtyEl?qtyEl.value:'').trim();
+  const newMat=num&&qty?(num+' '+qty):(num||qty);
+  if(numEl)numEl.classList.remove('dirty');
+  if(qtyEl)qtyEl.classList.remove('dirty');
+  if(c.material===newMat)return;
+  c.material=newMat;
+  saveData();
+  smpToast('✓ 保存しました');
+  // 発注チェックの有効/無効状態を更新したいので再描画
+  renderOrderListMode();
+}
+
+// 発注済みチェックの切替
+function ordToggleOrdered(siteId,procId,childId,checked){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  // 品番未入力で発注済みにしようとした場合は弾く
+  if(checked&&!c.material){
+    alert('品番が未入力のため発注済みにできません。先に品番を入力してください。');
+    renderOrderListMode();
+    return;
+  }
+  c.ordered=checked?true:false;
+  saveData();
+  smpToast(checked?'✓ 発注済みにしました':'✓ 未発注に戻しました');
+  // 「未発注のみ」モードでチェック入れた場合は消える、解除した場合は復帰
+  // どちらの場合も再描画が必要
+  renderOrderListMode();
 }
 
 function openMasterModal(){
