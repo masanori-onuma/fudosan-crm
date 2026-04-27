@@ -22,6 +22,7 @@ header a:hover{color:#185FA5}
 .btn{height:28px;padding:0 12px;font-size:12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#111;cursor:pointer;white-space:nowrap;touch-action:manipulation}
 .btn:hover{background:#f0f0f0}
 .btn-sm{height:22px;padding:0 7px;font-size:11px}
+.sp-only{display:none}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -193,6 +194,7 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
     <button class="btn sp-hide" onclick="openArchiveView()" title="アーカイブ済み物件を閲覧">📦 アーカイブ閲覧</button>
   </div>
   <div class="filter-bar">
+    <input id="filterSearch" placeholder="🔍 物件名・所在地で検索" oninput="render()" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:160px">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
     <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
@@ -254,6 +256,7 @@ let viewStart,viewEnd;
 let sites=[];
 let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+window._isSP=_isSP;
 let masters={clients:[],persons:[],procNames:[]};
 const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
@@ -625,6 +628,8 @@ function _renderInner(){
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
+  const fsEl=document.getElementById('filterSearch');
+  const fs=fsEl?fsEl.value.trim().toLowerCase():'';
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
@@ -653,6 +658,10 @@ function _renderInner(){
   sites.filter(site=>{
     if(fc&&site.client!==fc)return false;
     if(fp&&!site.processes.some(p=>p.person===fp))return false;
+    if(fs){
+      const hay=((site.name||'')+' '+(site.addr||'')).toLowerCase();
+      if(!hay.includes(fs))return false;
+    }
     return true;
   }).forEach(site=>{
     const procs=site.processes.filter(p=>fp?p.person===fp:true);
@@ -731,11 +740,12 @@ function _renderInner(){
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
       ${ndBadge}${warnBadge}${dropboxBtn}
+      ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
       <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
-      ${site.keyLocation?`<div class="site-sub site-key">🔑 ${esc(site.keyLocation)}</div>`:''}
+      ${site.keyLocation?`<div class="site-sub site-key" onclick="(window._isSP&&openKeyModal(${site.id}))" style="cursor:pointer">🔑 ${esc(site.keyLocation)}</div>`:''}
       ${site.parking?`<div class="site-sub site-park">🚗 ${esc(site.parking)}</div>`:''}
       </div>`;
     siteRow.appendChild(siteTd);
@@ -1551,7 +1561,7 @@ function saveDone(pid){
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
 }
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
-function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';render();}
+function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';const fs=document.getElementById('filterSearch');if(fs)fs.value='';render();}
 
 // モーダル系
 function openKoukiModal(siteId){
@@ -1571,6 +1581,31 @@ function openKoukiModal(siteId){
 }
 function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();saveData();render();}
 function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';saveData();closeModal();}
+
+// 鍵所在のみ編集する軽量モーダル（スマホからの素早い入力用）
+function openKeyModal(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay"><div class="modal" style="max-width:380px">
+    <h3>🔑 鍵所在</h3>
+    <div style="font-size:12px;color:#666;margin-bottom:6px">${esc(s.name||'')}</div>
+    <div class="field"><label>鍵の所在</label>
+      <input id="k_loc" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}" autofocus>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveKeyOnly(${siteId})">保存</button>
+    </div></div></div>`;
+  // 自動フォーカス＋カーソル末尾
+  setTimeout(()=>{const el=document.getElementById('k_loc');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},50);
+}
+function saveKeyOnly(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s){closeModal();return;}
+  const v=document.getElementById('k_loc').value.trim();
+  s.keyLocation=v;
+  saveData();
+  closeModal();
+}
 
 function openSiteModal(id){
   // アーカイブ閲覧モード: 読み取り専用＋復元ボタンのモーダル
@@ -2422,7 +2457,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     `.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}th.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}`+
     '.day-col{width:24px!important;min-width:24px!important}td.day-cell{width:24px!important;min-width:24px!important}'+
-    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn){display:none!important}.sp-hide{display:none!important}'+
+    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn):not(.key-add-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
