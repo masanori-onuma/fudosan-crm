@@ -1146,7 +1146,7 @@ function _renderInner(){
             childTd.className='col-info';
             const _trackOrder=child.ordered!==undefined;
             const _cColor=child.done?'#aaa':(_trackOrder&&!child.ordered?'#E74C3C':'#555');
-            const _oMark=_trackOrder?`<span style="font-size:10px;flex-shrink:0;padding:0 3px;color:${child.ordered?'#27AE60':'#E74C3C'}">${child.ordered?'発注済':'未発注'}</span>`:'';
+            const _oMark='';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:56px">
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
               <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px"> '+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
@@ -3116,7 +3116,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     `.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}th.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}`+
     '.day-col{width:24px!important;min-width:24px!important}td.day-cell{width:24px!important;min-width:24px!important}'+
-    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn):not(.key-add-btn):not(.sumpou-btn):not(.smp-back-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
+    '.btn-sm:not(.dropbox-btn):not(.key-add-btn):not(.sumpou-btn):not(.smp-back-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
