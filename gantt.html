@@ -56,8 +56,15 @@ header a:hover{color:#185FA5}
   .smp-fields .f-qty{flex:0 0 110px}
 }
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px}
-.smp-saving{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#1D9E75;color:#fff;font-size:12px;padding:6px 14px;border-radius:14px;z-index:200;opacity:0;transition:opacity 0.2s}
-.smp-saving.show{opacity:1}
+.smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:300;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
+.smp-saving.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.smp-saving.error{background:#c53030}
+.smp-save-btn{background:#1D9E75!important;color:#fff!important;border-color:#1a8763!important;font-weight:500}
+.smp-save-btn:hover{background:#1a8763!important}
+.smp-save-btn.has-pending{background:#E67E22!important;border-color:#c46818!important}
+.smp-save-btn.has-pending:hover{background:#c46818!important}
+.smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
+.smp-dirty-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E67E22;margin-left:5px;vertical-align:middle}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -2328,40 +2335,34 @@ function delProc(siteId,procId){
 // ============================================================
 // 寸法入力モード（現場で品番・数量を入力する用）
 // ============================================================
-let _sumpouFilter={search:'',mode:'incomplete'};
+let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
 function openSumpouMode(jumpToSiteId){
   document.getElementById('ganttView').style.display='none';
   document.getElementById('sumpouView').style.display='';
   // ガント側の縦/横スクロール位置を保持しつつ、ページのスクロールはトップへ
   window.scrollTo(0,0);
-  // 物件指定時：「未入力のみ」で隠れないように一時的に「すべて」モードへ
   if(jumpToSiteId){
+    // 物件指定モード：その物件だけ表示
     _sumpouFilter.search='';
     _sumpouFilter.mode='all';
+    _sumpouFilter.focusSiteId=jumpToSiteId;
+  }else{
+    // 全物件モード：通常表示
+    _sumpouFilter.focusSiteId=null;
   }
   renderSumpouMode();
-  // 指定物件にスクロール＋最初の入力欄にフォーカス
+  // 指定物件の最初の入力欄にフォーカス
   if(jumpToSiteId){
     setTimeout(()=>{
-      // 物件ブロックのidは付けていないので、物件名で探す
-      const s=sites.find(x=>x.id===jumpToSiteId);if(!s)return;
-      const blocks=document.querySelectorAll('.smp-site-name');
-      for(const el of blocks){
-        if(el.textContent===s.name){
-          const block=el.closest('.smp-block');
-          if(block){
-            // ヘッダ＋固定ツールバーの高さ分オフセット
-            const _hh=(document.querySelector('header')?.getBoundingClientRect().height)||0;
-            const _tbh=(document.querySelector('.smp-toolbar')?.getBoundingClientRect().height)||0;
-            const _y=block.getBoundingClientRect().top+window.pageYOffset-_hh-_tbh-8;
-            window.scrollTo({top:_y,behavior:'smooth'});
-            // 最初の未入力欄にフォーカス
-            const firstEmpty=block.querySelector('.f-num:placeholder-shown');
-            if(firstEmpty)setTimeout(()=>firstEmpty.focus(),500);
-          }
-          break;
-        }
+      const block=document.querySelector('.smp-block');
+      if(block){
+        const _hh=(document.querySelector('header')?.getBoundingClientRect().height)||0;
+        const _tbh=(document.querySelector('.smp-toolbar')?.getBoundingClientRect().height)||0;
+        const _y=block.getBoundingClientRect().top+window.pageYOffset-_hh-_tbh-8;
+        window.scrollTo({top:_y,behavior:'smooth'});
+        const firstEmpty=block.querySelector('.f-num:placeholder-shown');
+        if(firstEmpty)setTimeout(()=>firstEmpty.focus(),500);
       }
     },50);
   }
@@ -2370,6 +2371,7 @@ function closeSumpouMode(){
   document.getElementById('sumpouView').style.display='none';
   document.getElementById('sumpouView').innerHTML='';
   document.getElementById('ganttView').style.display='';
+  _sumpouFilter.focusSiteId=null;
   window.scrollTo(0,0);
 }
 
@@ -2399,24 +2401,30 @@ function renderSumpouMode(){
   const v=document.getElementById('sumpouView');
   const search=_sumpouFilter.search.trim().toLowerCase();
   const mode=_sumpouFilter.mode;
+  const focusId=_sumpouFilter.focusSiteId;
 
   // 発注管理対象の子項目があり、アーカイブされていない物件のみ
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
     return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
   });
-  // 検索フィルタ
-  if(search){
-    targetSites=targetSites.filter(s=>{
-      const hay=((s.name||'')+' '+(s.addr||'')).toLowerCase();
-      return hay.includes(search);
-    });
-  }
-  // 「未入力のみ」モード：品番未入力の子項目を1つでも持つ物件
-  if(mode==='incomplete'){
-    targetSites=targetSites.filter(s=>{
-      return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
-    });
+  // フォーカスモード：1物件だけ
+  if(focusId){
+    targetSites=targetSites.filter(s=>s.id===focusId);
+  }else{
+    // 検索フィルタ
+    if(search){
+      targetSites=targetSites.filter(s=>{
+        const hay=((s.name||'')+' '+(s.addr||'')).toLowerCase();
+        return hay.includes(search);
+      });
+    }
+    // 「未入力のみ」モード：品番未入力の子項目を1つでも持つ物件
+    if(mode==='incomplete'){
+      targetSites=targetSites.filter(s=>{
+        return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
+      });
+    }
   }
   targetSites=_smpSortSites(targetSites);
 
@@ -2429,16 +2437,25 @@ function renderSumpouMode(){
     }));
   });
 
+  // フォーカスモード時の表示物件名
+  const focusSite=focusId?sites.find(s=>s.id===focusId):null;
+
   let html=`
     <div class="smp-toolbar">
       <button class="btn btn-sm smp-back-btn" onclick="closeSumpouMode()">◀ ガントに戻る</button>
       <div style="font-size:13px;font-weight:500;margin-left:4px">📐 寸法入力モード</div>
-      <div style="font-size:11px;color:${totalIncomplete>0?'#A32D2D':'#1D9E75'};margin-left:8px">未入力 ${totalIncomplete}項目</div>
-      <input id="smpSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_sumpouFilter.search)}" oninput="onSumpouSearch(this.value)" style="width:200px">
-      <select onchange="_sumpouFilter.mode=this.value;renderSumpouMode()">
-        <option value="incomplete" ${mode==='incomplete'?'selected':''}>未入力のみ</option>
-        <option value="all" ${mode==='all'?'selected':''}>すべて</option>
-      </select>
+      ${focusId?`
+        <div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ表示中</div>
+        <button class="btn btn-sm smp-back-btn" onclick="smpShowAllSites()" style="font-size:10px">全物件表示</button>
+      `:`
+        <div style="font-size:11px;color:${totalIncomplete>0?'#A32D2D':'#1D9E75'};margin-left:8px">未入力 ${totalIncomplete}項目</div>
+        <input id="smpSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_sumpouFilter.search)}" oninput="onSumpouSearch(this.value)" style="width:200px">
+        <select onchange="_sumpouFilter.mode=this.value;renderSumpouMode()">
+          <option value="incomplete" ${mode==='incomplete'?'selected':''}>未入力のみ</option>
+          <option value="all" ${mode==='all'?'selected':''}>すべて</option>
+        </select>
+      `}
+      <button class="btn btn-sm smp-save-btn smp-back-btn" id="smpSaveBtn" onclick="smpManualSave()" style="margin-left:auto">💾 保存</button>
     </div>`;
 
   if(!targetSites.length){
@@ -2482,8 +2499,8 @@ function renderSumpouMode(){
             ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
           </div>
           <div class="smp-fields">
-            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
-            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
+            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
+            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
             <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
             ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
           </div>
@@ -2539,6 +2556,14 @@ function onSumpouSearch(v){
 }
 
 // 品番・数量入力の保存（onchange = focus離脱時）
+// フォーカスモード解除：全物件表示に戻す
+function smpShowAllSites(){
+  _sumpouFilter.focusSiteId=null;
+  _sumpouFilter.mode='incomplete';
+  renderSumpouMode();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
@@ -2546,7 +2571,10 @@ function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   const num=(numEl?numEl.value:'').trim();
   const qty=(qtyEl?qtyEl.value:'').trim();
   const newMat=num&&qty?(num+' '+qty):(num||qty);
-  if(c.material===newMat)return;
+  // dirty解除（変更があってもなくても、フォーカス外しのタイミングで解除）
+  if(numEl)numEl.classList.remove('dirty');
+  if(qtyEl)qtyEl.classList.remove('dirty');
+  if(c.material===newMat){_smpUpdatePendingState();return;}
   c.material=newMat;
   saveData();
   // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
@@ -2567,9 +2595,50 @@ function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
       if(tag)tag.remove();
     }
   }
-  // 保存トースト
+  smpToast('✓ 保存しました');
+  _smpUpdatePendingState();
+}
+
+// 入力中マーカーをつける（oninput時）
+function smpMarkDirty(el){
+  if(el)el.classList.add('dirty');
+  _smpUpdatePendingState();
+}
+
+// 未保存（dirty）の入力欄があるかどうかでツールバーの保存ボタン色を切り替え
+function _smpUpdatePendingState(){
+  const v=document.getElementById('sumpouView');if(!v)return;
+  const hasPending=!!v.querySelector('.smp-fields input.dirty');
+  const btn=document.getElementById('smpSaveBtn');
+  if(btn){
+    if(hasPending)btn.classList.add('has-pending');
+    else btn.classList.remove('has-pending');
+  }
+}
+
+// 「💾 保存」ボタン押下：dirty欄を強制的にblurして自動保存トリガー＋確実にsaveData
+function smpManualSave(){
+  const v=document.getElementById('sumpouView');if(!v)return;
+  // dirty状態の入力欄があれば、まずblurしてonchangeで自動保存させる
+  const dirtyEls=v.querySelectorAll('.smp-fields input.dirty');
+  dirtyEls.forEach(el=>el.blur());
+  // 念のためsaveDataも明示的に呼ぶ
+  setTimeout(()=>{
+    saveData();
+    smpToast('💾 保存しました');
+    _smpUpdatePendingState();
+  },50);
+}
+
+// 保存トースト表示
+function smpToast(msg,isError){
   const t=document.getElementById('smpSaving');
-  if(t){t.classList.add('show');clearTimeout(window._smpSaveT);window._smpSaveT=setTimeout(()=>t.classList.remove('show'),1200);}
+  if(!t)return;
+  t.textContent=msg;
+  t.classList.toggle('error',!!isError);
+  t.classList.add('show');
+  clearTimeout(window._smpSaveT);
+  window._smpSaveT=setTimeout(()=>t.classList.remove('show'),isError?2400:1500);
 }
 
 // 同工程内に子項目をコピー追加（多品番ケース）
