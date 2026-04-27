@@ -261,7 +261,7 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
     <button class="btn sp-hide" onclick="openArchiveView()" title="アーカイブ済み物件を閲覧">📦 アーカイブ閲覧</button>
   </div>
   <div class="filter-bar">
-    <input id="filterSearch" placeholder="🔍 物件名・所在地で検索" oninput="render()" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:160px">
+    <input id="filterSearch" placeholder="🔍 物件名・所在地・品番で検索" oninput="render()" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:160px">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
     <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
@@ -698,7 +698,8 @@ function _renderInner(){
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
   const fsEl=document.getElementById('filterSearch');
-  const fs=fsEl?fsEl.value.trim().toLowerCase():'';
+  // 検索語は全半角スペース除去＋小文字化（対象側も同じ正規化をして比較）
+  const fs=fsEl?fsEl.value.trim().toLowerCase().replace(/[\s　]+/g,''):'';
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
@@ -728,7 +729,17 @@ function _renderInner(){
     if(fc&&site.client!==fc)return false;
     if(fp&&!site.processes.some(p=>p.person===fp))return false;
     if(fs){
-      const hay=((site.name||'')+' '+(site.addr||'')).toLowerCase();
+      // 物件名・所在地・子項目の品番(material)・子項目名・工程名を検索対象に
+      const parts=[site.name||'',site.addr||''];
+      site.processes.forEach(p=>{
+        parts.push(p.name||'');
+        (p.children||[]).forEach(c=>{
+          parts.push(c.name||'');
+          parts.push(c.material||'');
+        });
+      });
+      // 検索語側と同じ正規化（全半角スペース除去＋小文字化）
+      const hay=parts.join(' ').toLowerCase().replace(/[\s　]+/g,'');
       if(!hay.includes(fs))return false;
     }
     return true;
