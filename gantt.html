@@ -145,6 +145,7 @@ td.day-cell{width:26px;min-width:26px;padding:0;position:relative;touch-action:p
 td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 .site-inner{display:flex;flex-direction:column;justify-content:center;padding:0 6px 0 4px;height:100%;gap:1px;touch-action:pan-y}
 .site-top{display:flex;align-items:center;gap:3px;line-height:1}
+.site-actions{display:inline-flex;align-items:center;gap:3px;flex-shrink:0;margin-left:auto}
 .toggle{cursor:pointer;font-size:12px;color:#555;user-select:none;flex-shrink:0;width:14px;text-align:center}
 .site-name{font-weight:600;color:#0C447C;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;cursor:pointer}
 .site-sub{font-size:10px;color:#185FA5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:16px}
@@ -802,20 +803,18 @@ function _renderInner(){
     const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+    const _actionsHtml=`<span class="site-actions">${dropboxBtn}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="この物件の発注一覧へ">📋</button>`:''}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
-      ${ndBadge}${warnBadge}${dropboxBtn}
-      ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
-      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
-      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="この物件の発注一覧へ">📋</button>`:''}
-      <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
-      <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
+      ${ndBadge}${warnBadge}
+      ${_isSP?'':_actionsHtml}
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key" onclick="(window._isSP&&openKeyModal(${site.id}))" style="cursor:pointer">🔑 ${esc(site.keyLocation)}</div>`:''}
       ${site.parking?`<div class="site-sub site-park">🚗 ${esc(site.parking)}</div>`:''}
+      ${_isSP?_actionsHtml:''}
       </div>`;
     siteRow.appendChild(siteTd);
 
@@ -3118,6 +3117,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
     '.dropbox-btn{padding:0!important}'+
     '.dropbox-btn svg{width:11px!important;height:11px!important}'+
     '.site-sub{font-size:9px!important;color:#555!important;padding-left:0!important}.site-key{display:block!important;font-size:9px;color:#555}'+
+    '.site-actions{display:flex!important;flex-wrap:wrap!important;gap:4px!important;width:100%!important;margin-left:0!important;padding-top:4px!important;padding-left:14px!important}'+
     '.site-name{font-size:10px}'+
     '.proc-name{font-size:10px}'+
     '.proc-meta{max-width:100%!important;font-size:9px;color:#888;display:block!important}';
