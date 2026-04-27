@@ -23,6 +23,35 @@ header a:hover{color:#185FA5}
 .btn:hover{background:#f0f0f0}
 .btn-sm{height:22px;padding:0 7px;font-size:11px}
 .sp-only{display:none}
+/* 寸法入力モード */
+#sumpouView{padding:0}
+.smp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #ddd;margin-bottom:10px}
+.smp-toolbar input{height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:6px}
+.smp-toolbar select{height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px;background:#fff}
+.smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:14px;overflow:hidden}
+.smp-site-head{background:#f7faff;padding:10px 12px;border-bottom:1px solid #d6e6f5}
+.smp-site-head .row1{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px}
+.smp-badge{font-size:9px;color:#fff;padding:1px 6px;border-radius:8px;font-weight:500;flex-shrink:0}
+.smp-badge.red{background:#A32D2D}
+.smp-badge.amber{background:#BA7517}
+.smp-badge.gray{background:#5F5E5A}
+.smp-site-name{font-size:14px;color:#185FA5;font-weight:500}
+.smp-site-meta{font-size:11px;color:#555;line-height:1.6}
+.smp-site-meta a{color:#185FA5;text-decoration:none}
+.smp-proc-head{padding:6px 12px;background:#f5f5f3;font-size:11px;color:#666;border-bottom:1px solid #eee;font-weight:500}
+.smp-child{padding:8px 12px;border-bottom:1px solid #eee}
+.smp-child.done-input{background:#f9fff9}
+.smp-child .name-row{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.smp-child .name{font-size:12px;color:#555}
+.smp-tag-done{font-size:9px;color:#0F6E56;background:#E1F5EE;padding:1px 5px;border-radius:6px;flex-shrink:0}
+.smp-add-btn{margin-left:auto;font-size:10px;height:22px;padding:0 7px;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:4px;cursor:pointer;flex-shrink:0}
+.smp-fields{display:flex;gap:6px}
+.smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
+.smp-fields .f-num{flex:1;min-width:0}
+.smp-fields .f-qty{width:120px}
+.smp-empty{padding:30px;text-align:center;color:#888;font-size:13px}
+.smp-saving{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#1D9E75;color:#fff;font-size:12px;padding:6px 14px;border-radius:14px;z-index:200;opacity:0;transition:opacity 0.2s}
+.smp-saving.show{opacity:1}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -180,9 +209,11 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
   <span id="undoMsg" style="font-size:11px;color:#555"></span>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <button class="btn btn-sm btn-primary" onclick="scrollToToday()" title="今日の列へ移動">今日</button>
+  <button class="btn btn-sm" onclick="openSumpouMode()" title="現場で品番・数量を入力するモード">📐 寸法入力</button>
   <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
+<div id="ganttView">
   <div class="toolbar">
     <label>表示開始</label><input type="date" id="startDate">
     <label>終了</label><input type="date" id="endDate">
@@ -209,6 +240,8 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
       <table id="ganttTable"><thead id="ganttHead"></thead><tbody id="ganttBody"></tbody></table>
     </div>
   </div>
+</div><!-- /ganttView -->
+<div id="sumpouView" style="display:none"></div>
 </div>
 <div id="modalEl"></div>
 
@@ -735,12 +768,14 @@ function _renderInner(){
     const warnBadge='';
     const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
+    const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
       ${ndBadge}${warnBadge}${dropboxBtn}
       ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
+      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
       <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
@@ -2283,6 +2318,265 @@ function delProc(siteId,procId){
 }
 
 // マスター
+// ============================================================
+// ============================================================
+// 寸法入力モード（現場で品番・数量を入力する用）
+// ============================================================
+let _sumpouFilter={search:'',mode:'incomplete'};
+
+function openSumpouMode(jumpToSiteId){
+  document.getElementById('ganttView').style.display='none';
+  document.getElementById('sumpouView').style.display='';
+  // ガント側の縦/横スクロール位置を保持しつつ、ページのスクロールはトップへ
+  window.scrollTo(0,0);
+  // 物件指定時：「未入力のみ」で隠れないように一時的に「すべて」モードへ
+  if(jumpToSiteId){
+    _sumpouFilter.search='';
+    _sumpouFilter.mode='all';
+  }
+  renderSumpouMode();
+  // 指定物件にスクロール＋最初の入力欄にフォーカス
+  if(jumpToSiteId){
+    setTimeout(()=>{
+      // 物件ブロックのidは付けていないので、物件名で探す
+      const s=sites.find(x=>x.id===jumpToSiteId);if(!s)return;
+      const blocks=document.querySelectorAll('.smp-site-name');
+      for(const el of blocks){
+        if(el.textContent===s.name){
+          const block=el.closest('.smp-block');
+          if(block){
+            block.scrollIntoView({behavior:'smooth',block:'start'});
+            // 最初の未入力欄にフォーカス
+            const firstEmpty=block.querySelector('.f-num:placeholder-shown');
+            if(firstEmpty)setTimeout(()=>firstEmpty.focus(),300);
+          }
+          break;
+        }
+      }
+    },50);
+  }
+}
+function closeSumpouMode(){
+  document.getElementById('sumpouView').style.display='none';
+  document.getElementById('sumpouView').innerHTML='';
+  document.getElementById('ganttView').style.display='';
+  window.scrollTo(0,0);
+}
+
+// 工期判定：今日からの日数で色を決める
+function _smpKoukiBadge(site){
+  if(!site.koukiEnd)return '<span class="smp-badge gray">工期未設定</span>';
+  const todayN=toN(new Date());
+  const endN=toN(parseD(site.koukiEnd));
+  const diff=endN-todayN;
+  const fmtMD=(d)=>{const x=parseD(d);return (x.getMonth()+1)+'/'+x.getDate();};
+  if(diff<=3)return `<span class="smp-badge red">⚠ ${fmtMD(site.koukiEnd)}</span>`;
+  if(diff<=7)return `<span class="smp-badge amber">${fmtMD(site.koukiEnd)}</span>`;
+  return `<span class="smp-badge gray">${fmtMD(site.koukiEnd)}</span>`;
+}
+
+// 工期で物件をソート（近い順、未設定は最後）
+function _smpSortSites(arr){
+  return arr.slice().sort((a,b)=>{
+    if(!a.koukiEnd&&!b.koukiEnd)return 0;
+    if(!a.koukiEnd)return 1;
+    if(!b.koukiEnd)return -1;
+    return toN(parseD(a.koukiEnd))-toN(parseD(b.koukiEnd));
+  });
+}
+
+function renderSumpouMode(){
+  const v=document.getElementById('sumpouView');
+  const search=_sumpouFilter.search.trim().toLowerCase();
+  const mode=_sumpouFilter.mode;
+
+  // 発注管理対象の子項目があり、アーカイブされていない物件のみ
+  let targetSites=sites.filter(s=>{
+    if(s.archived)return false;
+    return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+  });
+  // 検索フィルタ
+  if(search){
+    targetSites=targetSites.filter(s=>{
+      const hay=((s.name||'')+' '+(s.addr||'')).toLowerCase();
+      return hay.includes(search);
+    });
+  }
+  // 「未入力のみ」モード：品番未入力の子項目を1つでも持つ物件
+  if(mode==='incomplete'){
+    targetSites=targetSites.filter(s=>{
+      return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
+    });
+  }
+  targetSites=_smpSortSites(targetSites);
+
+  // 未入力件数（全物件合計）
+  let totalIncomplete=0;
+  sites.forEach(s=>{
+    if(s.archived)return;
+    s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+      if(c.ordered!==undefined&&!c.material)totalIncomplete++;
+    }));
+  });
+
+  let html=`
+    <div class="smp-toolbar">
+      <button class="btn btn-sm" onclick="closeSumpouMode()">◀ ガントに戻る</button>
+      <div style="font-size:13px;font-weight:500;margin-left:4px">📐 寸法入力モード</div>
+      <div style="font-size:11px;color:${totalIncomplete>0?'#A32D2D':'#1D9E75'};margin-left:8px">未入力 ${totalIncomplete}項目</div>
+      <input id="smpSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_sumpouFilter.search)}" oninput="onSumpouSearch(this.value)" style="margin-left:auto;min-width:160px;flex:1;max-width:240px">
+      <select onchange="_sumpouFilter.mode=this.value;renderSumpouMode()">
+        <option value="incomplete" ${mode==='incomplete'?'selected':''}>未入力のみ</option>
+        <option value="all" ${mode==='all'?'selected':''}>すべて</option>
+      </select>
+    </div>`;
+
+  if(!targetSites.length){
+    html+=`<div class="smp-empty">${mode==='incomplete'?'未入力の物件はありません 🎉':'発注管理対象の子項目を持つ物件がありません'}</div>`;
+    v.innerHTML=html;
+    return;
+  }
+
+  targetSites.forEach(site=>{
+    const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr||'');
+    html+=`<div class="smp-block">
+      <div class="smp-site-head">
+        <div class="row1">
+          ${_smpKoukiBadge(site)}
+          <span class="smp-site-name">${esc(site.name)}</span>
+        </div>
+        <div class="smp-site-meta">
+          📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
+          🔑 ${site.keyLocation?esc(site.keyLocation):'<span style="color:#aaa">鍵所在未登録</span>'}
+        </div>
+      </div>`;
+
+    // 工程ごとに区切る
+    site.processes.forEach(proc=>{
+      const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
+      if(!orderedChildren.length)return;
+      html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+      orderedChildren.forEach(child=>{
+        const hasMaterial=!!child.material;
+        const parts=_splitMaterial(child.material||'');
+        html+=`<div class="smp-child${hasMaterial?' done-input':''}" id="smpchild_${child.id}">
+          <div class="name-row">
+            <span class="name">${esc(child.name||'')}</span>
+            ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
+            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
+          </div>
+          <div class="smp-fields">
+            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
+            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
+          </div>
+        </div>`;
+      });
+    });
+
+    html+='</div>';
+  });
+
+  // 保存中インジケーター
+  html+='<div id="smpSaving" class="smp-saving">✓ 保存しました</div>';
+
+  v.innerHTML=html;
+}
+
+// material文字列を「品番」「数量」に分割（最初のスペースで区切り）
+function _splitMaterial(m){
+  if(!m)return {num:'',qty:''};
+  const idx=m.search(/[\s　]/);
+  if(idx<0)return {num:m,qty:''};
+  return {num:m.substring(0,idx),qty:m.substring(idx).trim()};
+}
+
+function onSumpouSearch(v){
+  _sumpouFilter.search=v;
+  // 入力中はDOM全体を再描画せずタイマーで遅延（フォーカスを失わないように）
+  clearTimeout(window._smpSearchT);
+  window._smpSearchT=setTimeout(()=>{
+    renderSumpouMode();
+    const inp=document.getElementById('smpSearch');
+    if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  },300);
+}
+
+// 品番・数量入力の保存（onchange = focus離脱時）
+function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  const num=(numEl?numEl.value:'').trim();
+  const qty=(qtyEl?qtyEl.value:'').trim();
+  const newMat=num&&qty?(num+' '+qty):(num||qty);
+  if(c.material===newMat)return;
+  c.material=newMat;
+  saveData();
+  // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
+  const row=document.getElementById('smpchild_'+childId);
+  if(row){
+    if(newMat){
+      row.classList.add('done-input');
+      const nameRow=row.querySelector('.name-row');
+      if(nameRow&&!nameRow.querySelector('.smp-tag-done')){
+        const tag=document.createElement('span');
+        tag.className='smp-tag-done';
+        tag.textContent='✓入力済';
+        nameRow.querySelector('.name').after(tag);
+      }
+    }else{
+      row.classList.remove('done-input');
+      const tag=row.querySelector('.smp-tag-done');
+      if(tag)tag.remove();
+    }
+  }
+  // 保存トースト
+  const t=document.getElementById('smpSaving');
+  if(t){t.classList.add('show');clearTimeout(window._smpSaveT);window._smpSaveT=setTimeout(()=>t.classList.remove('show'),1200);}
+}
+
+// 同工程内に子項目をコピー追加（多品番ケース）
+function smpAddSibling(siteId,procId,baseChildId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
+  // 同名子項目の数で連番をつける
+  const baseName=(baseChild.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+  const sameNameCount=(p.children||[]).filter(x=>{
+    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+    return n===baseName;
+  }).length;
+  // 既存の子項目に番号がついていなければ、最初のやつに①を付ける
+  const numerals=['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+  if(sameNameCount===1&&!/[①-⑨]/.test(baseChild.name||'')){
+    baseChild.name=baseName+'①';
+  }
+  // 新しい子項目を作成（baseChildのすぐ後ろに挿入）
+  const newChild={
+    id:nextCid++,
+    name:baseName+numerals[Math.min(sameNameCount,numerals.length-1)],
+    area:'',
+    material:'',
+    note:'',
+    ordered:false, // 発注管理ON、未発注からスタート
+    periods:[],
+    done:false
+  };
+  const idx=p.children.findIndex(x=>x.id===baseChildId);
+  p.children.splice(idx+1,0,newChild);
+  saveData();
+  renderSumpouMode();
+  // 追加した行の品番欄にフォーカス
+  setTimeout(()=>{
+    const row=document.getElementById('smpchild_'+newChild.id);
+    if(row){
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+      const inp=row.querySelector('.f-num');
+      if(inp)inp.focus();
+    }
+  },50);
+}
+
 function openMasterModal(){
   function listHtml(arr,key){
     if(!arr.length)return `<div style="font-size:11px;color:#aaa;padding:4px 0">未登録</div>`;
@@ -2457,7 +2751,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     `.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}th.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}`+
     '.day-col{width:24px!important;min-width:24px!important}td.day-cell{width:24px!important;min-width:24px!important}'+
-    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn):not(.key-add-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
+    '.btn-sm:not(.dropbox-btn):not(.child-edit-btn):not(.key-add-btn):not(.sumpou-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
