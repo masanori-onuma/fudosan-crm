@@ -25,7 +25,8 @@ header a:hover{color:#185FA5}
 .sp-only{display:none}
 /* 寸法入力モード */
 #sumpouView{padding:0}
-.smp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid #ddd;margin:0 -16px 10px;position:sticky;top:44px;background:#f5f5f5;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,0.05);will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.smp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid #ddd;position:fixed;left:0;right:0;background:#f5f5f5;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.smp-toolbar-spacer{height:1px}
 .smp-toolbar input{height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:6px}
 .smp-toolbar select{height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px;background:#fff}
 .smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:14px;overflow:hidden}
@@ -2484,6 +2485,25 @@ function renderSumpouMode(){
   html+='<div id="smpSaving" class="smp-saving">✓ 保存しました</div>';
 
   v.innerHTML=html;
+
+  // ヘッダ実高さ取得 → toolbarのtopに反映＋下のコンテンツ用スペーサー高さ調整
+  const _h=document.querySelector('header');
+  const _t=v.querySelector('.smp-toolbar');
+  if(_h&&_t){
+    const _hb=_h.getBoundingClientRect();
+    _t.style.top=_hb.height+'px';
+    // toolbarが画面に被るので、その高さ分のスペーサーをコンテンツ先頭に挿入
+    requestAnimationFrame(()=>{
+      const _tb=_t.getBoundingClientRect();
+      let sp=v.querySelector('.smp-toolbar-spacer');
+      if(!sp){
+        sp=document.createElement('div');
+        sp.className='smp-toolbar-spacer';
+        _t.after(sp);
+      }
+      sp.style.height=(_tb.height+10)+'px';
+    });
+  }
 }
 
 // material文字列を「品番」「数量」に分割（最初のスペースで区切り）
