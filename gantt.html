@@ -29,7 +29,7 @@ header a:hover{color:#185FA5}
 .smp-toolbar-spacer{height:1px}
 .smp-toolbar input{height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:6px}
 .smp-toolbar select{height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px;background:#fff}
-.smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:14px;overflow:hidden;max-width:720px}
+.smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:14px;overflow:hidden;max-width:440px}
 .smp-site-head{background:#f7faff;padding:10px 12px;border-bottom:1px solid #d6e6f5}
 .smp-site-head .row1{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px}
 .smp-badge{font-size:9px;color:#fff;padding:1px 6px;border-radius:8px;font-weight:500;flex-shrink:0}
@@ -49,12 +49,8 @@ header a:hover{color:#185FA5}
 .smp-del-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #f0c0c0;background:#fff5f5;color:#c00;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
 .smp-fields{display:flex;gap:6px;align-items:center}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
-.smp-fields .f-num{flex:0 1 150px;min-width:0}
-.smp-fields .f-qty{flex:0 1 150px;min-width:0}
-@media (max-width:600px){
-  .smp-fields .f-num{flex:1 1 0}
-  .smp-fields .f-qty{flex:0 0 110px}
-}
+.smp-fields .f-num{flex:1 1 0;min-width:0}
+.smp-fields .f-qty{flex:0 0 110px}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px}
 .smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:300;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
 .smp-saving.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -63,6 +59,12 @@ header a:hover{color:#185FA5}
 .smp-save-btn:hover{background:#1a8763!important}
 .smp-save-btn.has-pending{background:#E67E22!important;border-color:#c46818!important}
 .smp-save-btn.has-pending:hover{background:#c46818!important}
+.smp-save-fab{position:fixed;bottom:20px;right:20px;height:48px;padding:0 22px;font-size:15px;font-weight:500;background:#1D9E75;color:#fff;border:none;border-radius:24px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:80;transition:background 0.15s,transform 0.1s}
+.smp-save-fab:hover{background:#1a8763}
+.smp-save-fab:active{transform:scale(0.96)}
+.smp-save-fab.has-pending{background:#E67E22;animation:smp-pulse 1.5s ease-in-out infinite}
+.smp-save-fab.has-pending:hover{background:#c46818}
+@keyframes smp-pulse{0%,100%{box-shadow:0 4px 16px rgba(230,126,34,0.3)}50%{box-shadow:0 4px 24px rgba(230,126,34,0.7)}}
 .smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-dirty-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E67E22;margin-left:5px;vertical-align:middle}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
@@ -2455,7 +2457,6 @@ function renderSumpouMode(){
           <option value="all" ${mode==='all'?'selected':''}>すべて</option>
         </select>
       `}
-      <button class="btn btn-sm smp-save-btn smp-back-btn" id="smpSaveBtn" onclick="smpManualSave()" style="margin-left:auto">💾 保存</button>
     </div>`;
 
   if(!targetSites.length){
@@ -2511,8 +2512,9 @@ function renderSumpouMode(){
     html+='</div>';
   });
 
-  // 保存中インジケーター
+  // 保存中インジケーター＋フローティング保存ボタン
   html+='<div id="smpSaving" class="smp-saving">✓ 保存しました</div>';
+  html+='<button id="smpSaveBtn" class="smp-save-fab" onclick="smpManualSave()">💾 保存</button>';
 
   v.innerHTML=html;
 
