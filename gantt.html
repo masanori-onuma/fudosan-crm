@@ -224,7 +224,7 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
   <span id="undoMsg" style="font-size:11px;color:#555"></span>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <button class="btn btn-sm btn-primary" onclick="scrollToToday()" title="今日の列へ移動">今日</button>
-  <button class="btn btn-sm" onclick="openSumpouMode()" title="現場で品番・数量を入力するモード">📐 寸法入力</button>
+  <button class="btn btn-sm" onclick="openSumpouWindow()" title="現場で品番・数量を入力するモード（コンパクトウィンドウで開く）">📐 寸法入力</button>
   <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
@@ -2339,6 +2339,24 @@ function delProc(siteId,procId){
 // ============================================================
 let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
+// ヘッダの「📐 寸法入力」ボタンから呼ばれる：コンパクトウィンドウで開く（PC）
+// スマホはサイズ指定が効かないので、結果として通常タブで開く
+function openSumpouWindow(){
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(isMobile){
+    openSumpouMode();
+    return;
+  }
+  // PC：別ウィンドウで開く（500x900のコンパクトサイズ）
+  const baseSearch=location.search.replace(/[?&]mode=sumpou/g,'').replace(/^\?$/,'');
+  const url=location.pathname+(baseSearch?baseSearch+'&':'?')+'mode=sumpou';
+  const w=window.open(url,'sumpouWin','width=500,height=900,scrollbars=yes,resizable=yes');
+  if(!w){
+    alert('ポップアップがブロックされました。同じタブで開きます。\n\nコンパクトウィンドウで使いたい場合は、ブラウザのポップアップ設定でこのサイトを許可してください。');
+    openSumpouMode();
+  }
+}
+
 function openSumpouMode(jumpToSiteId){
   document.getElementById('ganttView').style.display='none';
   document.getElementById('sumpouView').style.display='';
@@ -2918,7 +2936,12 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   };
 }
 loadMasters();
-loadData();
+loadData().then(()=>{
+  // URL ?mode=sumpou があれば、寸法入力モードを自動で開く
+  if(/[?&]mode=sumpou\b/.test(location.search)){
+    openSumpouMode();
+  }
+});
 startPolling();
 
 // スマホ：縦スクロール中は横スクロールをロック
