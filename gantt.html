@@ -24,12 +24,16 @@ header a:hover{color:#185FA5}
 .btn-sm{height:22px;padding:0 7px;font-size:11px}
 .sp-only{display:none}
 /* 寸法入力モード */
-#sumpouView{padding:0}
-.smp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid #ddd;position:fixed;left:0;right:0;background:#f5f5f5;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
-.smp-toolbar-spacer{height:1px}
+/* 寸法入力モード（中央コンパクト オーバーレイ表示） */
+#sumpouView{position:fixed;inset:0;z-index:500}
+.smp-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+.smp-panel{width:440px;max-width:100%;max-height:calc(100vh - 60px);background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:column;position:relative;animation:smp-modal-in 0.18s ease-out}
+@keyframes smp-modal-in{from{opacity:0;transform:translateY(-12px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.smp-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid #ddd;background:#fafafa;flex-shrink:0}
 .smp-toolbar input{height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:6px}
 .smp-toolbar select{height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:6px;background:#fff}
-.smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:14px;overflow:hidden;max-width:440px}
+.smp-body{flex:1;overflow-y:auto;padding:12px;background:#f5f5f5}
+.smp-block{background:#fff;border:1px solid #d6e6f5;border-radius:8px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 .smp-site-head{background:#f7faff;padding:10px 12px;border-bottom:1px solid #d6e6f5}
 .smp-site-head .row1{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px}
 .smp-badge{font-size:9px;color:#fff;padding:1px 6px;border-radius:8px;font-weight:500;flex-shrink:0}
@@ -51,22 +55,24 @@ header a:hover{color:#185FA5}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace}
 .smp-fields .f-num{flex:1 1 0;min-width:0}
 .smp-fields .f-qty{flex:0 0 110px}
-.smp-empty{padding:30px;text-align:center;color:#888;font-size:13px}
-.smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:300;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
+.smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
+.smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
+.smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:600;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
 .smp-saving.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .smp-saving.error{background:#c53030}
-.smp-save-btn{background:#1D9E75!important;color:#fff!important;border-color:#1a8763!important;font-weight:500}
-.smp-save-btn:hover{background:#1a8763!important}
-.smp-save-btn.has-pending{background:#E67E22!important;border-color:#c46818!important}
-.smp-save-btn.has-pending:hover{background:#c46818!important}
-.smp-save-fab{position:fixed;bottom:20px;right:20px;height:48px;padding:0 22px;font-size:15px;font-weight:500;background:#1D9E75;color:#fff;border:none;border-radius:24px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:80;transition:background 0.15s,transform 0.1s}
+.smp-save-fab{position:absolute;bottom:14px;right:14px;height:42px;padding:0 18px;font-size:14px;font-weight:500;background:#1D9E75;color:#fff;border:none;border-radius:21px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.25);z-index:10;transition:background 0.15s,transform 0.1s}
 .smp-save-fab:hover{background:#1a8763}
 .smp-save-fab:active{transform:scale(0.96)}
 .smp-save-fab.has-pending{background:#E67E22;animation:smp-pulse 1.5s ease-in-out infinite}
 .smp-save-fab.has-pending:hover{background:#c46818}
-@keyframes smp-pulse{0%,100%{box-shadow:0 4px 16px rgba(230,126,34,0.3)}50%{box-shadow:0 4px 24px rgba(230,126,34,0.7)}}
-.smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
-.smp-dirty-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E67E22;margin-left:5px;vertical-align:middle}
+@keyframes smp-pulse{0%,100%{box-shadow:0 4px 14px rgba(230,126,34,0.3)}50%{box-shadow:0 4px 24px rgba(230,126,34,0.7)}}
+/* モーダル開いてる間は背景スクロールロック */
+body.smp-modal-open{overflow:hidden}
+/* スマホはオーバーレイ全体を使う */
+@media (max-width:600px){
+  .smp-overlay{padding:0;align-items:stretch}
+  .smp-panel{width:100%;max-width:100%;max-height:100vh;height:100vh;border-radius:0;animation:none}
+}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -224,7 +230,7 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
   <span id="undoMsg" style="font-size:11px;color:#555"></span>
   <button id="undoBtn" class="btn btn-sm" onclick="undoLast()" disabled title="元に戻す">↩</button>
   <button class="btn btn-sm btn-primary" onclick="scrollToToday()" title="今日の列へ移動">今日</button>
-  <button class="btn btn-sm" onclick="openSumpouWindow()" title="現場で品番・数量を入力するモード（コンパクトウィンドウで開く）">📐 寸法入力</button>
+  <button class="btn btn-sm" onclick="openSumpouMode()" title="現場で品番・数量を入力するモード">📐 寸法入力</button>
   <button class="btn btn-sm" onclick="openMasterModal()">⚙ マスター</button>
 </header>
 <div class="container">
@@ -790,7 +796,7 @@ function _renderInner(){
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
       ${ndBadge}${warnBadge}${dropboxBtn}
       ${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}
-      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouWindow(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
+      ${_hasOrderedChildren?`<button class="btn btn-sm sumpou-btn" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="この物件の寸法入力へ">📐</button>`:''}
       <button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button>
       <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button>
       </div>
@@ -2339,39 +2345,10 @@ function delProc(siteId,procId){
 // ============================================================
 let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
-// ヘッダの「📐 寸法入力」ボタン or 物件名横の「📐」ボタンから呼ばれる
-// jumpToSiteIdが指定されればその物件だけ表示、なければ全物件表示
-// PC：別ウィンドウ（500x900）で開く
-// スマホ：同じタブで切替
-function openSumpouWindow(jumpToSiteId){
-  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if(isMobile){
-    openSumpouMode(jumpToSiteId);
-    return;
-  }
-  // PC：別ウィンドウで開く
-  const baseSearch=location.search.replace(/[?&]mode=sumpou\b/g,'').replace(/[?&]site=\d+\b/g,'').replace(/^\?$/,'');
-  let qs='?mode=sumpou';
-  if(jumpToSiteId)qs+='&site='+jumpToSiteId;
-  if(baseSearch)qs=baseSearch+'&'+qs.substring(1);
-  const url=location.pathname+qs;
-  // 各物件で別ウィンドウ名にして同時に複数開けるようにする（物件ごとに別ウィンドウ）
-  const winName=jumpToSiteId?'sumpouWin_'+jumpToSiteId:'sumpouWin';
-  const w=window.open(url,winName,'width=500,height=900,scrollbars=yes,resizable=yes');
-  if(!w){
-    alert('ポップアップがブロックされました。同じタブで開きます。\n\nコンパクトウィンドウで使いたい場合は、ブラウザのポップアップ設定でこのサイトを許可してください。');
-    openSumpouMode(jumpToSiteId);
-  }else{
-    // 既存ウィンドウが再利用された場合はフォーカスを戻す
-    try{w.focus();}catch(e){}
-  }
-}
-
 function openSumpouMode(jumpToSiteId){
-  document.getElementById('ganttView').style.display='none';
+  // ガントは隠さない（背景に残す）。sumpouViewをオーバーレイとして表示。
   document.getElementById('sumpouView').style.display='';
-  // ガント側の縦/横スクロール位置を保持しつつ、ページのスクロールはトップへ
-  window.scrollTo(0,0);
+  document.body.classList.add('smp-modal-open');
   if(jumpToSiteId){
     // 物件指定モード：その物件だけ表示
     _sumpouFilter.search='';
@@ -2382,27 +2359,20 @@ function openSumpouMode(jumpToSiteId){
     _sumpouFilter.focusSiteId=null;
   }
   renderSumpouMode();
-  // 指定物件の最初の入力欄にフォーカス
+  // 物件指定モードの場合、最初の未入力欄にフォーカス
   if(jumpToSiteId){
     setTimeout(()=>{
-      const block=document.querySelector('.smp-block');
-      if(block){
-        const _hh=(document.querySelector('header')?.getBoundingClientRect().height)||0;
-        const _tbh=(document.querySelector('.smp-toolbar')?.getBoundingClientRect().height)||0;
-        const _y=block.getBoundingClientRect().top+window.pageYOffset-_hh-_tbh-8;
-        window.scrollTo({top:_y,behavior:'smooth'});
-        const firstEmpty=block.querySelector('.f-num:placeholder-shown');
-        if(firstEmpty)setTimeout(()=>firstEmpty.focus(),500);
-      }
-    },50);
+      const panel=document.querySelector('.smp-panel');
+      const firstEmpty=panel?panel.querySelector('.f-num:placeholder-shown'):null;
+      if(firstEmpty)firstEmpty.focus();
+    },200);
   }
 }
 function closeSumpouMode(){
   document.getElementById('sumpouView').style.display='none';
   document.getElementById('sumpouView').innerHTML='';
-  document.getElementById('ganttView').style.display='';
+  document.body.classList.remove('smp-modal-open');
   _sumpouFilter.focusSiteId=null;
-  window.scrollTo(0,0);
 }
 
 // 工期判定：今日からの日数で色を決める
@@ -2470,100 +2440,82 @@ function renderSumpouMode(){
   // フォーカスモード時の表示物件名
   const focusSite=focusId?sites.find(s=>s.id===focusId):null;
 
-  let html=`
+  // === オーバーレイ + 中央コンパクトパネル（モーダル風） ===
+  let html=`<div class="smp-overlay" onclick="smpOverlayClick(event)"><div class="smp-panel" onclick="event.stopPropagation()">
     <div class="smp-toolbar">
-      <button class="btn btn-sm smp-back-btn" onclick="closeSumpouMode()">◀ ガントに戻る</button>
-      <div style="font-size:13px;font-weight:500;margin-left:4px">📐 寸法入力モード</div>
+      <button class="btn btn-sm smp-back-btn" onclick="closeSumpouMode()">✕ 閉じる</button>
+      <div style="font-size:13px;font-weight:500;margin-left:4px">📐 寸法入力</div>
       ${focusId?`
         <div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ表示中</div>
         <button class="btn btn-sm smp-back-btn" onclick="smpShowAllSites()" style="font-size:10px">全物件表示</button>
       `:`
         <div style="font-size:11px;color:${totalIncomplete>0?'#A32D2D':'#1D9E75'};margin-left:8px">未入力 ${totalIncomplete}項目</div>
-        <input id="smpSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_sumpouFilter.search)}" oninput="onSumpouSearch(this.value)" style="width:200px">
+        <input id="smpSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_sumpouFilter.search)}" oninput="onSumpouSearch(this.value)" style="flex:1;min-width:120px">
         <select onchange="_sumpouFilter.mode=this.value;renderSumpouMode()">
           <option value="incomplete" ${mode==='incomplete'?'selected':''}>未入力のみ</option>
           <option value="all" ${mode==='all'?'selected':''}>すべて</option>
         </select>
       `}
-    </div>`;
+    </div>
+    <div class="smp-body">`;
 
   if(!targetSites.length){
     html+=`<div class="smp-empty">${mode==='incomplete'?'未入力の物件はありません 🎉':'発注管理対象の子項目を持つ物件がありません'}</div>`;
-    v.innerHTML=html;
-    return;
-  }
-
-  targetSites.forEach(site=>{
-    const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr||'');
-    html+=`<div class="smp-block">
-      <div class="smp-site-head">
-        <div class="row1">
-          ${_smpKoukiBadge(site)}
-          <span class="smp-site-name">${esc(site.name)}</span>
-        </div>
-        <div class="smp-site-meta">
-          📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
-          🔑 ${site.keyLocation?esc(site.keyLocation):'<span style="color:#aaa">鍵所在未登録</span>'}
-        </div>
-      </div>`;
-
-    // 工程ごとに区切る
-    site.processes.forEach(proc=>{
-      const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
-      if(!orderedChildren.length)return;
-      html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
-      orderedChildren.forEach(child=>{
-        const hasMaterial=!!child.material;
-        const parts=_splitMaterial(child.material||'');
-        // 同名（連番除去後）の子項目が他にあれば削除可能
-        const _baseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-        const _siblings=orderedChildren.filter(x=>{
-          const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-          return n===_baseName;
-        });
-        const _canDelete=_siblings.length>1;
-        html+=`<div class="smp-child${hasMaterial?' done-input':''}" id="smpchild_${child.id}">
-          <div class="name-row">
-            <span class="name">${esc(child.name||'')}</span>
-            ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
+  }else{
+    targetSites.forEach(site=>{
+      const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr||'');
+      html+=`<div class="smp-block">
+        <div class="smp-site-head">
+          <div class="row1">
+            ${_smpKoukiBadge(site)}
+            <span class="smp-site-name">${esc(site.name)}</span>
           </div>
-          <div class="smp-fields">
-            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
-            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
-            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
-            ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
+          <div class="smp-site-meta">
+            📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
+            🔑 ${site.keyLocation?esc(site.keyLocation):'<span style="color:#aaa">鍵所在未登録</span>'}
           </div>
         </div>`;
+
+      // 工程ごとに区切る
+      site.processes.forEach(proc=>{
+        const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
+        if(!orderedChildren.length)return;
+        html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+        orderedChildren.forEach(child=>{
+          const hasMaterial=!!child.material;
+          const parts=_splitMaterial(child.material||'');
+          const _baseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+          const _siblings=orderedChildren.filter(x=>{
+            const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+            return n===_baseName;
+          });
+          const _canDelete=_siblings.length>1;
+          html+=`<div class="smp-child${hasMaterial?' done-input':''}" id="smpchild_${child.id}">
+            <div class="name-row">
+              <span class="name">${esc(child.name||'')}</span>
+              ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
+            </div>
+            <div class="smp-fields">
+              <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
+              <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
+              <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
+              ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
+            </div>
+          </div>`;
+        });
       });
-    });
 
-    html+='</div>';
-  });
-
-  // 保存中インジケーター＋フローティング保存ボタン
-  html+='<div id="smpSaving" class="smp-saving">✓ 保存しました</div>';
-  html+='<button id="smpSaveBtn" class="smp-save-fab" onclick="smpManualSave()">💾 保存</button>';
-
-  v.innerHTML=html;
-
-  // ヘッダ実高さ取得 → toolbarのtopに反映＋下のコンテンツ用スペーサー高さ調整
-  const _h=document.querySelector('header');
-  const _t=v.querySelector('.smp-toolbar');
-  if(_h&&_t){
-    const _hb=_h.getBoundingClientRect();
-    _t.style.top=_hb.height+'px';
-    // toolbarが画面に被るので、その高さ分のスペーサーをコンテンツ先頭に挿入
-    requestAnimationFrame(()=>{
-      const _tb=_t.getBoundingClientRect();
-      let sp=v.querySelector('.smp-toolbar-spacer');
-      if(!sp){
-        sp=document.createElement('div');
-        sp.className='smp-toolbar-spacer';
-        _t.after(sp);
-      }
-      sp.style.height=(_tb.height+10)+'px';
+      html+='</div>';
     });
   }
+
+  // パネルクローズ + フローティング保存ボタン + トースト
+  html+=`</div><!-- /smp-body -->
+    <button id="smpSaveBtn" class="smp-save-fab" onclick="smpManualSave()">💾 保存</button>
+  </div><!-- /smp-panel --></div><!-- /smp-overlay -->
+  <div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+
+  v.innerHTML=html;
 }
 
 // material文字列を「品番」「数量」に分割（最初のスペースで区切り）
@@ -2586,6 +2538,13 @@ function onSumpouSearch(v){
 }
 
 // 品番・数量入力の保存（onchange = focus離脱時）
+// オーバーレイの外側（パネル以外）クリックで閉じる
+function smpOverlayClick(e){
+  if(e.target.classList.contains('smp-overlay')){
+    closeSumpouMode();
+  }
+}
+
 // フォーカスモード解除：全物件表示に戻す
 function smpShowAllSites(){
   _sumpouFilter.focusSiteId=null;
@@ -2946,15 +2905,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   };
 }
 loadMasters();
-loadData().then(()=>{
-  // URL ?mode=sumpou があれば、寸法入力モードを自動で開く
-  // ?site=123 があれば、その物件のみ表示モードで開く
-  if(/[?&]mode=sumpou\b/.test(location.search)){
-    const m=location.search.match(/[?&]site=(\d+)/);
-    const siteId=m?parseInt(m[1],10):null;
-    openSumpouMode(siteId);
-  }
-});
+loadData();
 startPolling();
 
 // スマホ：縦スクロール中は横スクロールをロック
