@@ -54,7 +54,7 @@ header a:hover{color:#185FA5}
 .smp-fields{display:flex;gap:6px;align-items:center}
 .smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0}
 .smp-fields .f-num{flex:0 0 90px}
-.smp-fields .f-qty{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.smp-fields .f-qty{flex:1 1 0;min-width:0;overflow-x:auto}
 .smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
 .smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:600;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
@@ -2959,7 +2959,7 @@ function renderOrderListMode(){
           <option value="all" ${mode==='all'?'selected':''}>すべて</option>
         </select>
       `}
-      <button class="btn btn-sm smp-back-btn" onclick="ordSwitchTab('stock');openStockAddModal(_orderFilter.focusSiteId||null)" style="background:#1D9E75;color:#fff;border-color:#1a8763;font-weight:500;flex-shrink:0">+ 在庫追加</button>
+
     </div>
     <div class="smp-body">`;
 
