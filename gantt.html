@@ -84,6 +84,27 @@ body.smp-modal-open{overflow:hidden}
 .ord-check-wrap .lbl-pending{color:#E74C3C;font-weight:500;font-size:12px}
 .ord-check-wrap .lbl-done{color:#1D9E75;font-weight:500;font-size:12px}
 .ord-warn-no-mat{font-size:10px;color:#854F0B;background:#fff7e6;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px}
+/* 発注一覧モードのタブ */
+.ord-tabs{display:flex;border-bottom:1px solid #ddd;background:#fafafa;flex-shrink:0}
+.ord-tabs .ord-tab{flex:1;height:34px;font-size:12px;background:transparent;border:none;border-right:1px solid #eee;cursor:pointer;color:#666;font-weight:500;transition:background 0.1s}
+.ord-tabs .ord-tab:last-child{border-right:none}
+.ord-tabs .ord-tab:hover{background:#f0f0f0}
+.ord-tabs .ord-tab.active{background:#fff;color:#185FA5;border-bottom:2px solid #185FA5}
+/* 在庫アイテム */
+.stock-item{background:#fff;border:1px solid #d6e6f5;border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.stock-row1{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
+.stock-row1 .stock-code{font-size:14px;font-weight:500;color:#185FA5;font-family:monospace}
+.stock-row1 .stock-qty{font-size:13px;color:#333;font-family:monospace}
+.stock-row2{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:#666;margin-bottom:3px}
+.stock-note{font-size:11px;color:#888;background:#f9f9f9;padding:3px 6px;border-radius:4px;margin-bottom:5px}
+.stock-actions{display:flex;gap:5px;justify-content:flex-end}
+/* 発注一覧の在庫アラート */
+.ord-stock-alert{background:#fff3cd;border:1px solid #ffe69c;border-radius:5px;padding:5px 8px;margin-top:5px;font-size:11px}
+.ord-stock-item{display:flex;align-items:center;gap:6px;padding:2px 0}
+.ord-stock-item .qty{font-weight:500;color:#0C447C;font-family:monospace}
+.ord-stock-item .from{font-size:10px;color:#888}
+.ord-stock-use{height:22px;padding:0 8px;font-size:10px;background:#1D9E75;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:auto;font-weight:500}
+.ord-stock-use:hover{background:#1a8763}
 .btn-primary{background:#e6f1fb;color:#185FA5;border-color:#85B7EB}
 .btn-danger{color:#c00;border-color:#ecc}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 0 8px;border-bottom:1px solid #ddd;margin-bottom:8px}
@@ -323,6 +344,8 @@ let viewStart,viewEnd;
 })();
 
 let sites=[];
+let stocks=[]; // 在庫リスト（独立データ）
+let nextStockId=1;
 let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 window._isSP=_isSP;
@@ -349,6 +372,31 @@ function loadMasters(){
   gasLoad('gantt_masters').then(v=>{if(v)try{const m2=JSON.parse(v);if(!m2.users)m2.users=masters.users;masters=m2;}catch(e){}});
 }
 function saveMasters(){localStorage.setItem('gantt_masters',JSON.stringify(masters));gasSave('gantt_masters',masters);}
+
+// ============================================================
+// 在庫データの保存・読込
+// ============================================================
+function loadStocks(){
+  try{const d=localStorage.getItem('gantt_stocks');if(d){const parsed=JSON.parse(d);stocks=Array.isArray(parsed)?parsed:[];}}catch(e){stocks=[];}
+  // ID最大値からnextStockIdを設定
+  if(stocks.length){nextStockId=Math.max(...stocks.map(s=>s.id||0))+1;}
+  // GASからも非同期に読み込み（あれば上書き）
+  gasLoad('gantt_stocks').then(v=>{
+    if(v){
+      try{
+        const parsed=JSON.parse(v);
+        if(Array.isArray(parsed)){
+          stocks=parsed;
+          if(stocks.length)nextStockId=Math.max(...stocks.map(s=>s.id||0))+1;
+        }
+      }catch(e){}
+    }
+  });
+}
+function saveStocks(){
+  localStorage.setItem('gantt_stocks',JSON.stringify(stocks));
+  gasSave('gantt_stocks',stocks);
+}
 
 function normalizeSites(raw){
   raw.forEach(s=>s.processes.forEach(p=>{
@@ -2805,7 +2853,7 @@ function smpDelSibling(siteId,procId,childId){
 // ============================================================
 // 発注一覧モード（発注対象を一覧表示し発注済みチェック）
 // ============================================================
-let _orderFilter={search:'',mode:'pending',focusSiteId:null};
+let _orderFilter={search:'',mode:'pending',focusSiteId:null,tab:'list'}; // tab: 'list' | 'stock'
 
 function openOrderListMode(jumpToSiteId){
   document.getElementById('sumpouView').style.display='';
@@ -2834,9 +2882,32 @@ function _ordKoukiBadge(site){return _smpKoukiBadge(site);}
 
 function renderOrderListMode(){
   const v=document.getElementById('sumpouView');
-  const search=_orderFilter.search.trim().toLowerCase();
-  const mode=_orderFilter.mode; // 'pending' | 'all'
+  const tab=_orderFilter.tab||'list';
   const focusId=_orderFilter.focusSiteId;
+
+  // === タブヘッダー（共通） ===
+  const focusSite=focusId?sites.find(s=>s.id===focusId):null;
+  const tabHead=`<div class="smp-overlay" onclick="ordOverlayClick(event)"><div class="smp-panel" onclick="event.stopPropagation()">
+    <div class="smp-toolbar">
+      <button class="btn btn-sm smp-back-btn" onclick="closeOrderListMode()">✕ 閉じる</button>
+      <div style="font-size:13px;font-weight:500;margin-left:4px">📋 発注管理</div>
+      ${focusId?`<div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ</div>
+        <button class="btn btn-sm smp-back-btn" onclick="ordShowAllSites()" style="font-size:10px">全物件</button>`:''}
+    </div>
+    <div class="ord-tabs">
+      <button class="ord-tab${tab==='list'?' active':''}" onclick="ordSwitchTab('list')">発注一覧</button>
+      <button class="ord-tab${tab==='stock'?' active':''}" onclick="ordSwitchTab('stock')">📦 在庫 (${stocks.length})</button>
+    </div>`;
+
+  // === stockタブの場合 ===
+  if(tab==='stock'){
+    v.innerHTML=tabHead+_renderStockTabBody()+`</div></div><div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+    return;
+  }
+
+  // === listタブ：従来の発注一覧（以下、元のコードと同じ） ===
+  const search=_orderFilter.search.trim().toLowerCase();
+  const mode=_orderFilter.mode;
 
   // 発注管理対象の子項目があり、アーカイブされていない物件のみ
   let targetSites=sites.filter(s=>{
@@ -2853,7 +2924,6 @@ function renderOrderListMode(){
       });
     }
     if(mode==='pending'){
-      // 未発注（ordered===false）の子項目を1つでも持つ物件
       targetSites=targetSites.filter(s=>{
         return s.processes.some(p=>(p.children||[]).some(c=>c.ordered===false));
       });
@@ -2861,7 +2931,6 @@ function renderOrderListMode(){
   }
   targetSites=_smpSortSites(targetSites);
 
-  // 未発注件数（全物件合計）
   let totalPending=0;
   sites.forEach(s=>{
     if(s.archived)return;
@@ -2870,17 +2939,10 @@ function renderOrderListMode(){
     }));
   });
 
-  const focusSite=focusId?sites.find(s=>s.id===focusId):null;
-
-  let html=`<div class="smp-overlay" onclick="ordOverlayClick(event)"><div class="smp-panel" onclick="event.stopPropagation()">
-    <div class="smp-toolbar">
-      <button class="btn btn-sm smp-back-btn" onclick="closeOrderListMode()">✕ 閉じる</button>
-      <div style="font-size:13px;font-weight:500;margin-left:4px">📋 発注一覧</div>
-      ${focusId?`
-        <div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ表示中</div>
-        <button class="btn btn-sm smp-back-btn" onclick="ordShowAllSites()" style="font-size:10px">全物件表示</button>
-      `:`
-        <div style="font-size:11px;color:${totalPending>0?'#A32D2D':'#1D9E75'};margin-left:8px">未発注 ${totalPending}件</div>
+  let html=tabHead+`
+    <div class="smp-toolbar" style="border-top:none">
+      ${focusId?'':`
+        <div style="font-size:11px;color:${totalPending>0?'#A32D2D':'#1D9E75'};margin-left:4px">未発注 ${totalPending}件</div>
         <input id="ordSearch" placeholder="🔍 物件名・所在地で絞り込み" value="${esc(_orderFilter.search)}" oninput="onOrderSearch(this.value)" style="flex:1;min-width:120px">
         <select onchange="_orderFilter.mode=this.value;renderOrderListMode()">
           <option value="pending" ${mode==='pending'?'selected':''}>未発注のみ</option>
@@ -2933,6 +2995,20 @@ function renderOrderListMode(){
         if(isOrdered)rowCls+=' ord-done';
         else if(!hasMaterial)rowCls+=' ord-disabled';
         else rowCls+=' ord-pending';
+        // 同品番の在庫があるか確認（未発注かつ品番ありの行のみ）
+        let stockAlertHtml='';
+        if(!isOrdered&&hasMaterial){
+          const codeNorm=parts.num.toLowerCase().replace(/[\s　]+/g,'');
+          if(codeNorm){
+            const matched=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+            if(matched.length){
+              stockAlertHtml='<div class="ord-stock-alert">📦 在庫あり：'+matched.map(st=>{
+                const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
+                return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}</span>${siteName?`<span class="from">（${esc(siteName)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
+              }).join('')+'</div>';
+            }
+          }
+        }
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
@@ -2942,6 +3018,7 @@ function renderOrderListMode(){
             <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>
           </div>
           ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+          ${stockAlertHtml}
           <label class="ord-check-wrap">
             <input type="checkbox" ${isOrdered?'checked':''} ${!hasMaterial&&!isOrdered?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
             <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
@@ -2962,6 +3039,239 @@ function renderOrderListMode(){
 
 function ordOverlayClick(e){
   if(e.target.classList.contains('smp-overlay'))closeOrderListMode();
+}
+
+// ============================================================
+// 在庫機能（発注一覧モード内のタブとして表示）
+// ============================================================
+function ordSwitchTab(t){
+  _orderFilter.tab=t;
+  renderOrderListMode();
+}
+
+// 在庫タブの中身
+function _renderStockTabBody(){
+  // 在庫を新しい順にソート
+  const sorted=[...stocks].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  let html=`<div class="smp-toolbar" style="border-top:none">
+    <button class="btn btn-sm smp-back-btn" onclick="openStockAddModal()" style="background:#1D9E75;color:#fff;border-color:#1a8763;font-weight:500">+ 在庫追加</button>
+    <div style="font-size:11px;color:#666;margin-left:4px">合計 ${stocks.length}件</div>
+    <input id="stockSearch" placeholder="🔍 品番で絞り込み" value="${esc(_stockFilter.search||'')}" oninput="onStockSearch(this.value)" style="flex:1;min-width:120px">
+  </div>
+  <div class="smp-body">`;
+
+  // 検索フィルタ
+  const sq=(_stockFilter.search||'').trim().toLowerCase().replace(/[\s　]+/g,'');
+  const filtered=sq?sorted.filter(s=>(s.code||'').toLowerCase().replace(/[\s　]+/g,'').includes(sq)):sorted;
+
+  if(!filtered.length){
+    html+=`<div class="smp-empty">${stocks.length===0?'在庫はありません。「+ 在庫追加」から登録してください。':'該当する在庫がありません。'}</div>`;
+  }else{
+    filtered.forEach(s=>{
+      const siteName=s.siteId?(()=>{
+        const st=sites.find(x=>x.id===s.siteId);
+        return st?st.name:'(物件不明)';
+      })():'';
+      html+=`<div class="stock-item" id="stock_${s.id}">
+        <div class="stock-row1">
+          <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
+          <span class="stock-qty">${esc(s.qty||'')}</span>
+        </div>
+        <div class="stock-row2">
+          ${siteName?`<span class="stock-from">📍 ${esc(siteName)}</span>`:''}
+          ${s.addedBy?`<span class="stock-by">👤 ${esc(s.addedBy)}</span>`:''}
+          ${s.date?`<span class="stock-date">📅 ${esc(s.date)}</span>`:''}
+        </div>
+        ${s.note?`<div class="stock-note">${esc(s.note)}</div>`:''}
+        <div class="stock-actions">
+          <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:11px">編集</button>
+          <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:11px;color:#c00;border-color:#ecc">削除</button>
+        </div>
+      </div>`;
+    });
+  }
+  html+='</div>';
+  return html;
+}
+
+let _stockFilter={search:''};
+function onStockSearch(v){
+  _stockFilter.search=v;
+  clearTimeout(window._stockSearchT);
+  window._stockSearchT=setTimeout(()=>{
+    renderOrderListMode();
+    const inp=document.getElementById('stockSearch');
+    if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+  },300);
+}
+
+// 在庫追加モーダル
+function openStockAddModal(){
+  const dlg=document.createElement('div');
+  dlg.id='stockAddDlg';
+  dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  // 現役物件のみ
+  const activeSites=sites.filter(s=>!s.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const siteOpts='<option value="">-- 物件を選択 --</option>'+activeSites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  dlg.innerHTML=`
+    <div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.3);animation:smp-modal-in 0.18s ease-out">
+      <div style="font-size:15px;font-weight:500;margin-bottom:12px;color:#0C447C">📦 在庫を追加</div>
+      <div style="font-size:11px;color:#666;margin-bottom:8px">産廃回収から戻った時、余り材料を登録します。</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:#555;display:block;margin-bottom:3px">どの物件から？（任意）</label>
+        <select id="stockAddSite" onchange="_onStockSiteChange()" style="width:100%;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:6px">${siteOpts}</select>
+      </div>
+      <div id="stockChildList" style="display:none;margin-bottom:10px;background:#f7faff;border:1px solid #d6e6f5;border-radius:6px;padding:8px;max-height:280px;overflow-y:auto"></div>
+      <div id="stockManualSection" style="margin-bottom:10px">
+        <div style="font-size:11px;color:#555;margin-bottom:3px">または手入力</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input id="stockAddCode" placeholder="品番" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+          <input id="stockAddQty" placeholder="余り数量" style="flex:0 0 100px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+        </div>
+        <input id="stockAddNote" placeholder="メモ（任意）" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px">
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button onclick="closeStockAddModal()" style="height:34px;padding:0 14px;font-size:13px;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;cursor:pointer">キャンセル</button>
+        <button onclick="saveStockAdd()" style="height:34px;padding:0 18px;font-size:13px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500">保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(dlg);
+}
+
+// 物件選択時：その物件の品番付き子項目をリスト表示
+function _onStockSiteChange(){
+  const sel=document.getElementById('stockAddSite');
+  const list=document.getElementById('stockChildList');
+  const manual=document.getElementById('stockManualSection');
+  const sid=parseInt(sel.value,10);
+  if(!sid){list.style.display='none';list.innerHTML='';manual.style.display='';return;}
+  const s=sites.find(x=>x.id===sid);
+  if(!s){list.style.display='none';return;}
+  // 品番が入っている子項目を集める
+  const items=[];
+  s.processes.forEach(p=>{
+    (p.children||[]).forEach(c=>{
+      if(c.material){
+        const parts=_splitMaterial(c.material);
+        items.push({procName:p.name,childName:c.name,code:parts.num,fullMaterial:c.material});
+      }
+    });
+  });
+  if(!items.length){
+    list.innerHTML='<div style="font-size:12px;color:#888;text-align:center;padding:8px">この物件には品番入力済みの項目がありません。下の「手入力」から登録してください。</div>';
+    list.style.display='';
+    manual.style.display='';
+    return;
+  }
+  let html='<div style="font-size:11px;color:#555;margin-bottom:6px;font-weight:500">余りが出た品番に数量を入力：</div>';
+  items.forEach((it,i)=>{
+    html+=`<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #eee">
+      <div style="flex:1;min-width:0;font-size:11px">
+        <div style="color:#185FA5;font-weight:500">${esc(it.code)}</div>
+        <div style="color:#888;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.procName)} / ${esc(it.childName)}</div>
+      </div>
+      <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="余り" style="flex:0 0 80px;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace">
+    </div>`;
+  });
+  list.innerHTML=html;
+  list.style.display='';
+  manual.style.display='';
+}
+
+function closeStockAddModal(){
+  const d=document.getElementById('stockAddDlg');if(d)d.remove();
+}
+
+// 在庫追加保存
+function saveStockAdd(){
+  const sel=document.getElementById('stockAddSite');
+  const sid=parseInt(sel.value,10)||null;
+  const note=document.getElementById('stockAddNote').value.trim();
+  const today=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+  const user=getCurrentUser();
+  let added=0;
+
+  // 物件選択時の品番一覧から数量入力されたものを保存
+  document.querySelectorAll('.stock-bulk-qty').forEach(inp=>{
+    const qty=inp.value.trim();
+    if(!qty)return;
+    const code=inp.getAttribute('data-code');
+    stocks.push({id:nextStockId++,code,qty,siteId:sid,addedBy:user,date:today,note});
+    added++;
+  });
+
+  // 手入力欄
+  const code=document.getElementById('stockAddCode').value.trim();
+  const qty=document.getElementById('stockAddQty').value.trim();
+  if(code&&qty){
+    stocks.push({id:nextStockId++,code,qty,siteId:sid,addedBy:user,date:today,note});
+    added++;
+  }
+
+  if(added===0){
+    alert('数量が入力されていません。少なくとも1件は数量を入力してください。');
+    return;
+  }
+  saveStocks();
+  closeStockAddModal();
+  smpToast(`✓ ${added}件 在庫に追加しました`);
+  renderOrderListMode();
+}
+
+// 在庫編集モーダル
+function openStockEditModal(stockId){
+  const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  const activeSites=sites.filter(x=>!x.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const siteOpts='<option value="">-- なし --</option>'+activeSites.map(x=>`<option value="${x.id}"${x.id===s.siteId?' selected':''}>${esc(x.name)}</option>`).join('');
+  const dlg=document.createElement('div');
+  dlg.id='stockEditDlg';
+  dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  dlg.innerHTML=`
+    <div style="background:#fff;border-radius:12px;max-width:380px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
+      <div style="font-size:15px;font-weight:500;margin-bottom:12px;color:#0C447C">📦 在庫を編集</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="stockEditCode" value="${esc(s.code||'')}" placeholder="品番" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+        <input id="stockEditQty" value="${esc(s.qty||'')}" placeholder="数量" style="flex:0 0 100px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+      </div>
+      <select id="stockEditSite" style="width:100%;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px">${siteOpts}</select>
+      <input id="stockEditNote" value="${esc(s.note||'')}" placeholder="メモ" style="width:100%;height:30px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px;margin-bottom:12px">
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button onclick="closeStockEditModal()" style="height:32px;padding:0 14px;font-size:12px;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;cursor:pointer">キャンセル</button>
+        <button onclick="saveStockEdit(${stockId})" style="height:32px;padding:0 18px;font-size:12px;background:#185FA5;color:#fff;border:none;border-radius:6px;cursor:pointer">保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(dlg);
+}
+function closeStockEditModal(){const d=document.getElementById('stockEditDlg');if(d)d.remove();}
+function saveStockEdit(stockId){
+  const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  s.code=document.getElementById('stockEditCode').value.trim();
+  s.qty=document.getElementById('stockEditQty').value.trim();
+  const sid=parseInt(document.getElementById('stockEditSite').value,10);
+  s.siteId=sid||null;
+  s.note=document.getElementById('stockEditNote').value.trim();
+  saveStocks();
+  closeStockEditModal();
+  smpToast('✓ 保存しました');
+  renderOrderListMode();
+}
+function deleteStock(stockId){
+  const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  if(!confirm(`「${s.code} ${s.qty}」を削除しますか？`))return;
+  stocks=stocks.filter(x=>x.id!==stockId);
+  saveStocks();
+  smpToast('✓ 削除しました');
+  renderOrderListMode();
+}
+
+// 「在庫を使う」ボタン：該当在庫を削除して発注一覧を再描画
+function ordUseStock(stockId){
+  const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  if(!confirm(`「${s.code} ${s.qty}」の在庫を使いますか？\n（在庫リストから削除されます。発注はしません。）`))return;
+  stocks=stocks.filter(x=>x.id!==stockId);
+  saveStocks();
+  smpToast('✓ 在庫を使いました');
+  renderOrderListMode();
 }
 
 function ordShowAllSites(){
@@ -3231,6 +3541,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   };
 }
 loadMasters();
+loadStocks();
 loadData();
 startPolling();
 
