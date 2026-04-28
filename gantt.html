@@ -326,7 +326,7 @@ let sites=[];
 let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 window._isSP=_isSP;
-let masters={clients:[],persons:[],procNames:[]};
+let masters={clients:[],persons:[],procNames:[],users:[]};
 const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
@@ -338,10 +338,15 @@ function showSyncStatus(msg,ms){const el=document.getElementById('syncStatus');i
 
 function loadMasters(){
   try{const d=localStorage.getItem('gantt_masters');if(d)masters=JSON.parse(d);}catch(e){}
+  if(!masters.clients)masters.clients=[];
+  if(!masters.persons)masters.persons=[];
+  if(!masters.procNames)masters.procNames=[];
+  if(!masters.users)masters.users=[];
   if(!masters.clients.length)masters.clients=['有限会社彩建'];
   if(!masters.persons.length)masters.persons=['秀力内装','岩瀬畳店','大川龍真','Eサービス'];
   if(!masters.procNames.length)masters.procNames=['クロス','畳表替え','フローリング','クリーニング','エアコン新設','コーキング','雑工事','水回り'];
-  gasLoad('gantt_masters').then(v=>{if(v)try{masters=JSON.parse(v);}catch(e){}});
+  if(!masters.users.length)masters.users=['小沼','西谷','大川弟','大川'];
+  gasLoad('gantt_masters').then(v=>{if(v)try{const m2=JSON.parse(v);if(!m2.users)m2.users=masters.users;masters=m2;}catch(e){}});
 }
 function saveMasters(){localStorage.setItem('gantt_masters',JSON.stringify(masters));gasSave('gantt_masters',masters);}
 
@@ -2373,12 +2378,65 @@ function delProc(siteId,procId){
 
 // マスター
 // ============================================================
+// 使用者記録（端末ごとに1人を設定、寸法入力時に自動記録）
 // ============================================================
-// 寸法入力モード（現場で品番・数量を入力する用）
+function getCurrentUser(){
+  return localStorage.getItem('gantt_currentUser')||'';
+}
+function setCurrentUser(name){
+  if(name)localStorage.setItem('gantt_currentUser',name);
+  else localStorage.removeItem('gantt_currentUser');
+}
+// 使用者選択ダイアログを開く（必須選択：未選択時はキャンセル不可）
+function showUserPicker(force,onSelect){
+  const cur=getCurrentUser();
+  // 既存の使用者があり、強制ではない場合はそのまま
+  if(!force&&cur){if(onSelect)onSelect(cur);return;}
+  const users=(masters.users&&masters.users.length)?masters.users:['小沼','西谷','大川弟','大川'];
+  const dlg=document.createElement('div');
+  dlg.id='userPickerDlg';
+  dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  dlg.innerHTML=`
+    <div style="background:#fff;border-radius:12px;max-width:380px;width:100%;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.3);animation:smp-modal-in 0.18s ease-out">
+      <div style="font-size:16px;font-weight:500;margin-bottom:6px;color:#0C447C">📱 この端末の使用者は？</div>
+      <div style="font-size:11px;color:#666;margin-bottom:14px">寸法入力者として記録されます。一度選ぶと自動で覚えます。</div>
+      <div id="userPickerList" style="display:flex;flex-direction:column;gap:6px"></div>
+      ${cur?'<button onclick="closeUserPicker()" style="margin-top:14px;width:100%;height:32px;font-size:12px;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;cursor:pointer">キャンセル</button>':''}
+    </div>`;
+  document.body.appendChild(dlg);
+  const list=document.getElementById('userPickerList');
+  users.forEach(u=>{
+    const btn=document.createElement('button');
+    btn.style.cssText='height:42px;font-size:14px;background:'+(u===cur?'#185FA5':'#fff')+';color:'+(u===cur?'#fff':'#185FA5')+';border:1px solid #185FA5;border-radius:8px;cursor:pointer;font-weight:500';
+    btn.textContent=u;
+    btn.onclick=()=>{
+      setCurrentUser(u);
+      dlg.remove();
+      if(onSelect)onSelect(u);
+    };
+    list.appendChild(btn);
+  });
+}
+function closeUserPicker(){
+  const d=document.getElementById('userPickerDlg');if(d)d.remove();
+}
+// 寸法入力モードのツールバー用：現在の使用者バッジ
+function _smpUserBadge(){
+  const u=getCurrentUser();
+  if(!u)return `<button class="btn btn-sm smp-back-btn" onclick="showUserPicker(true)" style="font-size:10px;color:#A32D2D">📱 使用者未設定</button>`;
+  return `<button class="btn btn-sm smp-back-btn" onclick="showUserPicker(true)" style="font-size:10px" title="使用者を変更">📱 ${esc(u)}</button>`;
+}
+
+
 // ============================================================
 let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
 function openSumpouMode(jumpToSiteId){
+  // 使用者が未設定なら選択ダイアログを表示してからモードを開く
+  if(!getCurrentUser()){
+    showUserPicker(true,()=>openSumpouMode(jumpToSiteId));
+    return;
+  }
   // ガントは隠さない（背景に残す）。sumpouViewをオーバーレイとして表示。
   document.getElementById('sumpouView').style.display='';
   document.body.classList.add('smp-modal-open');
@@ -2478,6 +2536,7 @@ function renderSumpouMode(){
     <div class="smp-toolbar">
       <button class="btn btn-sm smp-back-btn" onclick="closeSumpouMode()">✕ 閉じる</button>
       <div style="font-size:13px;font-weight:500;margin-left:4px">📐 寸法入力</div>
+      ${_smpUserBadge()}
       ${focusId?`
         <div style="font-size:11px;color:#185FA5;background:#e6f1fb;padding:3px 8px;border-radius:10px;margin-left:4px">📌 ${esc(focusSite?focusSite.name:'')} のみ表示中</div>
         <button class="btn btn-sm smp-back-btn" onclick="smpShowAllSites()" style="font-size:10px">全物件表示</button>
@@ -2598,6 +2657,11 @@ function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   if(qtyEl)qtyEl.classList.remove('dirty');
   if(c.material===newMat){_smpUpdatePendingState();return;}
   c.material=newMat;
+  // 使用者・日付を自動記録（寸法入力時の足跡）
+  const _u=getCurrentUser();
+  if(_u)c.materialBy=_u;
+  const _d=new Date();
+  c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   saveData();
   // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
   const row=document.getElementById('smpchild_'+childId);
@@ -2928,6 +2992,11 @@ function ordUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   if(qtyEl)qtyEl.classList.remove('dirty');
   if(c.material===newMat)return;
   c.material=newMat;
+  // 使用者・日付を自動記録
+  const _u=getCurrentUser();
+  if(_u)c.materialBy=_u;
+  const _d=new Date();
+  c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   saveData();
   smpToast('✓ 保存しました');
   // 発注チェックの有効/無効状態を更新したいので再描画
@@ -2980,6 +3049,11 @@ function openMasterModal(){
     <div class="master-section"><h4>工事項目</h4>
       <div class="master-list">${listHtml(masters.procNames,'procNames')}</div>
       <div class="master-add"><input id="mi_procName" placeholder="工事項目を追加"><button onclick="addMaster('procNames','mi_procName')">追加</button></div>
+    </div>
+    <div class="master-section"><h4>使用者（寸法入力者）</h4>
+      <div style="font-size:11px;color:#666;margin-bottom:6px">寸法・品番を入力した人を記録するためのリスト。端末ごとに使用者を1人選びます。</div>
+      <div class="master-list">${listHtml(masters.users,'users')}</div>
+      <div class="master-add"><input id="mi_user" placeholder="使用者を追加（例：西谷）"><button onclick="addMaster('users','mi_user')">追加</button></div>
     </div>
     <div class="modal-btns"><button class="btn" onclick="closeModal()">閉じる</button></div>
     </div></div>`;
