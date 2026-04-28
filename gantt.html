@@ -2870,8 +2870,8 @@ function openOrderListMode(jumpToSiteId){
   }else{
     _orderFilter.focusSiteId=null;
   }
-  // 開いた時は必ず「在庫」タブから始まる（在庫を先に意識させるため）
-  _orderFilter.tab='stock';
+  // デフォルトは発注一覧タブ。物件指定あり/なしどちらも発注一覧を先に表示
+  _orderFilter.tab='order';
   // どっちのモードを開いたかをsumpouViewに記憶
   document.getElementById('sumpouView').dataset.mode='order';
   renderOrderListMode();
@@ -3059,7 +3059,7 @@ function ordSwitchTab(t){
   renderOrderListMode();
   // 在庫タブに切り替えた瞬間、追加モーダルを自動オープン
   if(t==='stock'&&!document.getElementById('stockAddDlg')){
-    setTimeout(()=>openStockAddModal(),50);
+    setTimeout(()=>openStockAddModal(_orderFilter.focusSiteId||null),50);
   }
 }
 
@@ -3120,13 +3120,13 @@ function onStockSearch(v){
 }
 
 // 在庫追加モーダル
-function openStockAddModal(){
+function openStockAddModal(preSelectSiteId){
   const dlg=document.createElement('div');
   dlg.id='stockAddDlg';
   dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
   // 現役物件のみ
   const activeSites=sites.filter(s=>!s.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const siteOpts='<option value="">-- 物件を選択 --</option>'+activeSites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const siteOpts='<option value="">-- 物件を選択 --</option>'+activeSites.map(s=>`<option value="${s.id}"${s.id===preSelectSiteId?' selected':''}>${esc(s.name)}</option>`).join('');
   dlg.innerHTML=`
     <div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.3);animation:smp-modal-in 0.18s ease-out">
       <div style="font-size:15px;font-weight:500;margin-bottom:12px;color:#0C447C">📦 在庫を追加</div>
@@ -3150,6 +3150,8 @@ function openStockAddModal(){
       </div>
     </div>`;
   document.body.appendChild(dlg);
+  // 物件が事前選択されている場合は品番リストを自動展開
+  if(preSelectSiteId) setTimeout(()=>_onStockSiteChange(),30);
 }
 
 // 物件選択時：その物件の品番付き子項目をリスト表示
