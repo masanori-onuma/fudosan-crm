@@ -2512,6 +2512,8 @@ function closeSumpouMode(){
   document.getElementById('sumpouView').innerHTML='';
   document.body.classList.remove('smp-modal-open');
   _sumpouFilter.focusSiteId=null;
+  // メイン画面を再描画してボタン色などを更新
+  render();
 }
 
 // 工期判定：今日からの日数で色を決める
@@ -2878,6 +2880,8 @@ function closeOrderListMode(){
   document.getElementById('sumpouView').dataset.mode='';
   document.body.classList.remove('smp-modal-open');
   _orderFilter.focusSiteId=null;
+  // メイン画面を再描画してボタン色などを更新
+  render();
 }
 
 // 工期バッジ（寸法入力と同じロジック流用）
@@ -3318,6 +3322,8 @@ function ordUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   smpToast('✓ 保存しました');
   // 発注チェックの有効/無効状態を更新したいので再描画
   renderOrderListMode();
+  // メイン画面のボタン色更新（品番入力により📐→📋ボタン色が変わる可能性）
+  setTimeout(()=>render(),10);
 }
 
 // 発注済みチェックの切替
@@ -3337,6 +3343,9 @@ function ordToggleOrdered(siteId,procId,childId,checked){
   // 「未発注のみ」モードでチェック入れた場合は消える、解除した場合は復帰
   // どちらの場合も再描画が必要
   renderOrderListMode();
+  // メイン画面のボタン色更新のため（発注一覧モードを閉じた後に反映させるため）
+  // 少し遅延してrender()を実行（発注一覧モードの再描画後に実行）
+  setTimeout(()=>render(),10);
 }
 
 function openMasterModal(){
