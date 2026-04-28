@@ -51,11 +51,12 @@ header a:hover{color:#185FA5}
 .smp-tag-done{font-size:9px;color:#0F6E56;background:#E1F5EE;padding:1px 5px;border-radius:6px;flex-shrink:0}
 .smp-add-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #85B7EB;background:#e6f1fb;color:#185FA5;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
 .smp-del-btn{font-size:14px;height:32px;width:32px;padding:0;border:1px solid #f0c0c0;background:#fff5f5;color:#c00;border-radius:5px;cursor:pointer;flex-shrink:0;line-height:1}
-.smp-fields{display:flex;gap:6px;align-items:center}
-.smp-fields input{height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0}
-.smp-fields .f-num{flex:0 0 90px}
-.smp-fields .f-qty{flex:1 1 0;min-width:0;overflow-x:auto}
-.smp-fields input.dirty{border-color:#E67E22;background:#fff8f0}
+.smp-fields{display:flex;gap:6px;align-items:flex-start}
+.smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0}
+.smp-fields input{height:32px}
+.smp-fields .f-num{flex:0 0 90px;height:32px}
+.smp-fields .f-qty{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.4;min-height:32px;box-sizing:border-box}
+.smp-fields input.dirty,.smp-fields textarea.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
 .smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:600;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
 .smp-saving.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
@@ -2642,7 +2643,7 @@ function renderSumpouMode(){
             </div>
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
-              <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">
+              <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">${esc(parts.qty)}</textarea>
               <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
               ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
             </div>
@@ -3033,7 +3034,7 @@ function renderOrderListMode(){
           </div>
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#ordchild_${child.id} .f-qty'))" ${isOrdered?'':''}>
-            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>
+            <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>${esc(parts.qty)}</textarea>
             <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'order')" title="同じ項目で品番を追加">＋</button>
             ${_ordCanDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},'order')" title="この行を削除">×</button>`:''}
           </div>
