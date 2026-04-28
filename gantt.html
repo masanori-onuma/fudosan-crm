@@ -2870,10 +2870,7 @@ function openOrderListMode(jumpToSiteId){
   // どっちのモードを開いたかをsumpouViewに記憶
   document.getElementById('sumpouView').dataset.mode='order';
   renderOrderListMode();
-  // 在庫追加モーダルを自動オープン（産廃回収後の登録を即促すため）
-  setTimeout(()=>{
-    if(!document.getElementById('stockAddDlg'))openStockAddModal();
-  },100);
+
 }
 function closeOrderListMode(){
   document.getElementById('sumpouView').style.display='none';
