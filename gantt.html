@@ -3179,17 +3179,44 @@ function _onStockSiteChange(){
   }
   let html='<div style="font-size:11px;color:#555;margin-bottom:6px;font-weight:500">余りが出た品番に数量を入力：</div>';
   items.forEach((it,i)=>{
-    html+=`<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #eee">
-      <div style="flex:1;min-width:0;font-size:11px">
-        <div style="color:#185FA5;font-weight:500">${esc(it.code)}</div>
-        <div style="color:#888;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.procName)} / ${esc(it.childName)}</div>
+    const groupId='sbg_'+i;
+    html+=`<div style="padding:5px 0;border-bottom:1px solid #eee">
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+        <div style="flex:1;min-width:0;font-size:11px">
+          <span style="color:#185FA5;font-weight:500">${esc(it.code)}</span>
+          <span style="color:#888;font-size:10px;margin-left:4px">${esc(it.procName)} / ${esc(it.childName)}</span>
+        </div>
+        <button type="button" onclick="addStockQtyRow('${groupId}','${esc(it.code).replace(/'/g,"\\'")}',this)" title="同じ品番で別の長さを追加" style="width:22px;height:22px;font-size:14px;line-height:1;background:#1D9E75;color:#fff;border:none;border-radius:4px;cursor:pointer;flex-shrink:0">+</button>
       </div>
-      <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="余り" style="flex:0 0 80px;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace">
+      <div id="${groupId}" style="display:flex;flex-direction:column;gap:3px">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="余り数量" style="width:100%;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
+      </div>
     </div>`;
   });
   list.innerHTML=html;
   list.style.display='';
   manual.style.display='';
+}
+
+// 品番グループに数量入力欄を追加（同一品番で複数長さ対応）
+function addStockQtyRow(groupId,code,btn){
+  const group=document.getElementById(groupId);if(!group)return;
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:4px;align-items:center';
+  const inp=document.createElement('input');
+  inp.className='stock-bulk-qty';
+  inp.dataset.code=code;
+  inp.placeholder='余り数量';
+  inp.style.cssText='flex:1;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace';
+  const del=document.createElement('button');
+  del.type='button';
+  del.textContent='×';
+  del.style.cssText='width:22px;height:22px;font-size:14px;line-height:1;background:#e55;color:#fff;border:none;border-radius:4px;cursor:pointer;flex-shrink:0';
+  del.onclick=function(){row.remove();};
+  row.appendChild(inp);
+  row.appendChild(del);
+  group.appendChild(row);
+  inp.focus();
 }
 
 function closeStockAddModal(){
