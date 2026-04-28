@@ -2781,7 +2781,7 @@ function smpToast(msg,isError){
 }
 
 // 同工程内に子項目をコピー追加（多品番ケース）
-function smpAddSibling(siteId,procId,baseChildId){
+function smpAddSibling(siteId,procId,baseChildId,mode){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
@@ -2810,10 +2810,10 @@ function smpAddSibling(siteId,procId,baseChildId){
   const idx=p.children.findIndex(x=>x.id===baseChildId);
   p.children.splice(idx+1,0,newChild);
   saveData();
-  renderSumpouMode();
+  if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
   // 追加した行の品番欄にフォーカス
   setTimeout(()=>{
-    const row=document.getElementById('smpchild_'+newChild.id);
+    const row=document.getElementById('ordchild_'+newChild.id)||document.getElementById('smpchild_'+newChild.id);
     if(row){
       row.scrollIntoView({behavior:'smooth',block:'center'});
       const inp=row.querySelector('.f-num');
@@ -2823,7 +2823,7 @@ function smpAddSibling(siteId,procId,baseChildId){
 }
 
 // 連番付き子項目を削除（同名兄弟がいる時のみ可能）
-function smpDelSibling(siteId,procId,childId){
+function smpDelSibling(siteId,procId,childId,mode){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
@@ -2852,7 +2852,7 @@ function smpDelSibling(siteId,procId,childId){
     remainSibs.forEach((x,i)=>{x.name=baseName+numerals[Math.min(i,numerals.length-1)];});
   }
   saveData();
-  renderSumpouMode();
+  if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
 }
 
 // ============================================================
@@ -2959,6 +2959,7 @@ function renderOrderListMode(){
           <option value="all" ${mode==='all'?'selected':''}>すべて</option>
         </select>
       `}
+      <button class="btn btn-sm smp-back-btn" onclick="ordSwitchTab('stock');openStockAddModal(_orderFilter.focusSiteId||null)" style="background:#1D9E75;color:#fff;border-color:#1a8763;font-weight:500;flex-shrink:0">+ 在庫追加</button>
     </div>
     <div class="smp-body">`;
 
@@ -3000,6 +3001,13 @@ function renderOrderListMode(){
         const isOrdered=(child.ordered===true);
         const hasMaterial=!!child.material;
         const parts=_splitMaterial(child.material||'');
+        // ＋×ボタン用：同名兄弟の数を計算
+        const _ordBaseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+        const _ordSiblings=(proc.children||[]).filter(x=>{
+          const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
+          return n===_ordBaseName&&x.ordered!==undefined;
+        });
+        const _ordCanDelete=_ordSiblings.length>1;
         // クラス：発注済み / 品番未入力で発注不可 / 通常未発注
         let rowCls='smp-child';
         if(isOrdered)rowCls+=' ord-done';
@@ -3026,6 +3034,8 @@ function renderOrderListMode(){
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#ordchild_${child.id} .f-qty'))" ${isOrdered?'':''}>
             <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>
+            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'order')" title="同じ項目で品番を追加">＋</button>
+            ${_ordCanDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},'order')" title="この行を削除">×</button>`:''}
           </div>
           ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
           ${stockAlertHtml}
@@ -3041,6 +3051,7 @@ function renderOrderListMode(){
   }
 
   html+=`</div><!-- /smp-body -->
+    <button id="smpSaveBtn" class="smp-save-fab" onclick="smpManualSave()">💾 保存</button>
   </div><!-- /smp-panel --></div><!-- /smp-overlay -->
   <div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
 
