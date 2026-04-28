@@ -2865,9 +2865,15 @@ function openOrderListMode(jumpToSiteId){
   }else{
     _orderFilter.focusSiteId=null;
   }
+  // 開いた時は必ず「在庫」タブから始まる（在庫を先に意識させるため）
+  _orderFilter.tab='stock';
   // どっちのモードを開いたかをsumpouViewに記憶
   document.getElementById('sumpouView').dataset.mode='order';
   renderOrderListMode();
+  // 在庫追加モーダルを自動オープン（産廃回収後の登録を即促すため）
+  setTimeout(()=>{
+    if(!document.getElementById('stockAddDlg'))openStockAddModal();
+  },100);
 }
 function closeOrderListMode(){
   document.getElementById('sumpouView').style.display='none';
@@ -3047,6 +3053,10 @@ function ordOverlayClick(e){
 function ordSwitchTab(t){
   _orderFilter.tab=t;
   renderOrderListMode();
+  // 在庫タブに切り替えた瞬間、追加モーダルを自動オープン
+  if(t==='stock'&&!document.getElementById('stockAddDlg')){
+    setTimeout(()=>openStockAddModal(),50);
+  }
 }
 
 // 在庫タブの中身
@@ -3065,7 +3075,7 @@ function _renderStockTabBody(){
   const filtered=sq?sorted.filter(s=>(s.code||'').toLowerCase().replace(/[\s　]+/g,'').includes(sq)):sorted;
 
   if(!filtered.length){
-    html+=`<div class="smp-empty">${stocks.length===0?'在庫はありません。「+ 在庫追加」から登録してください。':'該当する在庫がありません。'}</div>`;
+    html+=`<div class="smp-empty">${stocks.length===0?'在庫はありません。<br><br><button class="btn" onclick="ordSwitchTab(&#39;list&#39;)" style="margin-top:8px;background:#185FA5;color:#fff;border-color:#185FA5">→ 発注一覧へ</button>':'該当する在庫がありません。'}</div>`;
   }else{
     filtered.forEach(s=>{
       const siteName=s.siteId?(()=>{
