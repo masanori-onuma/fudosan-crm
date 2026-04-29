@@ -123,7 +123,9 @@ body.smp-modal-open{overflow:hidden}
 .gantt-outer{border:1px solid #ccc;border-radius:8px;background:#fff}
 .gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh;touch-action:pan-x pan-y}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
-.col-info{width:300px;min-width:300px;max-width:300px;position:sticky;left:0;z-index:10;touch-action:pan-y}
+.col-info{width:300px;min-width:120px;max-width:600px;position:sticky;left:0;z-index:10;touch-action:pan-y}
+.col-info-resize{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:20;background:transparent;}
+.col-info-resize:hover,.col-info-resize.dragging{background:rgba(24,95,165,0.3);}
 .day-col{width:26px;min-width:26px}
 thead{position:sticky;top:0;z-index:25}
 thead th{position:sticky;top:0;z-index:20;background:#f0f0ee;border-bottom:1px solid #bbb;border-right:1px solid #ddd;padding:2px 0;text-align:center;font-weight:500;color:#555;white-space:nowrap}
@@ -771,7 +773,7 @@ function _renderInner(){
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
   if(document.getElementById('ganttHead').dataset.rangeKey!==_headKey){
-    let headHtml='<tr><th class="col-info" style="height:36px"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div></th>';
+    let headHtml='<tr><th class="col-info" style="height:36px;position:relative"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div><div class="col-info-resize" id="colInfoResize" title="ドラッグで列幅変更"></div></th>';
     days.forEach(day=>{
       const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
       const wd=['日','月','火','水','木','金','土'][day.getDay()];
@@ -1387,6 +1389,7 @@ function _renderInner(){
   const tbody=document.getElementById('ganttBody');
   tbody.replaceChildren(frag);
   if(_gs&&!_isTouching){_gs.scrollLeft=_sl;_gs.scrollTop=_st;}
+  setTimeout(_initColResize,0);
 }
 
 // バードラッグ処理
@@ -2835,6 +2838,42 @@ function _initSwipeDelete(container){
       if(!row.contains(e.target))row.classList.remove('swipe-open');
     },{passive:true});
   });
+}
+
+
+// col-info列幅リサイズ
+function _initColResize(){
+  const handle=document.getElementById('colInfoResize');
+  if(!handle||handle.dataset.init)return;
+  handle.dataset.init='1';
+  let startX=0,startW=0;
+
+  function applyWidth(w){
+    w=Math.max(120,Math.min(600,w));
+    document.querySelectorAll('.col-info').forEach(el=>el.style.width=w+'px');
+    // スマホ用タッチ判定の_COL_Wも更新
+    window._colInfoW=w;
+    localStorage.setItem('colInfoW',w);
+  }
+
+  handle.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    startX=e.clientX;
+    startW=handle.closest('.col-info').offsetWidth;
+    handle.classList.add('dragging');
+    const onMove=e=>{applyWidth(startW+(e.clientX-startX));};
+    const onUp=()=>{
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+    };
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+
+  // 保存済み幅を復元
+  const saved=localStorage.getItem('colInfoW');
+  if(saved)applyWidth(parseInt(saved));
 }
 
 function smpManualSave(){
