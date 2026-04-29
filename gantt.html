@@ -96,13 +96,18 @@ body.smp-modal-open{overflow:hidden}
 .ord-tabs .ord-tab:hover{background:#f0f0f0}
 .ord-tabs .ord-tab.active{background:#fff;color:#185FA5;border-bottom:2px solid #185FA5}
 /* 在庫アイテム */
-.stock-item{background:#fff;border:1px solid #d6e6f5;border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.stock-item-wrap{position:relative;overflow:hidden;border-radius:6px;margin-bottom:8px;}
+.stock-item{background:#fff;border:1px solid #d6e6f5;border-radius:6px;padding:8px 40px 8px 10px;transition:transform 0.2s;position:relative;z-index:1;}
+.stock-swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;z-index:0;}
+.stock-swipe-edit{width:72px;background:#4A90D9;color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;flex-direction:column;gap:2px;}
+.stock-swipe-del{width:72px;background:#E24B4A;color:#fff;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;flex-direction:column;gap:2px;}
 .stock-row1{display:flex;align-items:baseline;gap:8px;margin-bottom:3px}
 .stock-row1 .stock-code{font-size:14px;font-weight:500;color:#185FA5;font-family:monospace}
 .stock-row1 .stock-qty{font-size:13px;color:#333;font-family:monospace}
 .stock-row2{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:#666;margin-bottom:3px}
 .stock-note{font-size:11px;color:#888;background:#f9f9f9;padding:3px 6px;border-radius:4px;margin-bottom:5px}
-.stock-actions{display:flex;gap:5px;justify-content:flex-end}
+.stock-actions{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;gap:6px;opacity:0;transition:opacity 0.15s;pointer-events:none}
+.stock-item-wrap:hover .stock-actions{opacity:1;pointer-events:auto}
 /* 発注一覧の在庫アラート */
 .ord-stock-alert{background:#fff3cd;border:1px solid #ffe69c;border-radius:5px;padding:5px 8px;margin-top:5px;font-size:11px}
 .ord-stock-item{display:flex;align-items:center;gap:6px;padding:2px 0}
@@ -2776,6 +2781,36 @@ function _autoResizeTextareas(container){
 }
 
 // 子項目行のスワイプ削除（左スワイプで×を表示）
+
+// 在庫カードのスワイプ（左スワイプで編集・削除ボタン表示）
+function _initSwipeStock(container){
+  (container||document).querySelectorAll('.stock-item-wrap').forEach(wrap=>{
+    if(wrap.dataset.swipeInit)return;
+    wrap.dataset.swipeInit='1';
+    const card=wrap.querySelector('.stock-item');
+    if(!card)return;
+    let startX=0,startY=0,dragging=false;
+    const OPEN=-144;
+    wrap.addEventListener('touchstart',e=>{
+      startX=e.touches[0].clientX;
+      startY=e.touches[0].clientY;
+      dragging=true;
+    },{passive:true});
+    wrap.addEventListener('touchmove',e=>{
+      if(!dragging)return;
+      const dx=e.touches[0].clientX-startX;
+      const dy=e.touches[0].clientY-startY;
+      if(Math.abs(dy)>Math.abs(dx))return;
+      if(dx<-40){card.style.transform=`translateX(${OPEN}px)`;}
+      else if(dx>10){card.style.transform='';}
+    },{passive:true});
+    wrap.addEventListener('touchend',()=>{dragging=false;});
+    document.addEventListener('touchstart',e=>{
+      if(!wrap.contains(e.target))card.style.transform='';
+    },{passive:true});
+  });
+}
+
 function _initSwipeDelete(container){
   (container||document).querySelectorAll('.smp-child').forEach(row=>{
     if(row.dataset.swipeInit)return;
@@ -2958,6 +2993,7 @@ function renderOrderListMode(){
   // === stockタブの場合 ===
   if(tab==='stock'){
     v.innerHTML=tabHead+_renderStockTabBody()+`</div></div><div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+    setTimeout(()=>_initSwipeStock(v),30);
     return;
   }
 
@@ -3146,20 +3182,26 @@ function _renderStockTabBody(){
         const st=sites.find(x=>x.id===s.siteId);
         return st?st.name:'(物件不明)';
       })():'';
-      html+=`<div class="stock-item" id="stock_${s.id}">
-        <div class="stock-row1">
-          <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
-          <span class="stock-qty">${esc(s.qty||'')}</span>
+      html+=`<div class="stock-item-wrap" id="stock_${s.id}">
+        <div class="stock-swipe-actions">
+          <button class="stock-swipe-edit" onclick="openStockEditModal(${s.id})">✏️<br>編集</button>
+          <button class="stock-swipe-del" onclick="deleteStock(${s.id})">🗑️<br>削除</button>
         </div>
-        <div class="stock-row2">
-          ${siteName?`<span class="stock-from">📍 ${esc(siteName)}</span>`:''}
-          ${s.addedBy?`<span class="stock-by">👤 ${esc(s.addedBy)}</span>`:''}
-          ${s.date?`<span class="stock-date">📅 ${esc(s.date)}</span>`:''}
-        </div>
-        ${s.note?`<div class="stock-note">${esc(s.note)}</div>`:''}
-        <div class="stock-actions">
-          <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:11px">編集</button>
-          <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:11px;color:#c00;border-color:#ecc">削除</button>
+        <div class="stock-item">
+          <div class="stock-row1">
+            <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
+            <span class="stock-qty">${esc(s.qty||'')}</span>
+          </div>
+          <div class="stock-row2">
+            ${siteName?`<span class="stock-from">📍 ${esc(siteName)}</span>`:''}
+            ${s.addedBy?`<span class="stock-by">👤 ${esc(s.addedBy)}</span>`:''}
+            ${s.date?`<span class="stock-date">📅 ${esc(s.date)}</span>`:''}
+          </div>
+          ${s.note?`<div class="stock-note">${esc(s.note)}</div>`:''}
+          <div class="stock-actions">
+            <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:11px">編集</button>
+            <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:11px;color:#c00;border-color:#ecc">削除</button>
+          </div>
         </div>
       </div>`;
     });
