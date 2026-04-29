@@ -2657,10 +2657,25 @@ function renderSumpouMode(){
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
               <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">${esc(parts.qty)}</textarea>
-              <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ項目で品番を追加">＋</button>
-              ${_canDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id})" title="この行を削除">×</button>`:''}
+              <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ品番を追加（工程には影響しません）">＋</button>
             </div>
           </div>`;
+          // extraMaterials（追加品番行）を表示（工程子項目には影響しない）
+          (child.extraMaterials||[]).filter(ex=>!ex.orderOnly).forEach(ex=>{
+            const exParts=_splitMaterial(ex.material||'');
+            const exHasMat=!!ex.material;
+            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}" style="padding-left:24px;border-left:3px solid #d6e6f5">
+              <div class="name-row">
+                <span class="name" style="color:#888;font-size:11px">└ 追加品番</span>
+                ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
+              </div>
+              <div class="smp-fields">
+                <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},this,document.querySelector('#extra_${ex.id} .f-qty'))">
+                <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},document.querySelector('#extra_${ex.id} .f-num'),this)">${esc(exParts.qty)}</textarea>
+                <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" title="この行を削除" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+              </div>
+            </div>`;
+          });
         });
       });
 
@@ -2908,40 +2923,19 @@ function smpToast(msg,isError){
   window._smpSaveT=setTimeout(()=>t.classList.remove('show'),isError?2400:1500);
 }
 
-// 同工程内に子項目をコピー追加（多品番ケース）
+// 子項目にextraMaterial（追加品番行）を追加（工程には影響しない）
 function smpAddSibling(siteId,procId,baseChildId,mode){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
-  // 同名子項目の数で連番をつける
-  const baseName=(baseChild.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-  const sameNameCount=(p.children||[]).filter(x=>{
-    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-    return n===baseName;
-  }).length;
-  // 既存の子項目に番号がついていなければ、最初のやつに①を付ける
-  const numerals=['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
-  if(sameNameCount===1&&!/[①-⑨]/.test(baseChild.name||'')){
-    baseChild.name=baseName+'①';
-  }
-  // 新しい子項目を作成（baseChildのすぐ後ろに挿入）
-  const newChild={
-    id:nextCid++,
-    name:baseName+numerals[Math.min(sameNameCount,numerals.length-1)],
-    area:'',
-    material:'',
-    note:'',
-    ordered:false, // 発注管理ON、未発注からスタート
-    periods:[],
-    done:false
-  };
-  const idx=p.children.findIndex(x=>x.id===baseChildId);
-  p.children.splice(idx+1,0,newChild);
+  if(!baseChild.extraMaterials)baseChild.extraMaterials=[];
+  // mode='order'の場合は発注専用フラグを付ける（寸法モードには表示しない）
+  const newExtra={id:nextCid++,material:'',ordered:false,orderOnly:mode==='order'};
+  baseChild.extraMaterials.push(newExtra);
   saveData();
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
-  // 追加した行の品番欄にフォーカス
   setTimeout(()=>{
-    const row=document.getElementById('ordchild_'+newChild.id)||document.getElementById('smpchild_'+newChild.id);
+    const row=document.getElementById('extra_'+newExtra.id);
     if(row){
       row.scrollIntoView({behavior:'smooth',block:'center'});
       const inp=row.querySelector('.f-num');
@@ -2950,35 +2944,16 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   },50);
 }
 
-// 連番付き子項目を削除（同名兄弟がいる時のみ可能）
-function smpDelSibling(siteId,procId,childId,mode){
+// extraMaterialを削除
+function smpDelSibling(siteId,procId,childId,extraId,mode){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
-  // 削除対象の同名子項目数を確認（最後の1個は削除させない）
-  const baseName=(c.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-  const siblings=p.children.filter(x=>{
-    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-    return n===baseName&&x.ordered!==undefined;
-  });
-  if(siblings.length<=1){alert('この項目は削除できません（最後の1件です）');return;}
-  // 確認
-  const label=c.material?`「${c.name}」（${c.material}）`:`「${c.name}」`;
+  if(!c.extraMaterials)return;
+  const ex=c.extraMaterials.find(x=>x.id===extraId);
+  const label=ex&&ex.material?`「${ex.material}」`:'この品番';
   if(!confirm(label+'を削除しますか？'))return;
-  // 削除
-  p.children=p.children.filter(x=>x.id!==childId);
-  // 残った同名子項目の連番を整理（1個になった場合は連番を外す）
-  const remainSibs=p.children.filter(x=>{
-    const n=(x.name||'').replace(/[①-⑨]+\s*$/,'').trim();
-    return n===baseName&&x.ordered!==undefined;
-  });
-  if(remainSibs.length===1){
-    remainSibs[0].name=baseName;
-  }else{
-    // 連番を振り直し
-    const numerals=['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
-    remainSibs.forEach((x,i)=>{x.name=baseName+numerals[Math.min(i,numerals.length-1)];});
-  }
+  c.extraMaterials=c.extraMaterials.filter(x=>x.id!==extraId);
   saveData();
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
 }
@@ -3163,8 +3138,7 @@ function renderOrderListMode(){
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#ordchild_${child.id} .f-qty'))" ${isOrdered?'':''}>
             <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>${esc(parts.qty)}</textarea>
-            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'order')" title="同じ項目で品番を追加">＋</button>
-            ${_ordCanDelete?`<button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},'order')" title="この行を削除">×</button>`:''}
+            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'order')" title="追加品番（工程には影響しません）">＋</button>
           </div>
           ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
           ${stockAlertHtml}
@@ -3173,6 +3147,44 @@ function renderOrderListMode(){
             <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
           </label>
         </div>`;
+        // extraMaterials（追加品番行）を発注一覧にも表示
+        (child.extraMaterials||[]).forEach(ex=>{
+          const exParts=_splitMaterial(ex.material||'');
+          const exIsOrdered=(ex.ordered===true);
+          const exHasMat=!!ex.material;
+          let exRowCls='smp-child';
+          if(exIsOrdered)exRowCls+=' ord-done';
+          else if(!exHasMat)exRowCls+=' ord-disabled';
+          else exRowCls+=' ord-pending';
+          // 在庫チェック
+          let exStockHtml='';
+          if(!exIsOrdered&&exHasMat){
+            const codeNorm=exParts.num.toLowerCase().replace(/[\s　]+/g,'');
+            if(codeNorm){
+              const matched=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+              if(matched.length){
+                exStockHtml='<div class="ord-stock-alert">📦 在庫あり：'+matched.map(st=>{
+                  const sn=st.siteId?(()=>{const sx=sites.find(x=>x.id===st.siteId);return sx?sx.name:'';})():'';
+                  return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}</span>${sn?`<span class="from">（${esc(sn)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
+                }).join('')+'</div>';
+              }
+            }
+          }
+          html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="padding-left:24px;border-left:3px solid #d6e6f5">
+            <div class="name-row"><span class="name" style="color:#888;font-size:11px">└ 追加品番</span></div>
+            <div class="smp-fields">
+              <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},this,document.querySelector('#extra_${ex.id} .f-qty'))" ${exIsOrdered?'':''}>
+              <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},document.querySelector('#extra_${ex.id} .f-num'),this)" ${exIsOrdered?'':''}>${esc(exParts.qty)}</textarea>
+              <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" title="削除" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+            </div>
+            ${!exHasMat&&!exIsOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+            ${exStockHtml}
+            <label class="ord-check-wrap">
+              <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
+              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'発注済みにする'}</span>
+            </label>
+          </div>`;
+        });
       });
 
       html+='</div>';
