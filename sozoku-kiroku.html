@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相続登記照合ツール｜春日部市</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+.header {
+  background: #1a3a5c;
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .count { font-size: 13px; opacity: 0.7; margin-left: auto; }
+.main { padding: 16px; max-width: 700px; margin: 0 auto; }
+
+/* ファイル読み込みエリア */
+.upload-area {
+  background: white;
+  border: 2px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+.upload-area:hover, .upload-area.drag { border-color: #1a3a5c; background: #f0f4ff; }
+.upload-area .icon { font-size: 36px; margin-bottom: 8px; }
+.upload-area p { color: #4a5568; font-size: 14px; }
+.upload-area input { display: none; }
+
+/* 検索エリア */
+.search-box {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.search-label { font-size: 12px; color: #718096; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 8px; }
+.search-row { display: flex; gap: 8px; }
+.search-input {
+  flex: 1;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus { border-color: #1a3a5c; }
+.search-input::placeholder { color: #a0aec0; font-size: 14px; }
+.btn-search {
+  background: #1a3a5c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-search:hover { background: #2a527a; }
+.btn-clear {
+  background: #e2e8f0;
+  color: #4a5568;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 15px;
+  cursor: pointer;
+}
+.hint { font-size: 12px; color: #a0aec0; margin-top: 8px; }
+
+/* 結果エリア */
+.result-area { margin-bottom: 16px; }
+
+.result-card {
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.result-card.hit {
+  background: #fff;
+  border-left: 5px solid #e53e3e;
+}
+.result-card.miss {
+  background: #fff;
+  border-left: 5px solid #68d391;
+}
+.result-card.searching {
+  background: #fffbf0;
+  border-left: 5px solid #ecc94b;
+  text-align: center;
+  color: #744210;
+}
+
+.result-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.badge-hit { background: #fed7d7; color: #c53030; }
+.badge-miss { background: #c6f6d5; color: #276749; }
+
+.result-address {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 10px;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.result-table th {
+  background: #f7fafc;
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #718096;
+  border-bottom: 1px solid #e2e8f0;
+}
+.result-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #2d3748;
+}
+.result-table tr:last-child td { border-bottom: none; }
+.result-table tr:hover td { background: #f7fafc; }
+
+.miss-msg { color: #276749; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+
+/* ステータスバー */
+.status-bar {
+  background: white;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #718096;
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  flex-wrap: wrap;
+}
+.status-item strong { color: #2d3748; }
+
+/* 検索履歴 */
+.history {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.history-title { font-size: 12px; color: #718096; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 10px; }
+.history-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.history-chip {
+  background: #edf2f7;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 13px;
+  color: #4a5568;
+  cursor: pointer;
+}
+.history-chip:hover { background: #e2e8f0; }
+.history-chip.hit-chip { background: #fed7d7; color: #c53030; }
+
+.no-data {
+  text-align: center;
+  color: #a0aec0;
+  padding: 40px;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>📋</div>
+  <h1>相続登記照合ツール</h1>
+  <div class="count" id="headerCount"></div>
+</div>
+
+<div class="main">
+
+  <!-- ファイル読み込み -->
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📂</div>
+    <p><strong>春日部相続登記.xlsx をここにドロップ</strong><br>またはクリックして選択</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
+
+  <!-- 検索 -->
+  <div class="search-box" id="searchBox" style="display:none">
+    <div class="search-label">JTNマップで確認した地番を入力</div>
+    <div class="search-row">
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="例：中央1丁目17-2　または　17-2" 
+        onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="btn-search" onclick="doSearch()">照合</button>
+      <button class="btn-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="hint">「春日部市」は省略OK。部分一致で検索します。</div>
+  </div>
+
+  <!-- ステータス -->
+  <div class="status-bar" id="statusBar" style="display:none">
+    <span>総件数 <strong id="statTotal">-</strong></span>
+    <span>土地 <strong id="statLand">-</strong></span>
+    <span>建物 <strong id="statBldg">-</strong></span>
+    <span>区分建物 <strong id="statKuken">-</strong></span>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result-area" id="resultArea"></div>
+
+  <!-- 検索履歴 -->
+  <div class="history" id="historyArea" style="display:none">
+    <div class="history-title">検索履歴</div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+</div>
+
+<script>
+let allData = [];
+let searchHistory = [];
+
+// ドラッグ&ドロップ
+const uploadArea = document.getElementById('uploadArea');
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+    allData = [];
+    wb.SheetNames.forEach(sheetName => {
+      if (sheetName === '雛形') return;
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      rows.forEach(row => {
+        const addr = String(row['地番／家屋番号'] || '').trim();
+        if (!addr) return;
+        // 日付処理
+        let dateStr = '';
+        const d = row['登記受付日'];
+        if (d instanceof Date) {
+          dateStr = d.toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'});
+        } else if (d) {
+          dateStr = String(d);
+        }
+        allData.push({
+          date: dateStr,
+          type: String(row['種別'] || '').trim(),
+          address: addr,
+          normalized: normalize(addr),
+          hoka: row['外'] || '',
+          tanren: String(row['単・連'] || '').trim(),
+          reason: String(row['登記原因'] || '').trim(),
+          district: sheetName,
+        });
+      });
+    });
+
+    // UI更新
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('searchBox').style.display = 'block';
+    document.getElementById('statusBar').style.display = 'flex';
+    document.getElementById('searchInput').focus();
+
+    const land = allData.filter(d => d.type === '土地').length;
+    const bldg = allData.filter(d => d.type === '建物').length;
+    const kuken = allData.filter(d => d.type === '区建').length;
+    document.getElementById('statTotal').textContent = allData.length + '件';
+    document.getElementById('statLand').textContent = land + '件';
+    document.getElementById('statBldg').textContent = bldg + '件';
+    document.getElementById('statKuken').textContent = kuken + '件';
+    document.getElementById('headerCount').textContent = allData.length + '件読込済';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// 正規化：スペース除去・全角→半角・「春日部市」除去
+function normalize(str) {
+  return str
+    .replace(/春日部市/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/－/g, '-')
+    .toLowerCase();
+}
+
+function doSearch() {
+  const raw = document.getElementById('searchInput').value.trim();
+  if (!raw || allData.length === 0) return;
+
+  const query = normalize(raw);
+  if (!query) return;
+
+  // 検索（正規化後に部分一致）
+  const hits = allData.filter(d => d.normalized.includes(query));
+
+  // 結果表示
+  renderResult(raw, hits);
+
+  // 履歴追加
+  if (!searchHistory.find(h => h.query === raw)) {
+    searchHistory.unshift({ query: raw, hit: hits.length > 0 });
+    if (searchHistory.length > 20) searchHistory.pop();
+    renderHistory();
+  }
+}
+
+function renderResult(query, hits) {
+  const area = document.getElementById('resultArea');
+
+  if (hits.length === 0) {
+    area.innerHTML = `
+      <div class="result-card miss">
+        <span class="result-badge badge-miss">対象外</span>
+        <div class="result-address">「${escHtml(query)}」</div>
+        <div class="miss-msg">✅ 相続登記リストに該当なし。営業優先度は低い。</div>
+      </div>`;
+  } else {
+    let rows = hits.map(h => `
+      <tr>
+        <td>${escHtml(h.date)}</td>
+        <td>${escHtml(h.type)}</td>
+        <td>${escHtml(h.address)}</td>
+        <td>${escHtml(h.reason)}</td>
+        <td>${escHtml(h.district)}</td>
+      </tr>`).join('');
+
+    area.innerHTML = `
+      <div class="result-card hit">
+        <span class="result-badge badge-hit">🔴 相続登記あり ${hits.length}件</span>
+        <div class="result-address">「${escHtml(query)}」</div>
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th>登記受付日</th><th>種別</th><th>地番/家屋番号</th><th>登記原因</th><th>地区</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+}
+
+function renderHistory() {
+  const area = document.getElementById('historyArea');
+  const list = document.getElementById('historyList');
+  area.style.display = 'block';
+  list.innerHTML = searchHistory.map(h =>
+    `<button class="history-chip ${h.hit ? 'hit-chip' : ''}" onclick="setSearch('${escHtml(h.query)}')">${escHtml(h.query)}</button>`
+  ).join('');
+}
+
+function setSearch(val) {
+  document.getElementById('searchInput').value = val;
+  doSearch();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('resultArea').innerHTML = '';
+  document.getElementById('searchInput').focus();
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
