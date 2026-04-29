@@ -2628,6 +2628,7 @@ function renderSumpouMode(){
           <div class="row1">
             ${_smpKoukiBadge(site)}
             <span class="smp-site-name">${esc(site.name)}</span>
+            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropboxを開く"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
           </div>
           <div class="smp-site-meta">
             📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
@@ -3088,6 +3089,7 @@ function renderOrderListMode(){
           <div class="row1">
             ${_ordKoukiBadge(site)}
             <span class="smp-site-name">${esc(site.name)}</span>
+            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropboxを開く"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
           </div>
           <div class="smp-site-meta">
             📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
