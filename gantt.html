@@ -3130,7 +3130,7 @@ function renderOrderListMode(){
             if(matched.length){
               stockAlertHtml='<div class="ord-stock-alert">📦 在庫あり：'+matched.map(st=>{
                 const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
-                return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}</span>${siteName?`<span class="from">（${esc(siteName)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
+                return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}</span>${siteName?`<span class="from">（${esc(siteName)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
               }).join('')+'</div>';
             }
           }
@@ -3261,6 +3261,7 @@ function _renderStockTabBody(){
           <div class="stock-row1">
             <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
             <span class="stock-qty">${esc(s.qty||'')}</span>
+            ${s.count>1?`<span style="font-size:12px;color:var(--color-text-secondary)">× ${s.count}本</span>`:''}
             <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
               <button class="btn btn-sm" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
               <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
@@ -3312,8 +3313,9 @@ function openStockAddModal(preSelectSiteId,preSelectCode){
       <div id="stockManualSection" style="margin-bottom:10px">
         <div style="font-size:11px;color:#555;margin-bottom:3px">または手入力</div>
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          <input id="stockAddCode" placeholder="品番" value="${esc(preSelectCode||'')}" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
-          <input id="stockAddQty" placeholder="余り数量" style="flex:0 0 100px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+          <input id="stockAddCode" placeholder="品番" value="${esc(preSelectCode||'')}" style="flex:2;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
+          <input id="stockAddQty" placeholder="数量" style="flex:2;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
+          <input id="stockAddCount" placeholder="本数" type="number" min="1" value="1" style="flex:1;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
         </div>
         <input id="stockAddNote" placeholder="メモ（任意）" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px">
       </div>
@@ -3466,8 +3468,9 @@ function saveStockAdd(){
   // 手入力欄
   const code=document.getElementById('stockAddCode').value.trim();
   const qty=document.getElementById('stockAddQty').value.trim();
+  const countVal=parseInt(document.getElementById('stockAddCount').value)||1;
   if(code&&qty){
-    stocks.push({id:nextStockId++,code,qty,siteId:sid,addedBy:user,date:today,note});
+    stocks.push({id:nextStockId++,code,qty,count:countVal>1?countVal:undefined,siteId:sid,addedBy:user,date:today,note});
     added++;
   }
 
@@ -3535,10 +3538,16 @@ function deleteStock(stockId){
 // 「在庫を使う」ボタン：該当在庫を削除して発注一覧を再描画
 function ordUseStock(stockId){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
-  if(!confirm(`「${s.code} ${s.qty}」の在庫を使いますか？\n（在庫リストから削除されます。発注はしません。）`))return;
-  stocks=stocks.filter(x=>x.id!==stockId);
+  const countStr=s.count>1?` × ${s.count}本`:'';
+  if(!confirm(`「${s.code} ${s.qty}${countStr}」の在庫を1本使いますか？`))return;
+  if(s.count>1){
+    s.count--;
+    smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
+  }else{
+    stocks=stocks.filter(x=>x.id!==stockId);
+    smpToast('✓ 在庫を使いました（在庫なし）');
+  }
   saveStocks();
-  smpToast('✓ 在庫を使いました');
   renderOrderListMode();
 }
 
