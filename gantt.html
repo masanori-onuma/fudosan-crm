@@ -2902,15 +2902,18 @@ function _initColResize(){
 
 function smpManualSave(){
   const v=document.getElementById('sumpouView');if(!v)return;
-  // dirty状態の入力欄があれば、まずblurしてonchangeで自動保存させる
-  const dirtyEls=v.querySelectorAll('.smp-fields input.dirty');
-  dirtyEls.forEach(el=>el.blur());
-  // 念のためsaveDataも明示的に呼ぶ
+  // dirty状態のinput/textareaを全てblurしてonchangeを発火させる
+  const dirtyEls=Array.from(v.querySelectorAll('.smp-fields input.dirty, .smp-fields textarea.dirty'));
+  dirtyEls.forEach(el=>{
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+    el.classList.remove('dirty');
+  });
+  // 少し待ってから保存（onchange内の非同期処理を待つ）
   setTimeout(()=>{
     saveData();
     smpToast('💾 保存しました');
     _smpUpdatePendingState();
-  },50);
+  },100);
 }
 
 // 保存トースト表示
