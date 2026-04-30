@@ -3262,7 +3262,7 @@ function _renderStockTabBody(){
             <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
             <span class="stock-qty">${esc(s.qty||'')}</span>
             <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
-              <button class="btn btn-sm" onclick="openStockAddModal(${s.siteId||'null'})" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
+              <button class="btn btn-sm" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
               <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
               <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:10px;padding:0 5px;height:20px;color:#c00;border-color:#ecc">削除</button>
             </div>
@@ -3293,7 +3293,7 @@ function onStockSearch(v){
 }
 
 // 在庫追加モーダル
-function openStockAddModal(preSelectSiteId){
+function openStockAddModal(preSelectSiteId,preSelectCode){
   const dlg=document.createElement('div');
   dlg.id='stockAddDlg';
   dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
@@ -3312,7 +3312,7 @@ function openStockAddModal(preSelectSiteId){
       <div id="stockManualSection" style="margin-bottom:10px">
         <div style="font-size:11px;color:#555;margin-bottom:3px">または手入力</div>
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          <input id="stockAddCode" placeholder="品番" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+          <input id="stockAddCode" placeholder="品番" value="${esc(preSelectCode||'')}" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
           <input id="stockAddQty" placeholder="余り数量" style="flex:0 0 100px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
         </div>
         <input id="stockAddNote" placeholder="メモ（任意）" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px">
@@ -3324,7 +3324,22 @@ function openStockAddModal(preSelectSiteId){
     </div>`;
   document.body.appendChild(dlg);
   // 物件が事前選択されている場合は品番リストを自動展開
-  if(preSelectSiteId) setTimeout(()=>_onStockSiteChange(),30);
+  if(preSelectSiteId) setTimeout(()=>{
+    _onStockSiteChange();
+    // 品番が指定されている場合はその入力欄にスクロール・フォーカス
+    if(preSelectCode){
+      setTimeout(()=>{
+        const inputs=document.querySelectorAll('.stock-bulk-qty');
+        for(const inp of inputs){
+          if((inp.getAttribute('data-code')||'').toLowerCase()===preSelectCode.toLowerCase()){
+            inp.scrollIntoView({behavior:'smooth',block:'center'});
+            if(!inp.value)inp.focus();
+            break;
+          }
+        }
+      },80);
+    }
+  },30);
 }
 
 // 物件選択時：その物件の品番付き子項目をリスト表示
