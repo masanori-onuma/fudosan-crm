@@ -3019,7 +3019,6 @@ function renderOrderListMode(){
   // === stockタブの場合 ===
   if(tab==='stock'){
     v.innerHTML=tabHead+_renderStockTabBody()+`</div></div><div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
-    setTimeout(()=>_initSwipeStock(v),30);
     return;
   }
 
@@ -3225,21 +3224,32 @@ function ordSwitchTab(t){
 
 // 在庫タブの中身
 function _renderStockTabBody(){
+  const focusId=_orderFilter.focusSiteId;
+  const focusSite=focusId?sites.find(s=>s.id===focusId):null;
   // 在庫を新しい順にソート
   const sorted=[...stocks].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  // 物件フォーカス時はその物件の在庫のみ、それ以外は検索フィルタ
+  let filtered;
+  if(focusId){
+    filtered=sorted.filter(s=>s.siteId===focusId);
+  }else{
+    const sq=(_stockFilter.search||'').trim().toLowerCase().replace(/[\s　]+/g,'');
+    filtered=sq?sorted.filter(s=>(s.code||'').toLowerCase().replace(/[\s　]+/g,'').includes(sq)):sorted;
+  }
+
+  const toolbarRight=focusId
+    ?`<button class="btn btn-sm" onclick="_stockFilter.search='';_orderFilter.focusSiteId=null;renderOrderListMode()" style="font-size:10px;margin-left:auto">全在庫を見る</button>`
+    :`<input id="stockSearch" placeholder="🔍 品番で絞り込み" value="${esc(_stockFilter.search||'')}" oninput="onStockSearch(this.value)" style="flex:1;min-width:100px">`;
+
   let html=`<div class="smp-toolbar" style="border-top:none">
-    <button class="btn btn-sm smp-back-btn" onclick="openStockAddModal()" style="background:#1D9E75;color:#fff;border-color:#1a8763;font-weight:500">+ 在庫追加</button>
-    <div style="font-size:11px;color:#666;margin-left:4px">合計 ${stocks.length}件</div>
-    <input id="stockSearch" placeholder="🔍 品番で絞り込み" value="${esc(_stockFilter.search||'')}" oninput="onStockSearch(this.value)" style="flex:1;min-width:120px">
+    <button class="btn btn-sm smp-back-btn" onclick="openStockAddModal(${focusId||'null'})" style="background:#1D9E75;color:#fff;border-color:#1a8763;font-weight:500">+ 在庫追加</button>
+    <div style="font-size:11px;color:#666;margin-left:4px">${focusId?`この物件 ${filtered.length}件`:`合計 ${stocks.length}件`}</div>
+    ${toolbarRight}
   </div>
   <div class="smp-body">`;
 
-  // 検索フィルタ
-  const sq=(_stockFilter.search||'').trim().toLowerCase().replace(/[\s　]+/g,'');
-  const filtered=sq?sorted.filter(s=>(s.code||'').toLowerCase().replace(/[\s　]+/g,'').includes(sq)):sorted;
-
   if(!filtered.length){
-    html+=`<div class="smp-empty">${stocks.length===0?'在庫はありません。<br><br><button class="btn" onclick="ordSwitchTab(&#39;list&#39;)" style="margin-top:8px;background:#185FA5;color:#fff;border-color:#185FA5">→ 発注一覧へ</button>':'該当する在庫がありません。'}</div>`;
+    html+=`<div class="smp-empty">${focusId?'この物件の在庫はありません。':(stocks.length===0?'在庫はありません。<br><br><button class="btn" onclick="ordSwitchTab(&#39;list&#39;)" style="margin-top:8px;background:#185FA5;color:#fff;border-color:#185FA5">→ 発注一覧へ</button>':'該当する在庫がありません。')}</div>`;
   }else{
     filtered.forEach(s=>{
       const siteName=s.siteId?(()=>{
@@ -3247,25 +3257,22 @@ function _renderStockTabBody(){
         return st?st.name:'(物件不明)';
       })():'';
       html+=`<div class="stock-item-wrap" id="stock_${s.id}">
-        <div class="stock-swipe-actions">
-          <button class="stock-swipe-edit" onclick="openStockEditModal(${s.id})">✏️<br>編集</button>
-          <button class="stock-swipe-del" onclick="deleteStock(${s.id})">🗑️<br>削除</button>
-        </div>
-        <div class="stock-item">
+        <div class="stock-item" style="padding-right:10px">
           <div class="stock-row1">
             <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
             <span class="stock-qty">${esc(s.qty||'')}</span>
+            <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
+              <button class="btn btn-sm" onclick="openStockAddModal(${s.siteId||'null'})" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
+              <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
+              <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:10px;padding:0 5px;height:20px;color:#c00;border-color:#ecc">削除</button>
+            </div>
           </div>
           <div class="stock-row2">
-            ${siteName?`<span class="stock-from">📍 ${esc(siteName)}</span>`:''}
+            ${!focusId&&siteName?`<span class="stock-from">📍 ${esc(siteName)}</span>`:''}
             ${s.addedBy?`<span class="stock-by">👤 ${esc(s.addedBy)}</span>`:''}
             ${s.date?`<span class="stock-date">📅 ${esc(s.date)}</span>`:''}
           </div>
           ${s.note?`<div class="stock-note">${esc(s.note)}</div>`:''}
-          <div class="stock-actions">
-            <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:11px">編集</button>
-            <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:11px;color:#c00;border-color:#ecc">削除</button>
-          </div>
         </div>
       </div>`;
     });
@@ -3345,23 +3352,44 @@ function _onStockSiteChange(){
     manual.style.display='';
     return;
   }
+  // この物件の既存在庫を品番ごとに整理
+  const existingStocks={};
+  stocks.filter(st=>st.siteId===sid).forEach(st=>{
+    const code=(st.code||'').toLowerCase();
+    if(!existingStocks[code])existingStocks[code]=[];
+    existingStocks[code].push(st);
+  });
+
   let html='<div style="font-size:11px;color:#555;margin-bottom:6px;font-weight:500">余りが出た品番に数量を入力：</div>';
   items.forEach((it,i)=>{
     const groupId='sbg_'+i;
+    const codeKey=it.code.toLowerCase();
+    const existing=existingStocks[codeKey]||[];
+    let rowsHtml='';
+    if(existing.length>0){
+      existing.forEach((st,ri)=>{
+        rowsHtml+=`<div style="display:flex;gap:4px;align-items:center">
+          <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="余り数量" style="flex:1;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
+          ${ri>0?'<button type="button" onclick="this.closest(\'div\').remove()" style="width:22px;height:22px;font-size:14px;line-height:1;background:#e55;color:#fff;border:none;border-radius:4px;cursor:pointer;flex-shrink:0">×</button>':''}
+        </div>`;
+      });
+    }else{
+      rowsHtml=`<input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="余り数量" style="width:100%;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">`;
+    }
     html+=`<div style="padding:5px 0;border-bottom:1px solid #eee">
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
         <div style="flex:1;min-width:0;font-size:11px">
           <span style="color:#185FA5;font-weight:500">${esc(it.code)}</span>
           <span style="color:#888;font-size:10px;margin-left:4px">${esc(it.procName)} / ${esc(it.childName)}</span>
+          ${existing.length>0?`<span style="font-size:10px;color:#1D9E75;margin-left:4px">在庫${existing.length}件</span>`:''}
         </div>
-        <button type="button" onclick="addStockQtyRow('${groupId}','${esc(it.code).replace(/'/g,"\\'")}',this)" title="同じ品番で別の長さを追加" style="width:22px;height:22px;font-size:14px;line-height:1;background:#1D9E75;color:#fff;border:none;border-radius:4px;cursor:pointer;flex-shrink:0">+</button>
+        <button type="button" onclick="addStockQtyRow('${groupId}','${esc(it.code).replace(/'/g,"\'")}',this)" title="同じ品番で別の長さを追加" style="width:22px;height:22px;font-size:14px;line-height:1;background:#1D9E75;color:#fff;border:none;border-radius:4px;cursor:pointer;flex-shrink:0">+</button>
       </div>
       <div id="${groupId}" style="display:flex;flex-direction:column;gap:3px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="余り数量" style="width:100%;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        ${rowsHtml}
       </div>
     </div>`;
   });
-  list.innerHTML=html;
   list.style.display='';
   manual.style.display='';
 }
@@ -3401,12 +3429,23 @@ function saveStockAdd(){
   let added=0;
 
   // 物件選択時の品番一覧から数量入力されたものを保存
+  // data-stock-idがある場合は既存レコードを更新、ない場合は新規追加
   document.querySelectorAll('.stock-bulk-qty').forEach(inp=>{
     const qty=inp.value.trim();
-    if(!qty)return;
     const code=inp.getAttribute('data-code');
-    stocks.push({id:nextStockId++,code,qty,siteId:sid,addedBy:user,date:today,note});
-    added++;
+    const stockId=inp.getAttribute('data-stock-id');
+    if(stockId){
+      // 既存レコードの更新
+      const existing=stocks.find(x=>x.id===parseInt(stockId));
+      if(existing){
+        if(qty){existing.qty=qty;existing.note=note;added++;}
+        else{stocks=stocks.filter(x=>x.id!==parseInt(stockId));} // 数量空なら削除
+      }
+    }else{
+      if(!qty)return;
+      stocks.push({id:nextStockId++,code,qty,siteId:sid,addedBy:user,date:today,note});
+      added++;
+    }
   });
 
   // 手入力欄
@@ -3434,19 +3473,24 @@ function openStockEditModal(stockId){
   const siteOpts='<option value="">-- なし --</option>'+activeSites.map(x=>`<option value="${x.id}"${x.id===s.siteId?' selected':''}>${esc(x.name)}</option>`).join('');
   const dlg=document.createElement('div');
   dlg.id='stockEditDlg';
-  dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  dlg.style.cssText='position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
   dlg.innerHTML=`
-    <div style="background:#fff;border-radius:12px;max-width:380px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
-      <div style="font-size:15px;font-weight:500;margin-bottom:12px;color:#0C447C">📦 在庫を編集</div>
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <input id="stockEditCode" value="${esc(s.code||'')}" placeholder="品番" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
-        <input id="stockEditQty" value="${esc(s.qty||'')}" placeholder="数量" style="flex:0 0 100px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace">
+    <div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,0.3);animation:smp-modal-in 0.18s ease-out">
+      <div style="font-size:15px;font-weight:500;margin-bottom:4px;color:#0C447C">📦 在庫を編集</div>
+      <div style="font-size:11px;color:#666;margin-bottom:14px">${esc(s.code||'')} ${esc(s.qty||'')}</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:#555;display:block;margin-bottom:3px">どの物件から？</label>
+        <select id="stockEditSite" style="width:100%;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:6px">${siteOpts}</select>
       </div>
-      <select id="stockEditSite" style="width:100%;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:6px;margin-bottom:8px">${siteOpts}</select>
-      <input id="stockEditNote" value="${esc(s.note||'')}" placeholder="メモ" style="width:100%;height:30px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px;margin-bottom:12px">
+      <div style="font-size:11px;color:#555;margin-bottom:4px">品番・数量</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="stockEditCode" value="${esc(s.code||'')}" placeholder="品番" style="flex:1;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
+        <input id="stockEditQty" value="${esc(s.qty||'')}" placeholder="数量" style="flex:0 0 110px;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
+      </div>
+      <input id="stockEditNote" value="${esc(s.note||'')}" placeholder="メモ（任意）" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px;margin-bottom:14px;box-sizing:border-box">
       <div style="display:flex;gap:6px;justify-content:flex-end">
-        <button onclick="closeStockEditModal()" style="height:32px;padding:0 14px;font-size:12px;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;cursor:pointer">キャンセル</button>
-        <button onclick="saveStockEdit(${stockId})" style="height:32px;padding:0 18px;font-size:12px;background:#185FA5;color:#fff;border:none;border-radius:6px;cursor:pointer">保存</button>
+        <button onclick="closeStockEditModal()" style="height:34px;padding:0 14px;font-size:13px;background:#fff;color:#666;border:1px solid #ccc;border-radius:6px;cursor:pointer">キャンセル</button>
+        <button onclick="saveStockEdit(${stockId})" style="height:34px;padding:0 18px;font-size:13px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500">保存</button>
       </div>
     </div>`;
   document.body.appendChild(dlg);
