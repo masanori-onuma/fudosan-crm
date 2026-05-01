@@ -2980,12 +2980,15 @@ function openOrderListMode(jumpToSiteId){
   }else{
     _orderFilter.focusSiteId=null;
   }
-  // デフォルトは発注一覧タブ。物件指定あり/なしどちらも発注一覧を先に表示
-  _orderFilter.tab='order';
+  // 物件指定あり→在庫タブ＋自動オープン、なし→発注一覧タブ
+  _orderFilter.tab=jumpToSiteId?'stock':'order';
   // どっちのモードを開いたかをsumpouViewに記憶
   document.getElementById('sumpouView').dataset.mode='order';
   renderOrderListMode();
-
+  // 物件指定ありで在庫タブを開いた場合は在庫追加モーダルを自動オープン
+  if(jumpToSiteId){
+    setTimeout(()=>openStockAddModal(jumpToSiteId),80);
+  }
 }
 function closeOrderListMode(){
   document.getElementById('sumpouView').style.display='none';
@@ -3219,10 +3222,6 @@ function ordOverlayClick(e){
 function ordSwitchTab(t){
   _orderFilter.tab=t;
   renderOrderListMode();
-  // 在庫タブに切り替えた瞬間、追加モーダルを自動オープン
-  if(t==='stock'&&!document.getElementById('stockAddDlg')){
-    setTimeout(()=>openStockAddModal(_orderFilter.focusSiteId||null),50);
-  }
 }
 
 // 在庫タブの中身
@@ -3266,9 +3265,9 @@ function _renderStockTabBody(){
             <span class="stock-qty">${esc(s.qty||'')}</span>
             ${s.count>1?`<span style="font-size:12px;color:var(--color-text-secondary)">× ${s.count}本</span>`:''}
             <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
-              <button class="btn btn-sm" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
-              <button class="btn btn-sm" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
-              <button class="btn btn-sm" onclick="deleteStock(${s.id})" style="font-size:10px;padding:0 5px;height:20px;color:#c00;border-color:#ecc">削除</button>
+              <button class="btn btn-sm stock-action-btn" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
+              <button class="btn btn-sm stock-action-btn" onclick="openStockAddModal(${s.siteId||'null'})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
+              <button class="btn btn-sm stock-action-btn" onclick="deleteStock(${s.id})" style="font-size:10px;padding:0 5px;height:20px;color:#c00;border-color:#ecc">削除</button>
             </div>
           </div>
           <div class="stock-row2">
@@ -3796,7 +3795,7 @@ if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
   sp.textContent=
     `.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}th.col-info{width:${_spColWidth}px!important;min-width:${_spColWidth}px!important;max-width:${_spColWidth}px!important}.proc-inner{gap:2px!important;padding:0 2px 0 4px!important}`+
     '.day-col{width:24px!important;min-width:24px!important}td.day-cell{width:24px!important;min-width:24px!important}'+
-    '.btn-sm:not(.dropbox-btn):not(.key-add-btn):not(.sumpou-btn):not(.smp-back-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
+    '.btn-sm:not(.dropbox-btn):not(.key-add-btn):not(.sumpou-btn):not(.smp-back-btn):not(.stock-action-btn){display:none!important}.sp-hide{display:none!important}.sp-only{display:inline-flex!important}'+
     '.chk{display:flex!important;width:18px!important;height:18px!important;font-size:11px!important;flex-shrink:0!important}'+
     '.sort-handle{display:none!important}'+
     '.sort-handle-site{display:none!important}'+
