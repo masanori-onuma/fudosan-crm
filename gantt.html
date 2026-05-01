@@ -2874,6 +2874,7 @@ function _initColResize(){
     w=Math.max(120,Math.min(600,w));
     document.querySelectorAll('.col-info').forEach(el=>{
       el.style.width=w+'px';
+      el.style.minWidth=w+'px';
       el.style.maxWidth=w+'px';
     });
     // スマホ用タッチ判定の_COL_Wも更新
