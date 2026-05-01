@@ -126,7 +126,7 @@ body.smp-modal-open{overflow:hidden}
 .gantt-outer{border:1px solid #ccc;border-radius:8px;background:#fff}
 .gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:75vh;touch-action:pan-x pan-y}
 table{border-collapse:collapse;min-width:100%;font-size:12px;table-layout:fixed}
-.col-info{width:150px;min-width:120px;max-width:150px;position:sticky;left:0;z-index:10;touch-action:pan-y}
+.col-info{width:150px;min-width:120px;max-width:600px;position:sticky;left:0;z-index:10;touch-action:pan-y}
 .col-info-resize{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:20;background:transparent;}
 .col-info-resize:hover,.col-info-resize.dragging{background:rgba(24,95,165,0.3);}
 .day-col{width:26px;min-width:26px}
@@ -2898,9 +2898,9 @@ function _initColResize(){
     document.addEventListener('mouseup',onUp);
   });
 
-  // 保存済み幅を復元
+  // 保存済み幅を復元（なければ初期値150pxでmax-widthを設定）
   const saved=localStorage.getItem('colInfoW');
-  if(saved)applyWidth(parseInt(saved));
+  applyWidth(saved?parseInt(saved):150);
 }
 
 function smpManualSave(){
