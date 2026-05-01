@@ -2980,15 +2980,11 @@ function openOrderListMode(jumpToSiteId){
   }else{
     _orderFilter.focusSiteId=null;
   }
-  // 物件指定あり→在庫タブ＋自動オープン、なし→発注一覧タブ
-  _orderFilter.tab=jumpToSiteId?'stock':'order';
+  // 常に発注一覧タブで開く
+  _orderFilter.tab='order';
   // どっちのモードを開いたかをsumpouViewに記憶
   document.getElementById('sumpouView').dataset.mode='order';
   renderOrderListMode();
-  // 物件指定ありで在庫タブを開いた場合は在庫追加モーダルを自動オープン
-  if(jumpToSiteId){
-    setTimeout(()=>openStockAddModal(jumpToSiteId),80);
-  }
 }
 function closeOrderListMode(){
   document.getElementById('sumpouView').style.display='none';
@@ -3222,6 +3218,10 @@ function ordOverlayClick(e){
 function ordSwitchTab(t){
   _orderFilter.tab=t;
   renderOrderListMode();
+  // 在庫タブに切り替えた時、物件フォーカスがあれば入力済みモーダルを開く
+  if(t==='stock'&&_orderFilter.focusSiteId&&!document.getElementById('stockAddDlg')){
+    setTimeout(()=>openStockAddModal(_orderFilter.focusSiteId),50);
+  }
 }
 
 // 在庫タブの中身
@@ -3409,6 +3409,7 @@ function _onStockSiteChange(){
       </div>
     </div>`;
   });
+  list.innerHTML=html;
   list.style.display='';
   manual.style.display='';
 }
