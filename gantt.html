@@ -361,6 +361,43 @@ let viewStart,viewEnd;
 let sites=[];
 let stocks=[]; // 在庫リスト（独立データ）
 let nextStockId=1;
+
+// 旧品番→新品番対照表（サンゲツSPシリーズ 2023-2025→2025-2027）
+const SP_CODE_MAP={
+  'SP9701':'SP2503','SP9702':'SP2504','SP9703':'SP2507','SP9704':'SP2508','SP9705':'SP2505',
+  'SP9706':'SP2506','SP9708':'SP2510','SP9709':'SP2509','SP9711':'SP2521','SP9712':'SP2511',
+  'SP9713':'SP2512','SP9714':'SP2513','SP9716':'SP2514','SP9717':'SP2517','SP9718':'SP2518',
+  'SP9719':'SP2519','SP9720':'SP2520','SP9721':'SP2516','SP9722':'SP2515','SP9723':'SP2523',
+  'SP9724':'SP2524','SP9725':'SP2548','SP9726':'SP2549','SP9728':'SP2546','SP9729':'SP2547',
+  'SP9734':'SP2550','SP9735':'SP2551','SP9736':'SP2544','SP9737':'SP2545','SP9738':'SP2540',
+  'SP9743':'SP2573','SP9744':'SP2574','SP9745':'SP2575','SP9746':'SP2572','SP9748':'SP2552',
+  'SP9749':'SP2553','SP9750':'SP2570','SP9751':'SP2527','SP9752':'SP2529','SP9753':'SP2599',
+  'SP9754':'SP2600','SP9756':'SP2571','SP9758':'SP2528','SP9759':'SP2526','SP9760':'SP2554',
+  'SP9761':'SP2555','SP9762':'SP2557','SP9766':'SP2560','SP9769':'SP2598','SP9771':'SP2601',
+  'SP9772':'SP2602','SP9773':'SP2603','SP9774':'SP2604','SP9775':'SP2605','SP9777':'SP2579',
+  'SP9778':'SP2576','SP9779':'SP2577','SP9780':'SP2578','SP9781':'SP2582','SP9782':'SP2581',
+  'SP9785':'SP2594','SP9788':'SP2596','SP9789':'SP2595','SP9791':'SP2583','SP9792':'SP2584',
+  'SP9793':'SP2585','SP9794':'SP2586','SP9796':'SP2589','SP9797':'SP2588','SP9799':'SP2564',
+  'SP9801':'SP2580','SP9803':'SP2567','SP9804':'SP2568','SP9805':'SP2569'
+};
+// 逆引き：新品番→旧品番
+const SP_CODE_MAP_REV=Object.fromEntries(Object.entries(SP_CODE_MAP).map(([o,n])=>[n,o]));
+
+// 品番の新旧対応を返す {matched: stocks[], note: string}
+function _stockMatchWithAlias(codeNorm){
+  const direct=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+  const upper=codeNorm.toUpperCase();
+  let aliasCode=null, aliasLabel=null;
+  if(SP_CODE_MAP[upper]){
+    aliasCode=SP_CODE_MAP[upper].toLowerCase();
+    aliasLabel='新品番：'+SP_CODE_MAP[upper];
+  }else if(SP_CODE_MAP_REV[upper]){
+    aliasCode=SP_CODE_MAP_REV[upper].toLowerCase();
+    aliasLabel='旧品番：'+SP_CODE_MAP_REV[upper];
+  }
+  const alias=aliasCode?stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===aliasCode):[];
+  return {direct, alias, aliasLabel};
+}
 let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 window._isSP=_isSP;
@@ -3150,9 +3187,11 @@ function renderOrderListMode(){
         if(!isOrdered&&hasMaterial){
           const codeNorm=parts.num.toLowerCase().replace(/[\s　]+/g,'');
           if(codeNorm){
-            const matched=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+            const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
+            const matched=[...direct,...alias];
             if(matched.length){
-              stockAlertHtml='<div class="ord-stock-alert">📦 在庫あり：'+matched.map(st=>{
+              const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
+              stockAlertHtml='<div class="ord-stock-alert">📦 在庫あり'+aliasNote+'：'+matched.map(st=>{
                 const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
                 return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}</span>${siteName?`<span class="from">（${esc(siteName)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
               }).join('')+'</div>';
@@ -3189,9 +3228,11 @@ function renderOrderListMode(){
           if(!exIsOrdered&&exHasMat){
             const codeNorm=exParts.num.toLowerCase().replace(/[\s　]+/g,'');
             if(codeNorm){
-              const matched=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+              const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
+              const matched=[...direct,...alias];
               if(matched.length){
-                exStockHtml='<div class="ord-stock-alert">📦 在庫あり：'+matched.map(st=>{
+                const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
+                exStockHtml='<div class="ord-stock-alert">📦 在庫あり'+aliasNote+'：'+matched.map(st=>{
                   const sn=st.siteId?(()=>{const sx=sites.find(x=>x.id===st.siteId);return sx?sx.name:'';})():'';
                   return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}</span>${sn?`<span class="from">（${esc(sn)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
                 }).join('')+'</div>';
