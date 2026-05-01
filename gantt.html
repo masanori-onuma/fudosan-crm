@@ -3317,7 +3317,7 @@ function openStockAddModal(preSelectSiteId,preSelectCode){
         <div style="display:flex;gap:6px;margin-bottom:6px">
           <input id="stockAddCode" placeholder="品番" value="${esc(preSelectCode||'')}" style="flex:2;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
           <input id="stockAddQty" placeholder="規格" style="flex:2;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
-          <input id="stockAddCount" placeholder="数量" type="number" min="1" value="1" style="flex:0 0 60px;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
+          <input id="stockAddCount" placeholder="数量" type="number" min="1" value="" style="flex:0 0 48px;padding:0 4px;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
         </div>
         <input id="stockAddNote" placeholder="メモ（任意）" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid #ccc;border-radius:5px">
       </div>
@@ -3389,13 +3389,13 @@ function _onStockSiteChange(){
     if(existing.length>0){
       // 既存在庫は全件表示（数量が違うケースに対応）
       rowsHtml=existing.map((st,ri)=>`<div style="display:flex;gap:4px;margin-bottom:2px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格" style="flex:2;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
-        <input class="stock-bulk-count" type="number" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 55px;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-count" type="number" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center" value="${st.count||''}">
       </div>`).join('');
     }else{
       rowsHtml=`<div style="display:flex;gap:4px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格" style="flex:2;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
-        <input class="stock-bulk-count" type="number" min="1" value="1" placeholder="数量" style="flex:0 0 55px;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-count" type="number" min="1" value="1" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
       </div>`;
     }
     html+=`<div style="padding:5px 0;border-bottom:1px solid #eee">
@@ -3431,11 +3431,11 @@ function addStockQtyRow(groupId,code,btn){
   inp.className='stock-bulk-qty';
   inp.dataset.code=code;
   inp.placeholder='規格';
-  inp.style.cssText='flex:2;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box';
+  inp.style.cssText='flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box';
   const cnt=document.createElement('input');
   cnt.className='stock-bulk-count';
-  cnt.type='number';cnt.min='1';cnt.value='1';cnt.placeholder='数量';
-  cnt.style.cssText='flex:0 0 55px;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center';
+  cnt.type='number';cnt.min='1';cnt.value='';cnt.placeholder='数量';
+  cnt.style.cssText='flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center';
 
   const del=document.createElement('button');
   del.type='button';
