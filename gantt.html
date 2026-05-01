@@ -776,7 +776,7 @@ function _renderInner(){
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
   if(document.getElementById('ganttHead').dataset.rangeKey!==_headKey){
-    let headHtml='<tr><th class="col-info" style="height:36px;position:relative"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div><div class="col-info-resize" id="colInfoResize" title="ドラッグで列幅変更"></div></th>';
+    let headHtml='<tr><th class="col-info" style="height:36px;"><div style="display:flex;align-items:center;gap:4px;padding:0 8px">物件 / 工程<span style="margin-left:auto;display:flex;gap:3px"><button onclick="expandAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全展開">＋</button><button onclick="collapseAll()" style="height:18px;padding:0 5px;font-size:11px;border-radius:4px;border:1px solid #bbb;background:#fff;cursor:pointer;line-height:1" title="全縮小">－</button></span></div><div class="col-info-resize" id="colInfoResize" title="ドラッグで列幅変更"></div></th>';
     days.forEach(day=>{
       const wk=isWk(day),tod=isToday(day),hol=isHoliday(day);
       const wd=['日','月','火','水','木','金','土'][day.getDay()];
