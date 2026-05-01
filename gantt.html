@@ -795,7 +795,7 @@ function _renderInner(){
 
   sites.filter(site=>{
     if(fc&&site.client!==fc)return false;
-    if(fp&&!site.processes.some(p=>p.person===fp))return false;
+    if(fp&&!site.processes.some(p=>p.person===fp||(p.persons||[]).includes(fp)))return false;
     if(fs){
       // 物件名・所在地・子項目の品番(material)・子項目名・工程名を検索対象に
       const parts=[site.name||'',site.addr||''];
@@ -812,7 +812,7 @@ function _renderInner(){
     }
     return true;
   }).forEach(site=>{
-    const procs=site.processes.filter(p=>fp?p.person===fp:true);
+    const procs=site.processes.filter(p=>fp?(p.person===fp||(p.persons||[]).includes(fp)):true);
     const nd=procs.filter(p=>!p.periods||!p.periods.length).length;
     const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr);
     const hasUnset=site.processes.some(p=>!p.periods||!p.periods.length);
@@ -1044,7 +1044,7 @@ function _renderInner(){
       mini.addEventListener('mouseenter',function(ev){
         let tip=document.getElementById('childTip');
         if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
-        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+((proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).length?' <span style="font-weight:400;color:#888;font-size:10px">/ '+(proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).map(v=>esc(v)).join(' / ')+'</span>':'')+'</div>';
         const body=_children.length>0
           ?_children.map(c=>{
             const trackOrder=c.ordered!==undefined;
@@ -1067,7 +1067,7 @@ function _renderInner(){
       mini.addEventListener('touchstart',function(ev){
         let tip=document.getElementById('childTip');
         if(!tip){tip=document.createElement('div');tip.id='childTip';tip.style.cssText='position:fixed;z-index:3000;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:8px 12px;font-size:11px;min-width:140px;pointer-events:none';document.body.appendChild(tip);}
-        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+(proc.person?' <span style="font-weight:400;color:#888;font-size:10px">/ '+esc(proc.person)+'</span>':'')+'</div>';
+        const hdr='<div style="font-weight:600;color:#0C447C'+(_children.length>0?';margin-bottom:4px':'')+'">'+esc(proc.name)+((proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).length?' <span style="font-weight:400;color:#888;font-size:10px">/ '+(proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).map(v=>esc(v)).join(' / ')+'</span>':'')+'</div>';
         const body=_children.length>0
           ?_children.map(c=>{
             const trackOrder=c.ordered!==undefined;
@@ -1099,7 +1099,7 @@ function _renderInner(){
         procRow.style.height=ROW_H+'px';
         const procTd=document.createElement('td');
         procTd.className='col-info';
-        const meta=proc.person||'';
+        const meta=(proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).join(' / ');
         const nodateBadge=procWarn?'<span class="badge-procwarn">⚠ 未発注</span>':(!hasPeriod?'<span class="badge-nodate">未定</span>':'');
         const children=proc.children||[];
         const hasChildren=children.length>0;
@@ -1820,10 +1820,11 @@ function openProcModal(siteId,procId){
   const isNew=!procId;
   const delBtn=!isNew?`<button class="btn btn-danger" onclick="delProc(${siteId},${procId})">削除</button>`:'';
   const nval=p.name||'';
-  const pval=p.person||'';
+  // 担当者：personsがあれば使う、なければpersonを配列化
+  const pPersons=p.persons&&p.persons.length?p.persons:(p.person?[p.person]:[]);
 
   const nOpts=`<option value=""${!nval?' selected':''}>-- 選択 --</option>`+masters.procNames.map(v=>`<option value="${esc(v)}"${v===nval?' selected':''}>${esc(v)}</option>`).join('');
-  const pOpts=`<option value=""${!pval?' selected':''}>-- 選択 --</option>`+masters.persons.map(v=>`<option value="${esc(v)}"${v===pval?' selected':''}>${esc(v)}</option>`).join('');
+  const pOpts=(v='')=>`<option value=""${!v?' selected':''}>-- 選択 --</option>`+masters.persons.map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${esc(x)}</option>`).join('');
 
   const periods=p.periods||[];
   const periodRows=periods.map((pd,i)=>`
@@ -1872,8 +1873,14 @@ function openProcModal(siteId,procId){
       <input id="p_area" value="${esc(p.area||'')}">
     </div>
     <div class="field"><label>担当者・業者</label>
-      <select id="p_person_sel" onchange="document.getElementById('p_person_inp').value=this.value" style="width:100%;font-size:13px;padding:5px 6px;border:1px solid #ccc;border-radius:6px;margin-bottom:4px">${pOpts}</select>
-      <input id="p_person_inp" placeholder="または直接入力" value="${esc(pval)}" style="${pval?'':'display:none'}">
+      <div id="personList">${pPersons.map((pv,pi)=>`
+        <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px" class="person-row">
+          <select onchange="this.nextElementSibling.value=this.value" style="flex:1;font-size:12px;padding:4px 6px;border:1px solid #ccc;border-radius:6px">${pOpts(pv)}</select>
+          <input class="person-inp" placeholder="または直接入力" value="${esc(pv)}" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ccc;border-radius:6px">
+          ${pi>0?'<button class="btn btn-sm btn-danger" onclick="this.closest(\'.person-row\').remove()" style="flex-shrink:0">×</button>':'<span style="width:28px"></span>'}
+        </div>`).join('')}
+      </div>
+      <button class="btn btn-sm btn-primary" style="margin-top:2px" onclick="addPersonRowInModal()">＋ 担当者を追加</button>
     </div>
     <div class="field"><label>期間 <span style="font-size:10px;color:#888">（ガントチャートでドラッグでも追加可）</span></label>
       <div id="periodList">${periodRows}</div>
@@ -1897,6 +1904,19 @@ function openProcModal(siteId,procId){
     </div></div></div>`;
 }
 
+
+function addPersonRowInModal(){
+  const list=document.getElementById('personList');if(!list)return;
+  const pOpts='<option value="">-- 選択 --</option>'+masters.persons.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const div=document.createElement('div');
+  div.className='person-row';
+  div.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
+  div.innerHTML=`<select onchange="this.nextElementSibling.value=this.value" style="flex:1;font-size:12px;padding:4px 6px;border:1px solid #ccc;border-radius:6px">${pOpts}</select>
+    <input class="person-inp" placeholder="または直接入力" value="" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ccc;border-radius:6px">
+    <button class="btn btn-sm btn-danger" onclick="this.closest('.person-row').remove()" style="flex-shrink:0">×</button>`;
+  list.appendChild(div);
+  div.querySelector('.person-inp').focus();
+}
 
 function updateChildFromSel(sel,procId,idx){
   const val=sel.value;
@@ -2404,7 +2424,8 @@ function openArchivedSiteModal(id){
 
 function saveProc(siteId,procId){
   const name=(document.getElementById('p_name_sel').value||document.getElementById('p_name_inp').value).trim();if(!name)return;
-  const person=(document.getElementById('p_person_inp').value||document.getElementById('p_person_sel').value).trim();
+  const persons=[...document.querySelectorAll('#personList .person-inp')].map(el=>el.value.trim()).filter(Boolean);
+  const person=persons[0]||''; // 後方互換のため1件目をpersonにも保存
   const area=document.getElementById('p_area').value.trim();
   const color=document.getElementById('p_color').value;
   const site=sites.find(x=>x.id===siteId);if(!site)return;
@@ -2429,11 +2450,11 @@ function saveProc(siteId,procId){
       const inputs=row.querySelectorAll('input[type=date]');
       if(inputs.length>=2)periods.push({startD:inputs[0].value,endD:inputs[1].value});
     });
-    site.processes.push({id:nextPid++,name,person,area,periods,done:false,color,children:newChildren});
+    site.processes.push({id:nextPid++,name,person,persons,area,periods,done:false,color,children:newChildren});
   }else{
     const p=site.processes.find(x=>x.id===procId);
     if(p){
-      Object.assign(p,{name,person,area,color});
+      Object.assign(p,{name,person,persons,area,color});
       if(newChildren.length>0)p.children=[...p.children,...newChildren];
     }
   }
