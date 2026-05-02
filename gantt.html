@@ -61,7 +61,7 @@ header a:hover{color:#185FA5}
 @media (hover:none) and (pointer:coarse){.smp-del-btn{display:none}}
 .smp-fields{display:flex;gap:6px;align-items:flex-start}
 .smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0;box-sizing:border-box}
-.smp-fields .f-num{flex:0 0 110px;height:32px}
+.smp-fields .f-num{flex:0 0 130px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis}
 .smp-fields .f-qty{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
 .smp-fields input.dirty,.smp-fields textarea.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
@@ -2792,6 +2792,21 @@ function smpShowAllSites(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function smpUpdateExtraMaterial(siteId,procId,childId,extraId,numEl,qtyEl){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
+  const num=(numEl?numEl.value:'').trim();
+  const qty=(qtyEl?qtyEl.value:'').trim();
+  const newMat=num&&qty?(num+' '+qty):(num||qty);
+  if(numEl)numEl.classList.remove('dirty');
+  if(qtyEl)qtyEl.classList.remove('dirty');
+  if(ex.material===newMat)return;
+  ex.material=newMat;
+  saveData();
+}
+
 function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
@@ -3299,7 +3314,16 @@ function _renderStockTabBody(){
     filtered=sorted.filter(s=>s.siteId===focusId);
   }else{
     const sq=(_stockFilter.search||'').trim().toLowerCase().replace(/[\s　]+/g,'');
-    filtered=sq?sorted.filter(s=>(s.code||'').toLowerCase().replace(/[\s　]+/g,'').includes(sq)):sorted;
+    if(sq){
+      const {direct,alias}=_stockMatchWithAlias(sq);
+      const aliasIds=new Set([...direct,...alias].map(s=>s.id));
+      filtered=sorted.filter(s=>{
+        const code=(s.code||'').toLowerCase().replace(/[\s　]+/g,'');
+        return code.includes(sq)||aliasIds.has(s.id);
+      });
+    }else{
+      filtered=sorted;
+    }
   }
 
   const toolbarRight=focusId
@@ -3451,12 +3475,12 @@ function _onStockSiteChange(){
       // 既存在庫は全件表示（数量が違うケースに対応）
       rowsHtml=existing.map((st,ri)=>`<div style="display:flex;gap:4px;margin-bottom:2px">
         <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
-        <input class="stock-bulk-count" type="number" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center" value="${st.count||''}">
+        <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center" value="${st.count||''}">
       </div>`).join('');
     }else{
       rowsHtml=`<div style="display:flex;gap:4px">
         <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
-        <input class="stock-bulk-count" type="number" min="1" value="1" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
+        <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="1" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
       </div>`;
     }
     html+=`<div style="padding:5px 0;border-bottom:1px solid #eee">
@@ -3524,7 +3548,7 @@ function _addStockManualRow(inheritCode){
   row.innerHTML=`
     <input class="sma-code" placeholder="品番" value="${esc(inheritCode||'')}" style="flex:2;min-width:0;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
     <input class="sma-spec" placeholder="規格" style="flex:2;min-width:0;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
-    <input class="sma-count" placeholder="数量" type="number" min="1" value="" style="flex:0 0 56px;min-width:0;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
+    <input class="sma-count" placeholder="数量" type="text" inputmode="numeric" min="1" value="" style="flex:0 0 56px;min-width:0;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
     <button onclick="_addStockManualRow(this.closest('.stock-manual-row').querySelector('.sma-code').value.trim())" style="flex:0 0 32px;height:32px;background:#1D9E75;color:#fff;border:none;border-radius:5px;font-size:18px;cursor:pointer;line-height:1;padding:0">+</button>
   `;
   container.appendChild(row);
