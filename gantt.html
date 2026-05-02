@@ -929,7 +929,9 @@ function _renderInner(){
     siteTd.className='col-info';
     const ndBadge=nd>0?`<span class="badge-nd">未定${nd}</span>`:'';
     const warnBadge='';
-    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropboxを開く"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:'';
+    const _dropboxSvg=`<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    const dropboxBtn=site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A" title="Dropbox 見積①">${_dropboxSvg}</a>`:''
+    const dropboxBtn2=site.dropboxUrl2?`<a href="${site.dropboxUrl2}" target="_blank" class="dropbox-btn" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFA0A0" title="Dropbox 見積②">${_dropboxSvg}</a>`:'';
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
@@ -943,7 +945,7 @@ function _renderInner(){
     // ボタン配置：📐📋がない場合も同じ幅でスペース確保してフォルダ位置を統一
     const _sumpouBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_sumpouBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="${_sumpouBtnTitle}">📐</button>`:'<span style="width:28px;display:inline-block"></span>';
     const _orderBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_orderBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="${_orderBtnTitle}">📋</button>`:'<span style="width:28px;display:inline-block"></span>';
-    const _actionsHtml=`<span class="site-actions">${dropboxBtn}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
+    const _actionsHtml=`<span class="site-actions">${dropboxBtn}${dropboxBtn2}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
@@ -1848,7 +1850,8 @@ function openSiteModal(id){
     </div>
     <div class="field"><label>🔑 鍵所在</label><input id="s_key" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}"></div>
     <div class="field"><label>🚗 駐車場</label><input id="s_parking" placeholder="敷地内◯番・近隣コインP など" value="${esc(s.parking||'')}"></div>
-    <div class="field"><label>📁 Dropboxフォルダ URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
+    <div class="field"><label>📁 Dropbox 見積① URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
+    <div class="field"><label>📁 Dropbox 見積② URL</label><input id="s_dropbox2" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl2||'')}"></div>
     <div class="modal-btns">
       ${delBtn}
       ${archBtn}
@@ -2209,12 +2212,13 @@ function saveSite(id){
   const addr=document.getElementById('s_addr').value.trim();
   const client=document.getElementById('s_client_sel').value==='__custom__'?document.getElementById('s_client_inp').value.trim():document.getElementById('s_client_sel').value;
   const dropboxUrl=document.getElementById('s_dropbox').value.trim();
+  const dropboxUrl2=document.getElementById('s_dropbox2').value.trim();
   const keyLocation=document.getElementById('s_key').value.trim();
   const parking=document.getElementById('s_parking').value.trim();
   const koukiStart=document.getElementById('s_kouki_start').value;
   const koukiEnd=document.getElementById('s_kouki_end').value;
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,keyLocation,parking,koukiStart,koukiEnd});}
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,koukiStart,koukiEnd});}
   saveData();closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
@@ -2365,7 +2369,7 @@ function updateArchiveBanner(){
   const shown=sites.length;
   const periodLabel=_archiveSearch?'検索結果':('直近'+_archiveMonthsBack+'ヶ月');
   const html=`
-    <div id="archiveBanner" style="background:#fff4e0;border:1px solid #f0c168;border-radius:6px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div id="archiveBanner" style="background:#fff4e0;border-bottom:2px solid #f0c168;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:47px;z-index:99">
       <span style="font-weight:600;color:#a06000">📦 アーカイブ閲覧中</span>
       <span style="font-size:12px;color:#555">${periodLabel}: ${shown}件 / 全${total}件</span>
       <input id="archSearchInp" placeholder="検索（物件名・所在地）" value="${esc(_archiveSearch||'')}" oninput="onArchiveSearchInput(this.value)" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:180px">
@@ -2379,9 +2383,8 @@ function updateArchiveBanner(){
   if(banner){
     banner.replaceWith(newBanner);
   }else{
-    const container=document.querySelector('.container');
-    const outer=document.querySelector('.gantt-outer');
-    if(container&&outer)container.insertBefore(newBanner,outer);
+    const header=document.querySelector('header');
+    if(header)header.insertAdjacentElement('afterend',newBanner);
   }
 }
 
@@ -2455,7 +2458,8 @@ function openArchivedSiteModal(id){
             <div style="color:#888">工期</div><div>${s.koukiStart||''} 〜 ${s.koukiEnd||''}</div>
             ${s.keyLocation?'<div style="color:#888">鍵所在</div><div>'+esc(s.keyLocation)+'</div>':''}
             ${s.parking?'<div style="color:#888">駐車場</div><div>'+esc(s.parking)+'</div>':''}
-            ${s.dropboxUrl?'<div style="color:#888">Dropbox</div><div><a href="'+esc(s.dropboxUrl)+'" target="_blank" style="color:#185FA5">フォルダを開く</a></div>':''}
+            ${s.dropboxUrl?'<div style="color:#888">Dropbox 見積①</div><div><a href="'+esc(s.dropboxUrl)+'" target="_blank" style="color:#185FA5">フォルダを開く</a></div>':''}
+            ${s.dropboxUrl2?'<div style="color:#888">Dropbox 見積②</div><div><a href="'+esc(s.dropboxUrl2)+'" target="_blank" style="color:#185FA5">フォルダを開く</a></div>':''}
             <div style="color:#888">アーカイブ</div><div>${(s.archivedAt||'').slice(0,10)} (${s.archivedBy==='auto'?'自動':'手動'})</div>
           </div>
           <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:4px;padding-bottom:2px;border-bottom:1px solid #eee">工程（${procs.length}件）</div>
@@ -2700,7 +2704,7 @@ function renderSumpouMode(){
           <div class="row1">
             ${_smpKoukiBadge(site)}
             <span class="smp-site-name">${esc(site.name)}</span>
-            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropboxを開く"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
+            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropbox 見積①"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}${site.dropboxUrl2?`<a href="${site.dropboxUrl2}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFA0A0;margin-left:2px" title="Dropbox 見積②"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
           </div>
           <div class="smp-site-meta">
             📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
@@ -3195,7 +3199,7 @@ function renderOrderListMode(){
           <div class="row1">
             ${_ordKoukiBadge(site)}
             <span class="smp-site-name">${esc(site.name)}</span>
-            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropboxを開く"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
+            ${site.dropboxUrl?`<a href="${site.dropboxUrl}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFC84A;margin-left:4px" title="Dropbox 見積①"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}${site.dropboxUrl2?`<a href="${site.dropboxUrl2}" target="_blank" style="flex-shrink:0;text-decoration:none;display:flex;align-items:center;color:#FFA0A0;margin-left:2px" title="Dropbox 見積②"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></a>`:''}
           </div>
           <div class="smp-site-meta">
             📍 ${esc(site.addr||'住所未登録')} ${site.addr?`<a href="${mapUrl}" target="_blank">[地図]</a>`:''}<br>
