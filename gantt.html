@@ -62,7 +62,18 @@ header a:hover{color:#185FA5}
 .smp-fields{display:flex;gap:6px;align-items:flex-start}
 .smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0;box-sizing:border-box}
 .smp-fields .f-num{flex:0 0 130px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis}
-.smp-fields .f-qty{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
+.smp-fields .f-size{flex:1 1 0;min-width:0;height:32px}
+.smp-fields .f-qty{flex:0 0 52px;min-width:0;height:32px;text-align:center}
+.smp-fields .f-qty-free{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
+.smp-two-btns{display:flex;gap:6px;margin-top:6px}
+.smp-two-btns button{flex:1;height:26px;font-size:11px;border-radius:6px;cursor:pointer;background:var(--color-background-primary)}
+.smp-btn-sibling{color:#185FA5;border:1px solid #185FA5}
+.smp-btn-size{color:#1D9E75;border:1px solid #1D9E75}
+.smp-field-labels{display:flex;gap:6px;margin-bottom:3px;font-size:10px;color:var(--color-text-tertiary)}
+.smp-field-labels .l-num{flex:0 0 130px;padding-left:4px}
+.smp-field-labels .l-size{flex:1 1 0;padding-left:4px}
+.smp-field-labels .l-qty{flex:0 0 52px;text-align:center}
+.smp-field-labels .l-btn{flex:0 0 28px}
 .smp-fields input.dirty,.smp-fields textarea.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
 .smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:600;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
@@ -2716,25 +2727,32 @@ function renderSumpouMode(){
               <span class="name">${esc(child.name||'')}</span>
               ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
             </div>
+            <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
-              <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#smpchild_${child.id} .f-qty'))">
-              <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#smpchild_${child.id} .f-num'),this)">${esc(parts.qty)}</textarea>
-              <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id})" title="同じ品番を追加（工程には影響しません）">＋</button>
+              <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+            </div>
+            <div class="smp-two-btns">
+              <button class="smp-btn-sibling" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'sibling')">＋ 品番追加</button>
+              <button class="smp-btn-size" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'size')">＋ サイズ追加</button>
             </div>
           </div>`;
-          // extraMaterials（追加品番行）を表示（工程子項目には影響しない）
+          // extraMaterials（追加品番行）を表示
           (child.extraMaterials||[]).forEach(ex=>{
             const exParts=_splitMaterial(ex.material||'');
             const exHasMat=!!ex.material;
-            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}">
+            const isSizeOnly=ex.sizeOnly===true;
+            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}" style="${isSizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
               <div class="name-row">
-                <span class="name" style="color:#888;font-size:11px">追加品番</span>
+                <span class="name" style="color:#888;font-size:11px">${isSizeOnly?'サイズ追加':'追加品番'}</span>
                 ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
               </div>
               <div class="smp-fields">
-                <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},this,document.querySelector('#extra_${ex.id} .f-qty'))">
-                <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},document.querySelector('#extra_${ex.id} .f-num'),this)">${esc(exParts.qty)}</textarea>
-                <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" title="この行を削除" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+                ${isSizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(exParts.num||child.material.split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
+                <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
+                <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
               </div>
             </div>`;
           });
@@ -2759,10 +2777,18 @@ function renderSumpouMode(){
 
 // material文字列を「品番」「数量」に分割（最初のスペースで区切り）
 function _splitMaterial(m){
-  if(!m)return {num:'',qty:''};
-  const idx=m.search(/[\s　]/);
-  if(idx<0)return {num:m,qty:''};
-  return {num:m.substring(0,idx),qty:m.substring(idx).trim()};
+  if(!m)return {num:'',size:'',qty:''};
+  const parts=m.split(/[\s　]+/);
+  if(parts.length===1)return {num:parts[0],size:'',qty:''};
+  if(parts.length===2)return {num:parts[0],size:'',qty:parts[1]};
+  return {num:parts[0],size:parts[1],qty:parts.slice(2).join(' ')};
+}
+
+function _joinMaterial(num,size,qty){
+  const n=(num||'').trim();
+  const s=(size||'').trim();
+  const q=(qty||'').trim();
+  return [n,s,q].filter(Boolean).join(' ');
 }
 
 function onSumpouSearch(v){
@@ -2792,31 +2818,32 @@ function smpShowAllSites(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function smpUpdateExtraMaterial(siteId,procId,childId,extraId,numEl,qtyEl){
+function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
-  const num=(numEl?numEl.value:'').trim();
-  const qty=(qtyEl?qtyEl.value:'').trim();
-  const newMat=num&&qty?(num+' '+qty):(num||qty);
-  if(numEl)numEl.classList.remove('dirty');
-  if(qtyEl)qtyEl.classList.remove('dirty');
+  const row=document.getElementById('extra_'+extraId);if(!row)return;
+  const num=ex.sizeOnly?(c.material||'').split(/[\s　]/)[0]:(row.querySelector('.f-num')||{value:''}).value.trim();
+  const size=(row.querySelector('.f-size')||{value:''}).value.trim();
+  const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
+  row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList&&el.classList.remove('dirty'));
+  const newMat=_joinMaterial(num,size,qty);
   if(ex.material===newMat)return;
   ex.material=newMat;
   saveData();
 }
 
-function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
+function smpUpdateMaterial(siteId,procId,childId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
-  const num=(numEl?numEl.value:'').trim();
-  const qty=(qtyEl?qtyEl.value:'').trim();
-  const newMat=num&&qty?(num+' '+qty):(num||qty);
-  // dirty解除（変更があってもなくても、フォーカス外しのタイミングで解除）
-  if(numEl)numEl.classList.remove('dirty');
-  if(qtyEl)qtyEl.classList.remove('dirty');
+  const row=document.getElementById('smpchild_'+childId);if(!row)return;
+  const num=(row.querySelector('.f-num')||{value:''}).value.trim();
+  const size=(row.querySelector('.f-size')||{value:''}).value.trim();
+  const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
+  row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList.remove('dirty'));
+  const newMat=_joinMaterial(num,size,qty);
   if(c.material===newMat){_smpUpdatePendingState();return;}
   c.material=newMat;
   // 使用者・日付を自動記録（寸法入力時の足跡）
@@ -2826,7 +2853,6 @@ function smpUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
   c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   saveData();
   // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
-  const row=document.getElementById('smpchild_'+childId);
   if(row){
     if(newMat){
       row.classList.add('done-input');
@@ -3010,8 +3036,10 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
   if(!baseChild.extraMaterials)baseChild.extraMaterials=[];
-  // mode='order'の場合は発注専用フラグを付ける（寸法モードには表示しない）
-  const newExtra={id:nextCid++,material:'',ordered:false};
+  const isSizeOnly=(mode==='size');
+  // サイズ追加の場合は親の品番を引き継いでmaterialに設定
+  const inheritNum=isSizeOnly?((baseChild.material||'').split(/[\s　]/)[0]||''):'';
+  const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:isSizeOnly};
   baseChild.extraMaterials.push(newExtra);
   saveData();
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
@@ -3019,7 +3047,7 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
     const row=document.getElementById('extra_'+newExtra.id);
     if(row){
       row.scrollIntoView({behavior:'smooth',block:'center'});
-      const inp=row.querySelector('.f-num');
+      const inp=row.querySelector('.f-size')||row.querySelector('.f-num');
       if(inp)inp.focus();
     }
   },50);
@@ -3217,10 +3245,15 @@ function renderOrderListMode(){
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
           </div>
+          <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div></div>
           <div class="smp-fields">
-            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},this,document.querySelector('#ordchild_${child.id} .f-qty'))" ${isOrdered?'':''}>
-            <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id},document.querySelector('#ordchild_${child.id} .f-num'),this)" ${isOrdered?'':''}>${esc(parts.qty)}</textarea>
-            <button class="smp-add-btn" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'order')" title="追加品番（工程には影響しません）">＋</button>
+            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
+            <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
+            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
+          </div>
+          <div class="smp-two-btns">
+            <button class="smp-btn-sibling" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'sibling')">＋ 品番追加</button>
+            <button class="smp-btn-size" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'size')">＋ サイズ追加</button>
           </div>
           ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
           ${stockAlertHtml}
@@ -3254,12 +3287,13 @@ function renderOrderListMode(){
               }
             }
           }
-          html+=`<div class="${exRowCls}" id="extra_${ex.id}">
-            <div class="name-row"><span class="name" style="color:#888;font-size:11px">追加品番</span></div>
+          html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="${ex.sizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
+            <div class="name-row"><span class="name" style="color:#888;font-size:11px">${ex.sizeOnly?'サイズ追加':'追加品番'}</span></div>
             <div class="smp-fields">
-              <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},this,document.querySelector('#extra_${ex.id} .f-qty'))" ${exIsOrdered?'':''}>
-              <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},document.querySelector('#extra_${ex.id} .f-num'),this)" ${exIsOrdered?'':''}>${esc(exParts.qty)}</textarea>
-              <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" title="削除" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+              ${ex.sizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc((child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>`}
+              <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
+              <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
+              <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
             </div>
             ${!exHasMat&&!exIsOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
             ${exStockHtml}
@@ -3687,27 +3721,25 @@ function onOrderSearch(v){
 }
 
 // 発注一覧モードの品番・数量更新（保存処理は寸法入力モードと同じ）
-function ordUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
+function ordUpdateMaterial(siteId,procId,childId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
-  const num=(numEl?numEl.value:'').trim();
-  const qty=(qtyEl?qtyEl.value:'').trim();
-  const newMat=num&&qty?(num+' '+qty):(num||qty);
-  if(numEl)numEl.classList.remove('dirty');
-  if(qtyEl)qtyEl.classList.remove('dirty');
+  const row=document.getElementById('ordchild_'+childId);if(!row)return;
+  const num=(row.querySelector('.f-num')||{value:''}).value.trim();
+  const size=(row.querySelector('.f-size')||{value:''}).value.trim();
+  const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
+  row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList.remove('dirty'));
+  const newMat=_joinMaterial(num,size,qty);
   if(c.material===newMat)return;
   c.material=newMat;
-  // 使用者・日付を自動記録
   const _u=getCurrentUser();
   if(_u)c.materialBy=_u;
   const _d=new Date();
   c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   saveData();
   smpToast('✓ 保存しました');
-  // 発注チェックの有効/無効状態を更新したいので再描画
   renderOrderListMode();
-  // メイン画面のボタン色更新（品番入力により📐→📋ボタン色が変わる可能性）
   setTimeout(()=>render(),10);
 }
 
