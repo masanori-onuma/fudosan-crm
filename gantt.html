@@ -2723,12 +2723,12 @@ function renderSumpouMode(){
             </div>
           </div>`;
           // extraMaterials（追加品番行）を表示（工程子項目には影響しない）
-          (child.extraMaterials||[]).filter(ex=>!ex.orderOnly).forEach(ex=>{
+          (child.extraMaterials||[]).forEach(ex=>{
             const exParts=_splitMaterial(ex.material||'');
             const exHasMat=!!ex.material;
-            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}" style="padding-left:24px;border-left:3px solid #d6e6f5">
+            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}">
               <div class="name-row">
-                <span class="name" style="color:#888;font-size:11px">└ 追加品番</span>
+                <span class="name" style="color:#888;font-size:11px">追加品番</span>
                 ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
               </div>
               <div class="smp-fields">
@@ -3011,7 +3011,7 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
   if(!baseChild.extraMaterials)baseChild.extraMaterials=[];
   // mode='order'の場合は発注専用フラグを付ける（寸法モードには表示しない）
-  const newExtra={id:nextCid++,material:'',ordered:false,orderOnly:mode==='order'};
+  const newExtra={id:nextCid++,material:'',ordered:false};
   baseChild.extraMaterials.push(newExtra);
   saveData();
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
@@ -3254,8 +3254,8 @@ function renderOrderListMode(){
               }
             }
           }
-          html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="padding-left:24px;border-left:3px solid #d6e6f5">
-            <div class="name-row"><span class="name" style="color:#888;font-size:11px">└ 追加品番</span></div>
+          html+=`<div class="${exRowCls}" id="extra_${ex.id}">
+            <div class="name-row"><span class="name" style="color:#888;font-size:11px">追加品番</span></div>
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},this,document.querySelector('#extra_${ex.id} .f-qty'))" ${exIsOrdered?'':''}>
               <textarea class="f-qty" placeholder="数量" oninput="smpMarkDirty(this);this.style.height='auto';this.style.height=this.scrollHeight+'px'" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id},document.querySelector('#extra_${ex.id} .f-num'),this)" ${exIsOrdered?'':''}>${esc(exParts.qty)}</textarea>
@@ -3573,11 +3573,10 @@ function saveStockAdd(){
     if(stockId){
       const existing=stocks.find(x=>x.id===parseInt(stockId));
       if(existing){
-        if(qty){existing.qty=qty;existing.count=bulkCount>1?bulkCount:undefined;existing.note=note;added++;}
-        else{stocks=stocks.filter(x=>x.id!==parseInt(stockId));}
+        existing.qty=qty;existing.count=bulkCount>1?bulkCount:undefined;existing.note=note;added++;
       }
     }else{
-      if(!qty)return;
+      if(bulkCount<1&&!qty)return;
       stocks.push({id:nextStockId++,code,qty,count:bulkCount>1?bulkCount:undefined,siteId:sid,addedBy:user,date:today,note});
       added++;
     }
@@ -3588,7 +3587,7 @@ function saveStockAdd(){
     const code=row.querySelector('.sma-code').value.trim();
     const qty=row.querySelector('.sma-spec').value.trim();
     const countVal=parseInt(row.querySelector('.sma-count').value)||1;
-    if(code&&qty){
+    if(code){
       stocks.push({id:nextStockId++,code,qty,count:countVal>1?countVal:undefined,siteId:sid,addedBy:user,date:today,note});
       added++;
     }
@@ -3713,6 +3712,23 @@ function ordUpdateMaterial(siteId,procId,childId,numEl,qtyEl){
 }
 
 // 発注済みチェックの切替
+function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
+  if(checked&&!ex.material){
+    alert('品番が未入力のため発注済みにできません。先に品番を入力してください。');
+    renderOrderListMode();
+    return;
+  }
+  ex.ordered=checked?true:false;
+  saveData();
+  smpToast(checked?'✓ 発注済みにしました':'✓ 未発注に戻しました');
+  renderOrderListMode();
+  setTimeout(()=>render(),10);
+}
+
 function ordToggleOrdered(siteId,procId,childId,checked){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
