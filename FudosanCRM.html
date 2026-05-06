@@ -333,7 +333,7 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 // ═══ GAS経由SharePoint設定 ═══
 const GAS_URL   = "https://script.google.com/macros/s/AKfycbz46BpPgifOtRIOPaN5tVLhPF_NAyIjBBkggf8oCshTgQ5smCkpF9J9P27ZhZJRECz6/exec";
-const ADMIN_PASS = "RL2026Adm!";
+// 管理者認証はSharePointの担当者リストの「管理者」レコードと照合（HTMLには平文パスワード一切なし）
 
 // GAS GET リクエスト
 async function gasGet(action) {
@@ -539,7 +539,7 @@ function LoginScreen({onLogin}){
     try{const list=await loadStaffFromSP();if(list.length>0){setStaffList(list);await store.set("staff",JSON.stringify(list));}}catch(e){}
     setLoading(false);
   })();},[]);
-  const login=()=>{setErr("");if(role==="admin"){if(pass===ADMIN_PASS)onLogin({role:"admin",name:"管理者"});else setErr("パスワードが違います");}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
+  const login=()=>{setErr("");if(role==="admin"){if(!pass.trim()){setErr("パスワードを入力してください");return;}const adm=staffList.find(s=>s.name==="管理者");if(!adm){setErr("管理者アカウントが未登録です");return;}if(adm.pass!==pass){setErr("パスワードが違います");return;}onLogin({role:"admin",name:"管理者"});}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
   return(<div style={{minHeight:"100vh",background:"#F4F6F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{fontSize:48,marginBottom:12}}>🏠</div>
     <h1 style={{fontSize:20,fontWeight:700,color:"#1F4E79",marginBottom:4}}>不動産顧客管理</h1>
@@ -553,7 +553,7 @@ function LoginScreen({onLogin}){
           {loading?<div style={{padding:"12px",color:"#718096",fontSize:13}}>読み込み中…</div>
             :<select style={S} value={selectedName} onChange={e=>{setSelectedName(e.target.value);setErr("");}}>
               <option value="">-- 選択してください --</option>
-              {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
+              {staffList.filter(s=>s.name!=="管理者").map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
             </select>}
         </div>
         <div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力"/></div>
@@ -578,7 +578,7 @@ function StaffTab({gasUrl}){
   return(<div>
     {msg&&<div style={{background:"#EBF3FB",color:"#1F4E79",borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:12,fontWeight:600}}>{msg}</div>}
     {staffList.length===0?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>担当者がいません</div>
-      :staffList.map(s=><StaffCard key={s.name} s={s} showPass={showPass[s.name]} onTogglePass={()=>setShowPass(p=>({...p,[s.name]:!p[s.name]}))} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
+      :staffList.filter(s=>s.name!=="管理者").map(s=><StaffCard key={s.name} s={s} showPass={showPass[s.name]} onTogglePass={()=>setShowPass(p=>({...p,[s.name]:!p[s.name]}))} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
     <div style={{background:"#F0F4F8",borderRadius:10,padding:"14px",marginTop:16,border:"1px solid #E2E8F0"}}>
       <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:12}}>＋ 担当者を追加</div>
       <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>名前</label><input style={S} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="山田 太郎"/></div>
@@ -1139,7 +1139,7 @@ function AttendanceTab(){
       <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{...S,flex:"none",width:"auto"}}/>
       <select value={staffFilter} onChange={e=>setStaffFilter(e.target.value)} style={{...S,flex:1}}>
         <option value="all">全員</option>
-        {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
+        {staffList.filter(s=>s.name!=="管理者").map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
       </select>
       <button onClick={()=>setShowAddPaid(v=>!v)} style={{background:"#EBF3FB",border:"1.5px solid #2E75B6",borderRadius:8,padding:"0 14px",fontSize:12,color:"#1F4E79",fontWeight:700,cursor:"pointer",flexShrink:0}}>＋ 有給</button>
       <button onClick={()=>printAttendance(staffFilter)} style={{background:"#1F4E79",border:"none",borderRadius:8,padding:"0 14px",fontSize:12,color:"#fff",fontWeight:700,cursor:"pointer",flexShrink:0}}>🖨️ 出勤簿</button>
@@ -1149,7 +1149,7 @@ function AttendanceTab(){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
         <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>担当者</label>
           <select style={S} value={paidForm.staffName} onChange={e=>setPaidForm(f=>({...f,staffName:e.target.value}))}>
-            {staffList.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
+            {staffList.filter(s=>s.name!=="管理者").map(s=><option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
         </div>
         <div><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>日付</label>
