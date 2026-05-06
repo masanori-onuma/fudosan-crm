@@ -335,27 +335,41 @@ const { useState, useEffect, useCallback, useRef } = React;
 const GAS_URL   = "https://script.google.com/macros/s/AKfycbz46BpPgifOtRIOPaN5tVLhPF_NAyIjBBkggf8oCshTgQ5smCkpF9J9P27ZhZJRECz6/exec";
 // 管理者認証はSharePointの担当者リストの「管理者」レコードと照合（HTMLには平文パスワード一切なし）
 
-// GAS GET リクエスト
-async function gasGet(action) {
-  const res = await fetch(`${GAS_URL}?action=${action}`, {
-    redirect: "follow",
-  });
+// GAS GET リクエスト（originパラメータを自動付与）
+async function gasGet(action, extraParams) {
+  const params = new URLSearchParams({ action, origin: location.origin, ...(extraParams||{}) });
+  const res = await fetch(`${GAS_URL}?${params}`, { redirect: "follow" });
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "GASエラー");
   return json.data;
 }
 
-// GAS POST リクエスト（no-corsでリダイレクト対応）
+// GAS POST リクエスト（書き込み系・no-corsでレスポンスは読まない）
 async function gasPost(body) {
   // GASはリダイレクトするためno-corsで送信し、レスポンスは別途GETで確認
+  // originを自動付与（Origin検証用）
   await fetch(GAS_URL, {
     method: "POST",
     mode: "no-cors",
     headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, origin: location.origin }),
   });
   // no-corsではレスポンスが読めないため成功とみなす
   return null;
+}
+
+// GAS POST リクエスト（レスポンスを読みたい場合用、verifyLogin等で使用）
+// text/plainでpreflightを回避し、GASのリダイレクトに追従する
+async function gasPostJson(body) {
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ ...body, origin: location.origin }),
+    redirect: "follow",
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "GASエラー");
+  return json.data;
 }
 
 // 顧客データをSharePoint形式→CRM形式に変換
@@ -494,7 +508,19 @@ function AutoTextarea({value,onChange,placeholder,minHeight=70,extraStyle={}}){
   useEffect(()=>{adjust();},[]);
   return(<textarea ref={ref} value={value||""} onChange={e=>{onChange(e);adjust();}} onInput={adjust} placeholder={placeholder} style={{...S,resize:"none",minHeight,overflow:"hidden",lineHeight:1.6,...extraStyle}}/>);
 }
-const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+const store={async get(k){try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(e){return null;}},async set(k,v){try{localStorage.setItem(k,v);}catch(e){}},async remove(k){try{localStorage.removeItem(k);}catch(e){}}};
+
+// 旧バージョン（loadStaffがパスワードを含んでいた頃）のキャッシュを破棄する
+// 一度だけ実行されるよう、フラグで管理
+(function purgeLegacyStaffCache(){
+  try{
+    const flag=localStorage.getItem("cacheVersion");
+    if(flag!=="v2_no_pass"){
+      localStorage.removeItem("staff");
+      localStorage.setItem("cacheVersion","v2_no_pass");
+    }
+  }catch(e){}
+})();
 
 const CRM_BASE_URL = "https://masanori-onuma.github.io/fudosan-crm/FudosanCRM.html";
 
@@ -532,14 +558,32 @@ function LoginScreen({onLogin}){
   const [pass,setPass]=useState("");
   const [err,setErr]=useState("");
   const [role,setRole]=useState("staff");
+  const [loggingIn,setLoggingIn]=useState(false);
   useEffect(()=>{(async()=>{
-    // キャッシュを先に表示
+    // キャッシュを先に表示（パスワードは含まれていない名前リストのみ）
     try{const r=await store.get("staff");if(r?.value){const cached=JSON.parse(r.value);if(cached.length>0){setStaffList(cached);setLoading(false);}}}catch(e){}
     // バックグラウンドで最新取得
     try{const list=await loadStaffFromSP();if(list.length>0){setStaffList(list);await store.set("staff",JSON.stringify(list));}}catch(e){}
     setLoading(false);
   })();},[]);
-  const login=()=>{setErr("");if(role==="admin"){if(!pass.trim()){setErr("パスワードを入力してください");return;}const adm=staffList.find(s=>s.name==="管理者");if(!adm){setErr("管理者アカウントが未登録です");return;}if(adm.pass!==pass){setErr("パスワードが違います");return;}onLogin({role:"admin",name:"管理者"});}else{if(!selectedName){setErr("名前を選んでください");return;}if(!pass.trim()){setErr("パスワードを入力してください");return;}const staff=staffList.find(s=>s.name===selectedName);if(!staff||staff.pass!==pass){setErr("名前またはパスワードが違います");return;}onLogin({role:"staff",name:staff.name});}};
+  const login=async()=>{
+    setErr("");
+    if(!pass.trim()){setErr("パスワードを入力してください");return;}
+    if(role==="staff"&&!selectedName){setErr("名前を選んでください");return;}
+    setLoggingIn(true);
+    try{
+      const result=await gasPostJson({action:"verifyLogin",role,name:role==="admin"?"管理者":selectedName,pass});
+      if(!result||result.ok!==true){
+        setErr(result?.reason||"ログインに失敗しました");
+        setLoggingIn(false);
+        return;
+      }
+      onLogin({role,name:result.name||(role==="admin"?"管理者":selectedName)});
+    }catch(e){
+      setErr("通信エラー："+(e.message||""));
+      setLoggingIn(false);
+    }
+  };
   return(<div style={{minHeight:"100vh",background:"#F4F6F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{fontSize:48,marginBottom:12}}>🏠</div>
     <h1 style={{fontSize:20,fontWeight:700,color:"#1F4E79",marginBottom:4}}>不動産顧客管理</h1>
@@ -559,7 +603,7 @@ function LoginScreen({onLogin}){
         <div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力"/></div>
       </>):(<div style={{marginBottom:4}}><label style={{display:"block",fontSize:11,color:"#718096",marginBottom:5,fontWeight:600}}>管理者パスワード</label><input style={S} type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="パスワードを入力" autoFocus/></div>)}
       {err&&<p style={{color:"#C0392B",fontSize:12,marginTop:8,marginBottom:0}}>⚠️ {err}</p>}
-      <button onClick={login} style={{width:"100%",padding:14,background:"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginTop:16}}>ログイン →</button>
+      <button onClick={login} disabled={loggingIn} style={{width:"100%",padding:14,background:loggingIn?"#94A3B8":"#1F4E79",border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:loggingIn?"not-allowed":"pointer",marginTop:16}}>{loggingIn?"認証中…":"ログイン →"}</button>
     </div>
     <div style={{marginTop:20,textAlign:"center"}}>
 
@@ -568,7 +612,7 @@ function LoginScreen({onLogin}){
 }
 
 function StaffTab({gasUrl}){
-  const [staffList,setStaffList]=useState([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState("");const [newName,setNewName]=useState("");const [newPass,setNewPass]=useState("");const [showPass,setShowPass]=useState({});
+  const [staffList,setStaffList]=useState([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState("");const [newName,setNewName]=useState("");const [newPass,setNewPass]=useState("");
   const flash=m=>{setMsg(m);setTimeout(()=>setMsg(""),3000);};
   useEffect(()=>{(async()=>{try{const list=await loadStaffFromSP();setStaffList(list);}catch(e){setMsg("⚠️ 読み込み失敗");}setLoading(false);})();},[]);
   const addStaff=async()=>{if(!newName.trim()){alert("名前を入力してください");return;}if(!newPass.trim()){alert("パスワードを入力してください");return;}if(staffList.some(s=>s.name===newName.trim())){alert("同じ名前の担当者がすでにいます");return;}setSaving(true);try{const cur=await gasGet("loadStaff");const next=[...cur,{name:newName.trim(),pass:newPass.trim()}];await gasPost({action:"saveStaff",staffList:next});const list=await gasGet("loadStaff");setStaffList(list);setNewName("");setNewPass("");flash("✓ 追加しました");}catch(e){flash("⚠️ 保存失敗");}setSaving(false);};
@@ -578,7 +622,7 @@ function StaffTab({gasUrl}){
   return(<div>
     {msg&&<div style={{background:"#EBF3FB",color:"#1F4E79",borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:12,fontWeight:600}}>{msg}</div>}
     {staffList.length===0?<div style={{textAlign:"center",padding:"30px 0",color:"#718096",fontSize:13}}>担当者がいません</div>
-      :staffList.filter(s=>s.name!=="管理者").map(s=><StaffCard key={s.name} s={s} showPass={showPass[s.name]} onTogglePass={()=>setShowPass(p=>({...p,[s.name]:!p[s.name]}))} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
+      :staffList.filter(s=>s.name!=="管理者").map(s=><StaffCard key={s.name} s={s} onChangePass={(np)=>changePass(s,np)} onRemove={()=>removeStaff(s)}/>)}
     <div style={{background:"#F0F4F8",borderRadius:10,padding:"14px",marginTop:16,border:"1px solid #E2E8F0"}}>
       <div style={{fontSize:12,fontWeight:700,color:"#1F4E79",marginBottom:12}}>＋ 担当者を追加</div>
       <div style={{marginBottom:10}}><label style={{fontSize:11,color:"#718096",display:"block",marginBottom:4,fontWeight:600}}>名前</label><input style={S} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="山田 太郎"/></div>
@@ -588,11 +632,11 @@ function StaffTab({gasUrl}){
   </div>);
 }
 
-function StaffCard({s,showPass,onTogglePass,onChangePass,onRemove}){
+function StaffCard({s,onChangePass,onRemove}){
   const [editing,setEditing]=useState(false);const [newPass,setNewPass]=useState("");
   return(<div style={{background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:editing?10:0}}>
-      <div><div style={{fontSize:14,fontWeight:700}}>{s.name}</div><div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}><span style={{fontSize:12,color:"#718096",fontFamily:"monospace"}}>{showPass?s.pass:"••••"}</span><button onClick={onTogglePass} style={{border:"none",background:"none",fontSize:11,color:"#2E75B6",cursor:"pointer",padding:0}}>{showPass?"隠す":"表示"}</button></div></div>
+      <div><div style={{fontSize:14,fontWeight:700}}>{s.name}</div><div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>パスワード保護中</div></div>
       <div style={{display:"flex",gap:6}}><button onClick={()=>{setEditing(!editing);setNewPass("");}} style={{background:"#EBF3FB",border:"none",borderRadius:7,padding:"5px 12px",fontSize:11,cursor:"pointer",color:"#1F4E79",fontWeight:600}}>🔑 変更</button><button onClick={onRemove} style={{background:"#FFF5F5",border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer",color:"#C0392B"}}>🗑️</button></div>
     </div>
     {editing&&(<div style={{display:"flex",gap:8,marginTop:4}}><input style={{...S,flex:1}} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="新しいパスワード" type="text"/><button onClick={()=>{onChangePass(newPass);setEditing(false);setNewPass("");}} style={{background:"#1F4E79",border:"none",borderRadius:8,padding:"0 14px",fontSize:12,cursor:"pointer",color:"#fff",fontWeight:700,flexShrink:0}}>保存</button><button onClick={()=>{setEditing(false);setNewPass("");}} style={{background:"#F4F6F9",border:"1px solid #E2E8F0",borderRadius:8,padding:"0 10px",fontSize:12,cursor:"pointer",color:"#718096",flexShrink:0}}>✕</button></div>)}
