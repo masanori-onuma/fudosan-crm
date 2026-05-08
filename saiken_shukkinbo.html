@@ -24,18 +24,18 @@ h1{font-size:20px;font-weight:500;margin-bottom:1.2rem}
 .stat-unit{font-size:12px;color:#888}
 .stat.warn .stat-value{color:#c00}
 .tbl-wrap{overflow-x:auto;background:#fff;border-radius:8px;border:1px solid #e5e5e5}
-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
-thead th{background:#f7f7f7;color:#888;font-weight:500;padding:7px 8px;border:1px solid #e5e5e5;text-align:center;white-space:nowrap}
-tbody td{padding:4px 6px;border:1px solid #e5e5e5;vertical-align:middle;text-align:center}
+table{width:100%;border-collapse:collapse;font-size:15px;table-layout:fixed}
+thead th{background:#f7f7f7;color:#888;font-weight:500;padding:8px 8px;border:1px solid #e5e5e5;text-align:center;white-space:nowrap}
+tbody td{padding:7px 6px;border:1px solid #e5e5e5;vertical-align:middle;text-align:center}
 tbody tr:hover td{background:#fafafa}
 tbody tr.is-sun td{color:#c00;background:#fff8f8}
 tbody tr.is-sat td{color:#1a6fb5;background:#f5f9ff}
 tfoot td{background:#f7f7f7;font-weight:500;padding:6px 8px;border:1px solid #e5e5e5;text-align:center}
 td.ot-cell{color:#a05000;font-weight:500}
-input[type=time]{border:none;background:transparent;font-size:13px;color:#222;width:76px;text-align:center;padding:2px 0}
+input[type=time]{border:none;background:transparent;font-size:15px;color:#222;width:82px;text-align:center;padding:2px 0}
 input[type=time]:focus{outline:1px solid #aaa;border-radius:4px}
-select.row-sel{border:none;background:transparent;font-size:12px;color:#222;width:100%}
-.note-input{border:none;background:transparent;font-size:12px;color:#222;width:100%;text-align:left}
+select.row-sel{border:none;background:transparent;font-size:14px;color:#222;width:100%}
+.note-input{border:none;background:transparent;font-size:14px;color:#222;width:100%;text-align:left}
 .note-input:focus,.row-sel:focus{outline:1px solid #aaa;border-radius:4px}
 .staff-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
 .staff-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:8px 14px;font-size:13px}
@@ -55,19 +55,25 @@ select.row-sel{border:none;background:transparent;font-size:12px;color:#222;widt
 .status-bar{font-size:12px;color:#888;margin-bottom:0.5rem;min-height:18px}
 .status-bar.error{color:#c00}
 .status-bar.ok{color:#3b6d11}
+@page{size:A4 portrait;margin:0.8cm}
 @media print{
-  body{background:#fff;font-size:11px}
+  body{background:#fff;font-size:10px}
   .no-print{display:none!important}
-  .app{max-width:100%;padding:0.5cm}
+  .app{max-width:100%;padding:0}
   .tbl-wrap{border:none;border-radius:0}
   table{font-size:10px}
-  thead th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  thead th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:4px 5px}
+  tbody td{padding:2px 5px}
   tbody tr.is-sun td{background:#fff8f8!important;color:#c00!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   tbody tr.is-sat td{background:#f5f9ff!important;color:#1a6fb5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  tfoot td{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tfoot td{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:4px 6px}
   input[type=time],select.row-sel,.note-input{border:none!important;font-size:10px}
+  input[type=time]{width:54px}
   .print-header{display:block!important}
   .print-footer{display:block!important}
+  .print-header h1{font-size:16px}
+  .print-header p{font-size:12px}
+  .print-footer{font-size:10px}
 }
 .print-header{display:none;text-align:center;margin-bottom:16px}
 .print-header h1{font-size:20px;font-weight:500;margin:0}
@@ -220,18 +226,47 @@ function renderStaffList() {
     const used = calcPaidUsedFromMonth(s.id);
     const left = Math.max(0, granted - used);
     const base = s.usedBase || 0;
-    return `<div class="staff-card">
+    return `<div class="staff-card" id="card_${s.id}">
       <span class="name">${s.name}</span>
       <span class="meta">入社 ${s.hire}（${hireLabel(s.hire)}）</span>
       <span class="meta">付与 ${granted}日 / 消化 ${used}日（うち過去分 ${base}日）</span>
       <span class="paid-badge">残 ${left}日</span>
-      <span class="meta" style="display:flex;align-items:center;gap:4px">過去消化
-        <input type="number" value="${base}" min="0" max="99" style="width:48px;height:24px;border:1px solid #ccc;border-radius:4px;text-align:center;font-size:12px"
-          onchange="updateUsedBase('${s.id}', this.value)">日
-      </span>
+      <button onclick="editStaff('${s.id}')" style="margin-left:auto">編集</button>
       <button onclick="removeStaff('${s.id}')">削除</button>
     </div>`;
   }).join('');
+}
+
+function editStaff(id) {
+  const s = staffList.find(x => x.id === id);
+  if (!s) return;
+  const card = document.getElementById('card_' + id);
+  card.innerHTML = `
+    <input type="text" value="${s.name}" id="edit_name_${id}" style="width:110px;height:28px;border:1px solid #ccc;border-radius:4px;padding:0 6px;font-size:13px"/>
+    <input type="date" value="${s.hire}" id="edit_hire_${id}" style="height:28px;border:1px solid #ccc;border-radius:4px;padding:0 6px;font-size:13px"/>
+    <span style="font-size:12px;color:#888;display:flex;align-items:center;gap:4px">過去消化
+      <input type="number" value="${s.usedBase||0}" id="edit_used_${id}" min="0" max="99"
+        style="width:48px;height:28px;border:1px solid #ccc;border-radius:4px;text-align:center;font-size:12px">日
+    </span>
+    <button onclick="saveStaffEdit('${id}')" style="background:#222;color:#fff;border:none;border-radius:4px;padding:0 12px;height:28px;cursor:pointer;font-size:12px">保存</button>
+    <button onclick="renderStaffList()" style="height:28px;border:1px solid #ccc;border-radius:4px;padding:0 10px;cursor:pointer;font-size:12px;background:#fff">キャンセル</button>
+  `;
+}
+
+function saveStaffEdit(id) {
+  const s = staffList.find(x => x.id === id);
+  if (!s) return;
+  const name = document.getElementById('edit_name_' + id).value.trim();
+  const hire = document.getElementById('edit_hire_' + id).value;
+  const used = parseInt(document.getElementById('edit_used_' + id).value) || 0;
+  if (!name || !hire) { alert('氏名と入社日を入力してください'); return; }
+  s.name = name;
+  s.hire = hire;
+  s.usedBase = used;
+  saveStaffToGAS();
+  renderStaffList();
+  renderSelects();
+  updateSummary();
 }
 
 function updateUsedBase(id, val) {
@@ -277,11 +312,21 @@ function setField(sid, y, mo, d, field, val) {
   monthData[d][field] = val;
 
   const dow = new Date(y, mo-1, d).getDay();
-  const inn = monthData[d].inn !== undefined ? monthData[d].inn : dispIn(monthData[d], dow);
-  const out = monthData[d].out !== undefined ? monthData[d].out : dispOut(monthData[d], dow);
+  const r = monthData[d];
+  const inn = dispIn(r, dow);
+  const out = dispOut(r, dow);
   const {work, ot} = calcWork(inn, out, dow);
 
   const k = `${y}_${mo}_${d}`;
+
+  // 区分変更時：時刻inputを再描画
+  if (field === 'type') {
+    const innEl = document.getElementById('inn_'+k);
+    const outEl = document.getElementById('out_'+k);
+    if (innEl) innEl.value = inn;
+    if (outEl) outEl.value = out;
+  }
+
   const we = document.getElementById('hrs_'+k);
   const oe = document.getElementById('ot_'+k);
   if (we) we.textContent = work !== null ? hm(work) : '';
@@ -426,8 +471,8 @@ function renderTable() {
     rows += `<tr class="${rowClass}">
       <td>${d}</td>
       <td>${DAYS[dow]}</td>
-      <td><input type="time" value="${inn}" onchange="setField('${sid}',${year},${month},${d},'inn',this.value)"></td>
-      <td><input type="time" value="${out}" onchange="setField('${sid}',${year},${month},${d},'out',this.value)"></td>
+      <td><input type="time" id="inn_${k}" value="${inn}" onchange="setField('${sid}',${year},${month},${d},'inn',this.value)"></td>
+      <td><input type="time" id="out_${k}" value="${out}" onchange="setField('${sid}',${year},${month},${d},'out',this.value)"></td>
       <td id="hrs_${k}">${work!==null ? hm(work) : ''}</td>
       <td id="ot_${k}" class="${ot>0?'ot-cell':''}">${ot>0 ? hm(ot) : ''}</td>
       <td><select class="row-sel" onchange="setField('${sid}',${year},${month},${d},'type',this.value)">
