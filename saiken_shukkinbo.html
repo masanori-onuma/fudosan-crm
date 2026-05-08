@@ -89,6 +89,7 @@ select.row-sel{border:none;background:transparent;font-size:12px;color:#222;widt
     <div class="add-staff-row">
       <input type="text" id="new-name" placeholder="氏名" style="width:110px"/>
       <input type="date" id="new-hire" title="入社日"/>
+      <input type="number" id="new-used" placeholder="消化済(日)" title="過去の有給消化済み日数" style="width:100px" min="0" max="99"/>
       <button onclick="addStaff()">+ 追加</button>
     </div>
   </div>
@@ -190,10 +191,12 @@ async function saveStaffToGAS() {
 function addStaff() {
   const n = document.getElementById('new-name').value.trim();
   const h = document.getElementById('new-hire').value;
+  const u = parseInt(document.getElementById('new-used').value) || 0;
   if (!n || !h) { alert('氏名と入社日を入力してください'); return; }
-  staffList.push({id:'s'+Date.now(), name:n, hire:h});
+  staffList.push({id:'s'+Date.now(), name:n, hire:h, usedBase:u});
   document.getElementById('new-name').value = '';
   document.getElementById('new-hire').value = '';
+  document.getElementById('new-used').value = '';
   saveStaffToGAS();
   renderStaffList();
   renderSelects();
@@ -216,14 +219,27 @@ function renderStaffList() {
     const granted = calcPaidGranted(s.hire);
     const used = calcPaidUsedFromMonth(s.id);
     const left = Math.max(0, granted - used);
+    const base = s.usedBase || 0;
     return `<div class="staff-card">
       <span class="name">${s.name}</span>
       <span class="meta">入社 ${s.hire}（${hireLabel(s.hire)}）</span>
-      <span class="meta">付与 ${granted}日 / 消化 ${used}日</span>
+      <span class="meta">付与 ${granted}日 / 消化 ${used}日（うち過去分 ${base}日）</span>
       <span class="paid-badge">残 ${left}日</span>
+      <span class="meta" style="display:flex;align-items:center;gap:4px">過去消化
+        <input type="number" value="${base}" min="0" max="99" style="width:48px;height:24px;border:1px solid #ccc;border-radius:4px;text-align:center;font-size:12px"
+          onchange="updateUsedBase('${s.id}', this.value)">日
+      </span>
       <button onclick="removeStaff('${s.id}')">削除</button>
     </div>`;
   }).join('');
+}
+
+function updateUsedBase(id, val) {
+  const s = staffList.find(x => x.id === id);
+  if (!s) return;
+  s.usedBase = parseInt(val) || 0;
+  saveStaffToGAS();
+  updateSummary();
 }
 
 // ---- 月データ ----
@@ -318,7 +334,10 @@ function calcPaidGranted(hireStr) {
 }
 
 function calcPaidUsedFromMonth(sid) {
-  return Object.values(monthData).filter(r => r.type === 'paid').length;
+  const s = staffList.find(x => x.id === sid) || {};
+  const base = s.usedBase || 0;
+  const monthUsed = Object.values(monthData).filter(r => r.type === 'paid').length;
+  return base + monthUsed;
 }
 
 function hireLabel(hireStr) {
@@ -340,14 +359,16 @@ function getNextGrantInfo(hireStr) {
 function defaultType(dow) { return dow === 0 ? 'hol' : 'work'; }
 
 function dispIn(r, dow) {
-  if (r && r.inn !== undefined) return r.inn;
   const type = (r && r.type !== undefined) ? r.type : defaultType(dow);
-  return type === 'work' ? DEFAULT_IN : '';
+  if (type !== 'work') return '';
+  if (r && r.inn !== undefined) return r.inn;
+  return DEFAULT_IN;
 }
 function dispOut(r, dow) {
-  if (r && r.out !== undefined) return r.out;
   const type = (r && r.type !== undefined) ? r.type : defaultType(dow);
-  return type === 'work' ? DEFAULT_OUT : '';
+  if (type !== 'work') return '';
+  if (r && r.out !== undefined) return r.out;
+  return DEFAULT_OUT;
 }
 
 // ---- セレクト ----
