@@ -456,9 +456,9 @@ function updateSummary() {
     </tr>`;
 
   document.getElementById('summary').innerHTML = `
-    <div class="stat"><div class="stat-label">実労働時間</div><div class="stat-value" style="font-size:18px">${hm(totalH)}</div></div>
+    <div class="stat"><div class="stat-label">実労働時間</div><div class="stat-value" style="font-size:18px">${hm(totalH)||'0:00'}</div></div>
     <div class="stat"><div class="stat-label">出勤日数</div><div class="stat-value">${workDays}<span class="stat-unit"> 日</span></div></div>
-    <div class="stat ${over80?'warn':''}"><div class="stat-label">時間外合計</div><div class="stat-value" style="font-size:18px">${hm(totalOT)}</div></div>
+    <div class="stat ${over80?'warn':''}"><div class="stat-label">時間外合計</div><div class="stat-value" style="font-size:18px">${hm(totalOT)||'0:00'}</div></div>
     <div class="stat"><div class="stat-label">今月有給</div><div class="stat-value">${paidMonth}<span class="stat-unit"> 日</span></div></div>
     <div class="stat"><div class="stat-label">有給残</div><div class="stat-value">${left}<span class="stat-unit"> 日</span></div></div>
     <div class="stat"><div class="stat-label">欠勤</div><div class="stat-value">${absDays}<span class="stat-unit"> 日</span></div></div>
