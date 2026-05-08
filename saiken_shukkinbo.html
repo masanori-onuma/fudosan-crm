@@ -110,7 +110,8 @@ select.row-sel{border:none;background:transparent;font-size:15px;color:#222;widt
     <button onclick="prevMonth()">◀</button>
     <button onclick="nextMonth()">▶</button>
     <span style="flex:1"></span>
-    <button class="primary" onclick="window.print()">印刷</button>
+    <button onclick="window.print()">この月を印刷</button>
+    <button class="primary" onclick="printAll()">全員分印刷</button>
   </div>
 
   <div class="status-bar no-print" id="status-bar"></div>
@@ -155,6 +156,112 @@ const PAID_TABLE = [
 let staffList = [];
 let monthData = {}; // {day: {inn,out,type,note}}
 let saveTimer = {};
+
+
+// ---- 全員分印刷 ----
+async function printAll() {
+  const {year, month} = getYM();
+  const originalSid = document.getElementById('sel-staff').value;
+  
+  // 全スタッフのデータを順番に読み込んで印刷用HTMLを生成
+  let printContent = '';
+  
+  for (let i = 0; i < staffList.length; i++) {
+    const s = staffList[i];
+    // そのスタッフの月データを取得
+    const res = await gasPost({action:'load', sid:s.id, year, month});
+    const data = res.status === 'ok' ? (res.rows || {}) : {};
+    
+    const granted = calcPaidGranted(s.hire);
+    const usedTotal = (s.usedBase||0) + Object.values(data).filter(r=>r.type==='paid').length;
+    const left = Math.max(0, granted - usedTotal);
+    const ng = getNextGrantInfo(s.hire);
+    
+    const dim = new Date(year, month, 0).getDate();
+    let totalH=0, totalOT=0, workDays=0;
+    let rows = '';
+    
+    for (let d = 1; d <= dim; d++) {
+      const dow = new Date(year, month-1, d).getDay();
+      const r = data[d] || {};
+      const type = r.type !== undefined ? r.type : (dow===0?'hol':'work');
+      const inn = type==='work' ? (r.inn||'08:00') : '';
+      const out = type==='work' ? (r.out||'18:00') : '';
+      const {work, ot} = calcWork(inn, out, dow);
+      if (work) totalH += work;
+      if (ot) totalOT += ot;
+      if (inn && type==='work') workDays++;
+      
+      const rowStyle = dow===0 ? 'color:#c00;background:#fff8f8' : dow===6 ? 'color:#1a6fb5;background:#f5f9ff' : '';
+      const otStyle = ot>0 ? 'color:#a05000;font-weight:500' : '';
+      rows += `<tr style="${rowStyle}">
+        <td>${d}</td>
+        <td>${DAYS[dow]}</td>
+        <td>${inn}</td>
+        <td>${out}</td>
+        <td>${work?hm(work):''}</td>
+        <td style="${otStyle}">${ot>0?hm(ot):''}</td>
+        <td>${type==='work'?'出勤':type==='paid'?'有給':type==='abs'?'欠勤':'休日'}</td>
+        <td>${r.note||''}</td>
+      </tr>`;
+    }
+    
+    const retainUntil = new Date(year, month, 1);
+    retainUntil.setFullYear(retainUntil.getFullYear()+3);
+    
+    printContent += `
+      <div class="print-page" ${i<staffList.length-1?'style="page-break-after:always"':''}>
+        <div style="text-align:center;margin-bottom:12px">
+          <h1 style="font-size:18px;font-weight:500">出 勤 簿</h1>
+          <p style="font-size:12px;color:#555">${s.name} / ${year}年${month}月</p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;line-height:1.1">
+          <thead>
+            <tr style="background:#eee">
+              <th style="width:28px;padding:4px;border:1px solid #ccc">日</th>
+              <th style="width:20px;padding:4px;border:1px solid #ccc">曜</th>
+              <th style="width:70px;padding:4px;border:1px solid #ccc">出勤</th>
+              <th style="width:70px;padding:4px;border:1px solid #ccc">退勤</th>
+              <th style="width:52px;padding:4px;border:1px solid #ccc">実労時間</th>
+              <th style="width:52px;padding:4px;border:1px solid #ccc">時間外</th>
+              <th style="width:52px;padding:4px;border:1px solid #ccc">区分</th>
+              <th style="padding:4px;border:1px solid #ccc">備考</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr style="background:#eee;font-weight:500">
+              <td colspan="4" style="text-align:right;padding:3px 8px;border:1px solid #ccc;font-size:10px;color:#666">月合計</td>
+              <td style="padding:3px 4px;border:1px solid #ccc;text-align:center">${hm(totalH)||'0:00'}</td>
+              <td style="padding:3px 4px;border:1px solid #ccc;text-align:center;color:${totalOT>0?'#a05000':'inherit'}">${hm(totalOT)||'0:00'}</td>
+              <td colspan="2" style="border:1px solid #ccc"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="text-align:right;font-size:9px;color:#888;margin-top:6px">
+          保存期限：${retainUntil.getFullYear()}年${retainUntil.getMonth()+1}月末まで保存（労働基準法第109条）
+        </div>
+      </div>`;
+  }
+  
+  // 印刷用ウィンドウを開く
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>出勤簿 ${year}年${month}月 全員分</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Hiragino Sans','Meiryo',sans-serif;padding:0.8cm}
+      table td{padding:2px 4px;border:1px solid #ccc;text-align:center;vertical-align:middle}
+      @media print{@page{size:A4 portrait;margin:0.8cm}}
+    </style>
+  </head><body>${printContent}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 500);
+  
+  // 元のスタッフに戻す
+  document.getElementById('sel-staff').value = originalSid;
+}
 
 // ---- GAS通信 ----
 async function gasPost(payload) {
