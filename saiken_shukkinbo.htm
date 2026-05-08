@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彩建 出勤簿</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:14px;background:#f5f5f5;color:#222}
+.app{max-width:900px;margin:0 auto;padding:1.5rem 1rem}
+h1{font-size:20px;font-weight:500;margin-bottom:1.2rem}
+.section-title{font-size:12px;font-weight:500;color:#888;margin:1.2rem 0 0.5rem;letter-spacing:.04em}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:1rem}
+.toolbar select,.toolbar input[type=text]{height:34px;padding:0 10px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#222;font-size:14px}
+.toolbar button{height:34px;padding:0 14px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#222;font-size:13px;cursor:pointer}
+.toolbar button:hover{background:#f0f0f0}
+.toolbar button.primary{background:#222;color:#fff;border-color:#222}
+.toolbar button.primary:hover{background:#444}
+.toolbar button:disabled{opacity:0.4;cursor:not-allowed}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:1rem}
+.stat{background:#fff;border-radius:8px;padding:10px 14px;border:1px solid #e5e5e5}
+.stat-label{font-size:12px;color:#888;margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:500;color:#222}
+.stat-unit{font-size:12px;color:#888}
+.stat.warn .stat-value{color:#c00}
+.tbl-wrap{overflow-x:auto;background:#fff;border-radius:8px;border:1px solid #e5e5e5}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+thead th{background:#f7f7f7;color:#888;font-weight:500;padding:7px 8px;border:1px solid #e5e5e5;text-align:center;white-space:nowrap}
+tbody td{padding:4px 6px;border:1px solid #e5e5e5;vertical-align:middle;text-align:center}
+tbody tr:hover td{background:#fafafa}
+tbody tr.is-sun td{color:#c00;background:#fff8f8}
+tbody tr.is-sat td{color:#1a6fb5;background:#f5f9ff}
+tfoot td{background:#f7f7f7;font-weight:500;padding:6px 8px;border:1px solid #e5e5e5;text-align:center}
+td.ot-cell{color:#a05000;font-weight:500}
+input[type=time]{border:none;background:transparent;font-size:13px;color:#222;width:76px;text-align:center;padding:2px 0}
+input[type=time]:focus{outline:1px solid #aaa;border-radius:4px}
+select.row-sel{border:none;background:transparent;font-size:12px;color:#222;width:100%}
+.note-input{border:none;background:transparent;font-size:12px;color:#222;width:100%;text-align:left}
+.note-input:focus,.row-sel:focus{outline:1px solid #aaa;border-radius:4px}
+.staff-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.staff-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:8px 14px;font-size:13px}
+.staff-card .name{font-weight:500;min-width:80px}
+.staff-card .meta{color:#888;font-size:12px}
+.staff-card .paid-badge{background:#eaf3de;color:#3b6d11;font-size:12px;padding:2px 10px;border-radius:99px}
+.staff-card button{background:none;border:none;cursor:pointer;color:#888;font-size:13px;margin-left:auto}
+.staff-card button:hover{color:#c00}
+.add-staff-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.add-staff-row input{height:34px;padding:0 10px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#222;font-size:13px}
+.paid-info-box{background:#fff;border-radius:8px;padding:10px 14px;font-size:12px;color:#888;margin-bottom:0.6rem;border:1px solid #e5e5e5}
+.paid-info-box strong{color:#222;font-weight:500}
+.rest-note{font-size:12px;color:#888;margin-bottom:0.8rem}
+.alert-80{background:#fff5f5;border:1px solid #f5c4c4;border-radius:8px;padding:8px 14px;font-size:12px;color:#c00;margin-bottom:0.8rem;display:none}
+.saving-indicator{font-size:12px;color:#888;margin-left:8px;display:none}
+.saving-indicator.active{display:inline}
+.status-bar{font-size:12px;color:#888;margin-bottom:0.5rem;min-height:18px}
+.status-bar.error{color:#c00}
+.status-bar.ok{color:#3b6d11}
+@media print{
+  body{background:#fff;font-size:11px}
+  .no-print{display:none!important}
+  .app{max-width:100%;padding:0.5cm}
+  .tbl-wrap{border:none;border-radius:0}
+  table{font-size:10px}
+  thead th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tbody tr.is-sun td{background:#fff8f8!important;color:#c00!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tbody tr.is-sat td{background:#f5f9ff!important;color:#1a6fb5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  tfoot td{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  input[type=time],select.row-sel,.note-input{border:none!important;font-size:10px}
+  .print-header{display:block!important}
+  .print-footer{display:block!important}
+}
+.print-header{display:none;text-align:center;margin-bottom:16px}
+.print-header h1{font-size:20px;font-weight:500;margin:0}
+.print-header p{font-size:13px;color:#555;margin-top:4px}
+.print-footer{display:none;text-align:right;font-size:10px;color:#888;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="print-header">
+    <h1>出 勤 簿</h1>
+    <p id="print-label"></p>
+  </div>
+
+  <div class="no-print">
+    <h1>彩建 出勤簿</h1>
+    <p class="section-title">スタッフ管理</p>
+    <div class="staff-list" id="staff-list"></div>
+    <div class="add-staff-row">
+      <input type="text" id="new-name" placeholder="氏名" style="width:110px"/>
+      <input type="date" id="new-hire" title="入社日"/>
+      <button onclick="addStaff()">+ 追加</button>
+    </div>
+  </div>
+
+  <p class="section-title no-print" style="margin-top:1.4rem">出勤簿</p>
+  <div class="toolbar no-print">
+    <select id="sel-staff" onchange="loadMonth()"></select>
+    <select id="sel-year" onchange="loadMonth()"></select>
+    <select id="sel-month" onchange="loadMonth()"></select>
+    <button onclick="prevMonth()">◀</button>
+    <button onclick="nextMonth()">▶</button>
+    <span style="flex:1"></span>
+    <button class="primary" onclick="window.print()">印刷</button>
+  </div>
+
+  <div class="status-bar no-print" id="status-bar"></div>
+  <div class="alert-80 no-print" id="alert-80">⚠ 月間時間外労働が80時間を超えています。本人への通知が必要です（労働安全衛生法）。</div>
+  <div class="summary-grid no-print" id="summary"></div>
+  <div class="paid-info-box no-print" id="paid-info"></div>
+  <p class="rest-note no-print">※ 所定：月〜金 8:00〜18:00（実労8h）　土曜は終日時間外　休憩：10:00〜10:30 / 12:00〜13:00 / 15:00〜15:30（遅刻・早退時は重複分のみ控除）</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">日</th>
+          <th style="width:20px">曜</th>
+          <th style="width:76px">出勤</th>
+          <th style="width:76px">退勤</th>
+          <th style="width:54px">実労時間</th>
+          <th style="width:54px">時間外</th>
+          <th style="width:56px">区分</th>
+          <th style="width:90px">備考</th>
+        </tr>
+      </thead>
+      <tbody id="att-body"></tbody>
+      <tfoot id="att-foot"></tfoot>
+    </table>
+  </div>
+  <div class="print-footer" id="print-footer"></div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxuvHX4bg4RYOIl-CYmGpO3NqixgMIkLp5AsZqw71YrxrImPrlG_xUiOFxYd7kJSFbdHg/exec';
+const DAYS = ['日','月','火','水','木','金','土'];
+const BREAKS = [[600,630],[720,780],[900,930]];
+const TEIJI_END = 18*60;
+const DEFAULT_IN = '08:00';
+const DEFAULT_OUT = '18:00';
+const PAID_TABLE = [
+  {months:6,days:10},{months:18,days:11},{months:30,days:12},
+  {months:42,days:14},{months:54,days:16},{months:66,days:18},{months:78,days:20}
+];
+
+let staffList = [];
+let monthData = {}; // {day: {inn,out,type,note}}
+let saveTimer = {};
+
+// ---- GAS通信 ----
+async function gasPost(payload) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+function setStatus(msg, cls='') {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className = 'status-bar no-print' + (cls ? ' '+cls : '');
+}
+
+// ---- スタッフ ----
+async function loadStaff() {
+  setStatus('読み込み中...');
+  try {
+    const res = await gasPost({action:'loadStaff'});
+    if (res.status === 'ok') {
+      staffList = res.staffList || [];
+      if (staffList.length === 0) {
+        staffList = [{id:'s1', name:'スタッフA', hire:'2023-04-01'}];
+        await saveStaffToGAS();
+      }
+      renderStaffList();
+      renderSelects();
+      await loadMonth();
+      setStatus('');
+    }
+  } catch(e) {
+    setStatus('接続エラー：GASのURLを確認してください', 'error');
+  }
+}
+
+async function saveStaffToGAS() {
+  await gasPost({action:'saveStaff', staffList});
+}
+
+function addStaff() {
+  const n = document.getElementById('new-name').value.trim();
+  const h = document.getElementById('new-hire').value;
+  if (!n || !h) { alert('氏名と入社日を入力してください'); return; }
+  staffList.push({id:'s'+Date.now(), name:n, hire:h});
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-hire').value = '';
+  saveStaffToGAS();
+  renderStaffList();
+  renderSelects();
+  renderTable();
+  updateSummary();
+}
+
+function removeStaff(id) {
+  if (!confirm('削除しますか？')) return;
+  staffList = staffList.filter(s => s.id !== id);
+  saveStaffToGAS();
+  renderStaffList();
+  renderSelects();
+  renderTable();
+  updateSummary();
+}
+
+function renderStaffList() {
+  document.getElementById('staff-list').innerHTML = staffList.map(s => {
+    const granted = calcPaidGranted(s.hire);
+    const used = calcPaidUsedFromMonth(s.id);
+    const left = Math.max(0, granted - used);
+    return `<div class="staff-card">
+      <span class="name">${s.name}</span>
+      <span class="meta">入社 ${s.hire}（${hireLabel(s.hire)}）</span>
+      <span class="meta">付与 ${granted}日 / 消化 ${used}日</span>
+      <span class="paid-badge">残 ${left}日</span>
+      <button onclick="removeStaff('${s.id}')">削除</button>
+    </div>`;
+  }).join('');
+}
+
+// ---- 月データ ----
+async function loadMonth() {
+  const {sid, year, month} = getYM();
+  if (!sid) return;
+  setStatus('読み込み中...');
+  try {
+    const res = await gasPost({action:'load', sid, year, month});
+    if (res.status === 'ok') {
+      monthData = res.rows || {};
+      renderTable();
+      updateSummary();
+      setStatus('', 'ok');
+    }
+  } catch(e) {
+    setStatus('読み込みエラー', 'error');
+  }
+}
+
+// 保存はdebounce（500ms待って確定）
+function scheduleSave(sid, year, month, day) {
+  const key = `${sid}_${year}_${month}_${day}`;
+  clearTimeout(saveTimer[key]);
+  saveTimer[key] = setTimeout(() => {
+    const data = monthData[day] || {};
+    gasPost({action:'save', sid, year, month, day, data})
+      .then(() => setStatus('保存しました', 'ok'))
+      .catch(() => setStatus('保存エラー', 'error'));
+  }, 500);
+}
+
+function setField(sid, y, mo, d, field, val) {
+  if (!monthData[d]) monthData[d] = {};
+  monthData[d][field] = val;
+
+  const dow = new Date(y, mo-1, d).getDay();
+  const inn = monthData[d].inn !== undefined ? monthData[d].inn : dispIn(monthData[d], dow);
+  const out = monthData[d].out !== undefined ? monthData[d].out : dispOut(monthData[d], dow);
+  const {work, ot} = calcWork(inn, out, dow);
+
+  const k = `${y}_${mo}_${d}`;
+  const we = document.getElementById('hrs_'+k);
+  const oe = document.getElementById('ot_'+k);
+  if (we) we.textContent = work !== null ? work.toFixed(1) : '';
+  if (oe) { oe.textContent = ot > 0 ? ot.toFixed(1) : ''; oe.className = ot > 0 ? 'ot-cell' : ''; }
+
+  setStatus('保存中...', '');
+  scheduleSave(sid, y, mo, d);
+  updateSummary();
+}
+
+// ---- 計算 ----
+function toMins(t) { if (!t) return null; const [h,m] = t.split(':').map(Number); return h*60+m; }
+
+function calcActualRest(inn, out) {
+  const i = toMins(inn), o = toMins(out);
+  if (i===null||o===null||o<=i) return 0;
+  return BREAKS.reduce((s,[bs,be]) => s + Math.max(0, Math.min(o,be) - Math.max(i,bs)), 0);
+}
+
+function calcWork(innStr, outStr, dow) {
+  const i = toMins(innStr), o = toMins(outStr);
+  if (i===null||o===null||o<=i) return {work:null, ot:0};
+  const rest = calcActualRest(innStr, outStr);
+  const work = (o - i - rest) / 60;
+  if (work <= 0) return {work:null, ot:0};
+  let ot = 0;
+  if (dow === 6) { ot = work; }
+  else { ot = Math.max(0, o - Math.max(i, TEIJI_END)) / 60; }
+  return {work, ot};
+}
+
+function calcPaidGranted(hireStr) {
+  if (!hireStr) return 0;
+  const months = Math.floor((new Date() - new Date(hireStr)) / (1000*60*60*24*30.4375));
+  if (months < 0) return 0;
+  let days = 0;
+  for (let i = PAID_TABLE.length-1; i >= 0; i--) {
+    if (months >= PAID_TABLE[i].months) { days = PAID_TABLE[i].days; break; }
+  }
+  return days;
+}
+
+function calcPaidUsedFromMonth(sid) {
+  return Object.values(monthData).filter(r => r.type === 'paid').length;
+}
+
+function hireLabel(hireStr) {
+  if (!hireStr) return '';
+  const totalM = Math.max(0, (new Date().getFullYear()-new Date(hireStr).getFullYear())*12 + (new Date().getMonth()-new Date(hireStr).getMonth()));
+  return (Math.floor(totalM/12)>0 ? Math.floor(totalM/12)+'年' : '') + (totalM%12>0 ? totalM%12+'ヶ月' : '') + '経過';
+}
+
+function getNextGrantInfo(hireStr) {
+  if (!hireStr) return null;
+  const hire = new Date(hireStr), now = new Date();
+  for (let i = 0; i < PAID_TABLE.length; i++) {
+    const gd = new Date(hire); gd.setMonth(gd.getMonth() + PAID_TABLE[i].months);
+    if (gd > now) return {date: gd.toISOString().slice(0,10), days: PAID_TABLE[i].days};
+  }
+  return null;
+}
+
+function defaultType(dow) { return dow === 0 ? 'hol' : 'work'; }
+
+function dispIn(r, dow) {
+  if (r && r.inn !== undefined) return r.inn;
+  const type = (r && r.type !== undefined) ? r.type : defaultType(dow);
+  return type === 'work' ? DEFAULT_IN : '';
+}
+function dispOut(r, dow) {
+  if (r && r.out !== undefined) return r.out;
+  const type = (r && r.type !== undefined) ? r.type : defaultType(dow);
+  return type === 'work' ? DEFAULT_OUT : '';
+}
+
+// ---- セレクト ----
+function renderSelects() {
+  const ss = document.getElementById('sel-staff'), cur = ss.value;
+  ss.innerHTML = staffList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (cur && staffList.find(x => x.id === cur)) ss.value = cur;
+
+  const now = new Date();
+  const sy = document.getElementById('sel-year'), sm = document.getElementById('sel-month');
+  if (!sy.innerHTML) {
+    for (let y = now.getFullYear()-2; y <= now.getFullYear()+1; y++)
+      sy.innerHTML += `<option value="${y}"${y===now.getFullYear()?' selected':''}>${y}年</option>`;
+    for (let m = 1; m <= 12; m++)
+      sm.innerHTML += `<option value="${m}"${m===now.getMonth()+1?' selected':''}>${m}月</option>`;
+  }
+}
+
+function getYM() {
+  return {
+    sid: document.getElementById('sel-staff')?.value,
+    year: parseInt(document.getElementById('sel-year')?.value),
+    month: parseInt(document.getElementById('sel-month')?.value)
+  };
+}
+
+function prevMonth() {
+  const sm = document.getElementById('sel-month'), sy = document.getElementById('sel-year');
+  let m = parseInt(sm.value)-1, y = parseInt(sy.value);
+  if (m < 1) { m = 12; y--; } sm.value = m; sy.value = y; loadMonth();
+}
+function nextMonth() {
+  const sm = document.getElementById('sel-month'), sy = document.getElementById('sel-year');
+  let m = parseInt(sm.value)+1, y = parseInt(sy.value);
+  if (m > 12) { m = 1; y++; } sm.value = m; sy.value = y; loadMonth();
+}
+
+// ---- テーブル描画 ----
+function renderTable() {
+  const {sid, year, month} = getYM();
+  if (!sid) return;
+  const s = staffList.find(x => x.id === sid) || {};
+  document.getElementById('print-label').textContent = s.name + ' / ' + year + '年' + month + '月';
+  const dim = new Date(year, month, 0).getDate();
+  let rows = '';
+  for (let d = 1; d <= dim; d++) {
+    const dow = new Date(year, month-1, d).getDay();
+    const r = monthData[d] || {};
+    const type = r.type !== undefined ? r.type : defaultType(dow);
+    const inn = dispIn(r, dow);
+    const out = dispOut(r, dow);
+    const {work, ot} = calcWork(inn, out, dow);
+    const k = `${year}_${month}_${d}`;
+    const rowClass = dow===0 ? 'is-sun' : dow===6 ? 'is-sat' : '';
+    rows += `<tr class="${rowClass}">
+      <td>${d}</td>
+      <td>${DAYS[dow]}</td>
+      <td><input type="time" value="${inn}" onchange="setField('${sid}',${year},${month},${d},'inn',this.value)"></td>
+      <td><input type="time" value="${out}" onchange="setField('${sid}',${year},${month},${d},'out',this.value)"></td>
+      <td id="hrs_${k}">${work!==null ? work.toFixed(1) : ''}</td>
+      <td id="ot_${k}" class="${ot>0?'ot-cell':''}">${ot>0 ? ot.toFixed(1) : ''}</td>
+      <td><select class="row-sel" onchange="setField('${sid}',${year},${month},${d},'type',this.value)">
+        <option value="work"${type==='work'?' selected':''}>出勤</option>
+        <option value="paid"${type==='paid'?' selected':''}>有給</option>
+        <option value="abs"${type==='abs'?' selected':''}>欠勤</option>
+        <option value="hol"${type==='hol'?' selected':''}>休日</option>
+      </select></td>
+      <td><input class="note-input" type="text" value="${r.note||''}" onchange="setField('${sid}',${year},${month},${d},'note',this.value)" style="width:86px"></td>
+    </tr>`;
+  }
+  document.getElementById('att-body').innerHTML = rows;
+}
+
+// ---- サマリー ----
+function updateSummary() {
+  const {sid, year, month} = getYM();
+  if (!sid) return;
+  const s = staffList.find(x => x.id === sid) || {};
+  const dim = new Date(year, month, 0).getDate();
+  let totalH=0, totalOT=0, workDays=0, paidMonth=0, absDays=0;
+  for (let d = 1; d <= dim; d++) {
+    const dow = new Date(year, month-1, d).getDay();
+    const r = monthData[d] || {};
+    const type = r.type !== undefined ? r.type : defaultType(dow);
+    const inn = dispIn(r, dow);
+    const out = dispOut(r, dow);
+    const {work, ot} = calcWork(inn, out, dow);
+    if (work) totalH += work;
+    if (ot) totalOT += ot;
+    if (inn && type === 'work') workDays++;
+    if (type === 'paid') paidMonth++;
+    if (type === 'abs') absDays++;
+  }
+  const granted = calcPaidGranted(s.hire);
+  const usedTotal = calcPaidUsedFromMonth(sid);
+  const left = Math.max(0, granted - usedTotal);
+  const over80 = totalOT > 80;
+  document.getElementById('alert-80').style.display = over80 ? 'block' : 'none';
+
+  document.getElementById('att-foot').innerHTML = `
+    <tr>
+      <td colspan="4" style="text-align:right;padding-right:10px;color:#888;font-size:12px">月合計</td>
+      <td>${totalH.toFixed(1)}</td>
+      <td class="${totalOT>0?'ot-cell':''}">${totalOT.toFixed(1)}</td>
+      <td colspan="2"></td>
+    </tr>`;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="stat-label">実労働時間</div><div class="stat-value">${totalH.toFixed(1)}<span class="stat-unit"> h</span></div></div>
+    <div class="stat"><div class="stat-label">出勤日数</div><div class="stat-value">${workDays}<span class="stat-unit"> 日</span></div></div>
+    <div class="stat ${over80?'warn':''}"><div class="stat-label">時間外合計</div><div class="stat-value">${totalOT.toFixed(1)}<span class="stat-unit"> h</span></div></div>
+    <div class="stat"><div class="stat-label">今月有給</div><div class="stat-value">${paidMonth}<span class="stat-unit"> 日</span></div></div>
+    <div class="stat"><div class="stat-label">有給残</div><div class="stat-value">${left}<span class="stat-unit"> 日</span></div></div>
+    <div class="stat"><div class="stat-label">欠勤</div><div class="stat-value">${absDays}<span class="stat-unit"> 日</span></div></div>
+  `;
+
+  const ng = getNextGrantInfo(s.hire);
+  document.getElementById('paid-info').innerHTML =
+    `<strong>${s.name}</strong>　入社日 ${s.hire||'未設定'}（${hireLabel(s.hire)}）　` +
+    `付与済 <strong>${granted}日</strong>　消化累計 <strong>${usedTotal}日</strong>　残 <strong>${left}日</strong>` +
+    (ng ? `　　次回付与 <strong>${ng.date}</strong>（<strong>${ng.days}日</strong>予定）` : '　　次回付与なし（上限20日）');
+
+  const retainUntil = new Date(year, month, 1);
+  retainUntil.setFullYear(retainUntil.getFullYear() + 3);
+  document.getElementById('print-footer').textContent =
+    `保存期限：${retainUntil.getFullYear()}年${retainUntil.getMonth()+1}月末まで保存（労働基準法第109条）`;
+
+  renderStaffList();
+}
+
+// ---- 起動 ----
+loadStaff();
+</script>
+</body>
+</html>
