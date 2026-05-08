@@ -194,15 +194,16 @@ async function printAll() {
       
       const rowStyle = dow===0 ? 'color:#c00;background:#fff8f8' : dow===6 ? 'color:#1a6fb5;background:#f5f9ff' : '';
       const otStyle = ot>0 ? 'color:#a05000;font-weight:500' : '';
+      const td = (v, extra='') => `<td style="padding:4px 3px;border:1px solid #ccc;text-align:center;vertical-align:middle;${extra}">${v}</td>`;
       rows += `<tr style="${rowStyle}">
-        <td>${d}</td>
-        <td>${DAYS[dow]}</td>
-        <td>${inn}</td>
-        <td>${out}</td>
-        <td>${work?hm(work):''}</td>
-        <td style="${otStyle}">${ot>0?hm(ot):''}</td>
-        <td>${type==='work'?'出勤':type==='paid'?'有給':type==='abs'?'欠勤':'休日'}</td>
-        <td>${r.note||''}</td>
+        ${td(d)}
+        ${td(DAYS[dow])}
+        ${td(inn)}
+        ${td(out)}
+        ${td(work?hm(work):'')}
+        ${td(ot>0?hm(ot):'', otStyle)}
+        ${td(type==='work'?'出勤':type==='paid'?'有給':type==='abs'?'欠勤':'休日')}
+        <td style="text-align:left;padding:4px 3px;border:1px solid #ccc;font-size:10px;overflow:hidden;white-space:nowrap">${r.note||''}</td>
       </tr>`;
     }
     
@@ -211,34 +212,34 @@ async function printAll() {
     
     printContent += `
       <div class="print-page" ${i<staffList.length-1?'style="page-break-after:always"':''}>
-        <div style="text-align:center;margin-bottom:12px">
-          <h1 style="font-size:18px;font-weight:500">出 勤 簿</h1>
-          <p style="font-size:12px;color:#555">${s.name} / ${year}年${month}月</p>
+        <div style="text-align:center;margin-bottom:8px">
+          <h1 style="font-size:16px;font-weight:500;margin:0">出 勤 簿</h1>
+          <p style="font-size:11px;color:#555;margin-top:2px">${s.name} / ${year}年${month}月</p>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;line-height:1.1">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;line-height:1.3">
           <thead>
             <tr style="background:#eee">
-              <th style="width:28px;padding:4px;border:1px solid #ccc">日</th>
-              <th style="width:20px;padding:4px;border:1px solid #ccc">曜</th>
-              <th style="width:70px;padding:4px;border:1px solid #ccc">出勤</th>
-              <th style="width:70px;padding:4px;border:1px solid #ccc">退勤</th>
-              <th style="width:52px;padding:4px;border:1px solid #ccc">実労時間</th>
-              <th style="width:52px;padding:4px;border:1px solid #ccc">時間外</th>
-              <th style="width:52px;padding:4px;border:1px solid #ccc">区分</th>
-              <th style="padding:4px;border:1px solid #ccc">備考</th>
+              <th style="width:26px;padding:5px 3px;border:1px solid #ccc;text-align:center">日</th>
+              <th style="width:22px;padding:5px 3px;border:1px solid #ccc;text-align:center">曜</th>
+              <th style="width:62px;padding:5px 3px;border:1px solid #ccc;text-align:center">出勤</th>
+              <th style="width:62px;padding:5px 3px;border:1px solid #ccc;text-align:center">退勤</th>
+              <th style="width:58px;padding:5px 3px;border:1px solid #ccc;text-align:center">実労時間</th>
+              <th style="width:52px;padding:5px 3px;border:1px solid #ccc;text-align:center">時間外</th>
+              <th style="width:48px;padding:5px 3px;border:1px solid #ccc;text-align:center">区分</th>
+              <th style="width:80px;padding:5px 3px;border:1px solid #ccc;text-align:center">備考</th>
             </tr>
           </thead>
           <tbody>
             ${rows}
             <tr style="background:#eee;font-weight:500">
-              <td colspan="4" style="text-align:right;padding:3px 8px;border:1px solid #ccc;font-size:10px;color:#666">月合計</td>
-              <td style="padding:3px 4px;border:1px solid #ccc;text-align:center">${hm(totalH)||'0:00'}</td>
-              <td style="padding:3px 4px;border:1px solid #ccc;text-align:center;color:${totalOT>0?'#a05000':'inherit'}">${hm(totalOT)||'0:00'}</td>
+              <td colspan="4" style="text-align:right;padding:4px 8px;border:1px solid #ccc;font-size:11px;color:#666">月合計</td>
+              <td style="padding:4px 3px;border:1px solid #ccc;text-align:center">${hm(totalH)||'0:00'}</td>
+              <td style="padding:4px 3px;border:1px solid #ccc;text-align:center;color:${totalOT>0?'#a05000':'inherit'}">${hm(totalOT)||'0:00'}</td>
               <td colspan="2" style="border:1px solid #ccc"></td>
             </tr>
           </tbody>
         </table>
-        <div style="text-align:right;font-size:9px;color:#888;margin-top:6px">
+        <div style="text-align:right;font-size:9px;color:#888;margin-top:5px">
           保存期限：${retainUntil.getFullYear()}年${retainUntil.getMonth()+1}月末まで保存（労働基準法第109条）
         </div>
       </div>`;
@@ -250,9 +251,9 @@ async function printAll() {
     <title>出勤簿 ${year}年${month}月 全員分</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Hiragino Sans','Meiryo',sans-serif;padding:0.8cm}
-      table td{padding:2px 4px;border:1px solid #ccc;text-align:center;vertical-align:middle}
-      @media print{@page{size:A4 portrait;margin:0.8cm}}
+      body{font-family:'Hiragino Sans','Meiryo',sans-serif;padding:0.7cm}
+      table td,table th{vertical-align:middle}
+      @page{size:A4 portrait;margin:0.7cm}
     </style>
   </head><body>${printContent}</body></html>`);
   w.document.close();
