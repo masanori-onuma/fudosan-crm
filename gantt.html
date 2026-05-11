@@ -103,7 +103,15 @@ body.smp-modal-open{overflow:hidden}
 .ord-check-wrap .lbl-pending{color:#E74C3C;font-weight:500;font-size:12px}
 .ord-check-wrap .lbl-done{color:#1D9E75;font-weight:500;font-size:12px}
 .ord-warn-no-mat{font-size:10px;color:#854F0B;background:#fff7e6;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px}
-/* 発注一覧モードのタブ */
+/* 寸法入力モード内 子項目追加 */
+.smp-child-add-wrap{padding:8px 12px;border-top:1px dashed #d0e4f5}
+.smp-child-add-btn{width:100%;height:32px;font-size:12px;color:#185FA5;border:1px dashed #85B7EB;background:#f0f7ff;border-radius:6px;cursor:pointer}
+.smp-child-add-btn:hover{background:#ddeeff}
+.smp-child-add-form{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.smp-child-add-form select,.smp-child-add-form input{height:34px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box}
+.smp-child-add-ok{flex:1;height:32px;font-size:12px;font-weight:500;background:#185FA5;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.smp-child-add-ok:hover{background:#1248a0}
+.smp-child-add-cancel{flex:1;height:32px;font-size:12px;background:#f5f5f5;color:#555;border:1px solid #ccc;border-radius:6px;cursor:pointer}
 .ord-tabs{display:flex;border-bottom:1px solid #ddd;background:#fafafa;flex-shrink:0}
 .ord-tabs .ord-tab{flex:1;height:34px;font-size:12px;background:transparent;border:none;border-right:1px solid #eee;cursor:pointer;color:#666;font-weight:500;transition:background 0.1s}
 .ord-tabs .ord-tab:last-child{border-right:none}
@@ -944,8 +952,9 @@ function _renderInner(){
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
     const _orderBtnTitle=_hasReadyToOrder?'発注待ちの項目あり：発注一覧へ':'この物件の発注一覧へ';
+    const _hasAnyProcess=site.processes&&site.processes.length>0;
     // ボタン配置：📐📋がない場合も同じ幅でスペース確保してフォルダ位置を統一
-    const _sumpouBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_sumpouBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="${_sumpouBtnTitle}">📐</button>`:'<span style="width:28px;display:inline-block"></span>';
+    const _sumpouBtn=_hasAnyProcess?`<button class="btn btn-sm ${_sumpouBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="${_sumpouBtnTitle}">📐</button>`:'<span style="width:28px;display:inline-block"></span>';
     const _orderBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_orderBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="${_orderBtnTitle}">📋</button>`:'<span style="width:28px;display:inline-block"></span>';
     const _actionsHtml=`<span class="site-actions">${dropboxBtn}${dropboxBtn2}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
@@ -2639,10 +2648,10 @@ function renderSumpouMode(){
   const mode=_sumpouFilter.mode;
   const focusId=_sumpouFilter.focusSiteId;
 
-  // 発注管理対象の子項目があり、アーカイブされていない物件のみ
+  // 工程が1つ以上あり、アーカイブされていない物件を対象（子項目なし工程でも表示）
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
-    return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+    return s.processes&&s.processes.length>0;
   });
   // フォーカスモード：1物件だけ
   if(focusId){
@@ -2655,10 +2664,12 @@ function renderSumpouMode(){
         return hay.includes(search);
       });
     }
-    // 「未入力のみ」モード：品番未入力の子項目を1つでも持つ物件
+    // 「未入力のみ」モード：品番未入力の子項目がある、またはordered子項目が1つもない物件
     if(mode==='incomplete'){
       targetSites=targetSites.filter(s=>{
-        return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
+        const hasUnfilled=s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
+        const hasNoOrderedChildren=!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+        return hasUnfilled||hasNoOrderedChildren;
       });
     }
   }
@@ -2717,8 +2728,11 @@ function renderSumpouMode(){
       // 工程ごとに区切る
       site.processes.forEach(proc=>{
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
-        if(!orderedChildren.length)return;
+        // ordered子項目がある工程は通常表示、ない工程も見出しだけ表示（項目追加のため）
         html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+        if(!orderedChildren.length){
+          html+=`<div style="padding:8px 12px;font-size:11px;color:#aaa">（登録済みの項目はありません）</div>`;
+        }
         orderedChildren.forEach(child=>{
           const hasMaterial=!!child.material;
           const parts=_splitMaterial(child.material||'');
@@ -2764,6 +2778,25 @@ function renderSumpouMode(){
           });
         });
       });
+
+      // 物件ブロック末尾：子項目追加ボタン
+      const _allProcs=site.processes||[];
+      if(_allProcs.length){
+        html+=`<div class="smp-child-add-wrap" id="smpAddWrap_${site.id}">
+          <button class="smp-child-add-btn" onclick="smpToggleAddChild(${site.id})">＋ 項目追加</button>
+          <div class="smp-child-add-form" id="smpAddForm_${site.id}" style="display:none">
+            <div style="margin-bottom:6px;font-size:11px;color:#555;font-weight:500">工程を選択</div>
+            <select class="smp-child-add-proc" id="smpAddProc_${site.id}">
+              ${_allProcs.map(p=>`<option value="${p.id}">${esc(p.name||'(工程名なし)')}</option>`).join('')}
+            </select>
+            <input class="smp-child-add-name" id="smpAddName_${site.id}" placeholder="項目名（例：クロス張替）" maxlength="40">
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="smp-child-add-ok" onclick="smpDoAddChild(${site.id})">追加</button>
+              <button class="smp-child-add-cancel" onclick="smpToggleAddChild(${site.id})">キャンセル</button>
+            </div>
+          </div>
+        </div>`;
+      }
 
       html+='</div>';
     });
@@ -3086,6 +3119,46 @@ function smpDelSibling(siteId,procId,childId,extraId,mode){
   c.extraMaterials=c.extraMaterials.filter(x=>x.id!==extraId);
   saveData();
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
+}
+
+// ============================================================
+// 寸法入力モード内：子項目追加
+// ============================================================
+function smpToggleAddChild(siteId){
+  const form=document.getElementById('smpAddForm_'+siteId);
+  if(!form)return;
+  const isOpen=form.style.display!=='none';
+  form.style.display=isOpen?'none':'flex';
+  if(!isOpen){
+    const inp=document.getElementById('smpAddName_'+siteId);
+    if(inp){inp.value='';setTimeout(()=>inp.focus(),50);}
+  }
+}
+
+function smpDoAddChild(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const procSel=document.getElementById('smpAddProc_'+siteId);
+  const nameInp=document.getElementById('smpAddName_'+siteId);
+  if(!procSel||!nameInp)return;
+  const procId=parseInt(procSel.value,10);
+  const name=nameInp.value.trim();
+  if(!name){nameInp.focus();nameInp.style.borderColor='#E74C3C';return;}
+  nameInp.style.borderColor='';
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  if(!p.children)p.children=[];
+  const newChild={id:nextCid++,name,area:'',ordered:false};
+  p.children.push(newChild);
+  saveData();
+  _sumpouFilter.mode='all';
+  renderSumpouMode();
+  setTimeout(()=>{
+    const row=document.getElementById('smpchild_'+newChild.id);
+    if(row){
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+      const inp=row.querySelector('.f-num');
+      if(inp)inp.focus();
+    }
+  },80);
 }
 
 // ============================================================
