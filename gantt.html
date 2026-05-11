@@ -61,18 +61,18 @@ header a:hover{color:#185FA5}
 @media (hover:none) and (pointer:coarse){.smp-del-btn{display:none}}
 .smp-fields{display:flex;gap:6px;align-items:flex-start}
 .smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0;box-sizing:border-box}
-.smp-fields .f-num{flex:0 0 130px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis}
+.smp-fields .f-num{flex:0 0 120px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis}
 .smp-fields .f-size{flex:1 1 0;min-width:0;height:32px}
-.smp-fields .f-qty{flex:0 0 52px;min-width:0;height:32px;text-align:center}
+.smp-fields .f-qty{flex:0 0 68px;min-width:0;height:32px;text-align:center;border-left:2px solid #ddd!important}
 .smp-fields .f-qty-free{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
 .smp-two-btns{display:flex;gap:6px;margin-top:6px}
 .smp-two-btns button{flex:1;height:26px;font-size:11px;border-radius:6px;cursor:pointer;background:var(--color-background-primary)}
 .smp-btn-sibling{color:#185FA5;border:1px solid #185FA5}
 .smp-btn-size{color:#1D9E75;border:1px solid #1D9E75}
 .smp-field-labels{display:flex;gap:6px;margin-bottom:3px;font-size:10px;color:var(--color-text-tertiary)}
-.smp-field-labels .l-num{flex:0 0 130px;padding-left:4px}
+.smp-field-labels .l-num{flex:0 0 120px;padding-left:4px}
 .smp-field-labels .l-size{flex:1 1 0;padding-left:4px}
-.smp-field-labels .l-qty{flex:0 0 52px;text-align:center}
+.smp-field-labels .l-qty{flex:0 0 68px;text-align:center}
 .smp-field-labels .l-btn{flex:0 0 28px}
 .smp-fields input.dirty,.smp-fields textarea.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
@@ -469,6 +469,7 @@ function normalizeSites(raw){
   nextSid=Math.max(nextSid,...raw.map(s=>s.id))+1;
   const pids=raw.flatMap(s=>s.processes.map(p=>p.id));if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
   const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id)));if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
+  const eids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).flatMap(c=>(c.extraMaterials||[]).map(e=>e.id))));if(eids.length)nextCid=Math.max(nextCid,...eids)+1;
   return raw;
 }
 async function loadData(){
@@ -606,6 +607,7 @@ async function _pollOnce(){
   if(Date.now()-_lastSaveAttemptAt<5000)return;           // 保存試行中/直後もスキップ
   if(barDrag&&barDrag.active)return;                      // ドラッグ中はスキップ
   if(document.querySelector('.modal-overlay'))return;     // モーダル表示中はスキップ
+  if(document.getElementById('sumpouView')&&document.getElementById('sumpouView').innerHTML)return; // 寸法入力/発注一覧表示中はスキップ
   if(document.visibilityState!=='visible')return;         // タブ非表示中はスキップ
   try{
     const v=await gasLoad('gantt_sites');
@@ -2773,7 +2775,14 @@ function renderSumpouMode(){
   </div><!-- /smp-panel --></div><!-- /smp-overlay -->
   <div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
 
+  // スクロール位置を保存（再描画後に復元する）
+  const _smpBody=v.querySelector('.smp-body');
+  const _savedScrollTop=_smpBody?_smpBody.scrollTop:0;
+
   v.innerHTML=html;
+  // スクロール位置を復元
+  const _newSmpBody=v.querySelector('.smp-body');
+  if(_newSmpBody&&_savedScrollTop>0)_newSmpBody.scrollTop=_savedScrollTop;
   // textarea初期高さを内容に合わせて調整
   v.querySelectorAll('.f-qty').forEach(ta=>{if(ta.tagName==='TEXTAREA'){ta.style.height='';const h=Math.max(32,ta.scrollHeight);ta.style.height=h+'px';}});
   _initSwipeDelete(v);
@@ -3035,7 +3044,11 @@ function smpToast(msg,isError){
 }
 
 // 子項目にextraMaterial（追加品番行）を追加（工程には影響しない）
+let _smpAddLock=false; // 多重クリック防止
 function smpAddSibling(siteId,procId,baseChildId,mode){
+  if(_smpAddLock)return; // 多重クリック防止
+  _smpAddLock=true;
+  setTimeout(()=>_smpAddLock=false,600);
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const baseChild=(p.children||[]).find(x=>x.id===baseChildId);if(!baseChild)return;
@@ -3046,7 +3059,11 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:isSizeOnly};
   baseChild.extraMaterials.push(newExtra);
   saveData();
-  if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
+  if(mode==='order'){renderOrderListMode();}else{
+    // 追加直後はフィルタで物件ごと消えないよう全表示モードにする
+    _sumpouFilter.mode='all';
+    renderSumpouMode();
+  }
   setTimeout(()=>{
     const row=document.getElementById('extra_'+newExtra.id);
     if(row){
