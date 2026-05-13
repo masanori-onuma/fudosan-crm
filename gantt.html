@@ -3464,7 +3464,7 @@ function _renderStockTabBody(){
             ${s.count>1?`<span style="font-size:12px;color:var(--color-text-secondary)">× ${s.count}本</span>`:''}
             <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
               <button class="btn btn-sm stock-action-btn" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
-              <button class="btn btn-sm stock-action-btn" onclick="openStockAddModal(${s.siteId||'null'})" style="font-size:10px;padding:0 5px;height:20px">編集</button>
+              <button class="btn btn-sm stock-action-btn" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px" title="編集">編集</button>
               <button class="btn btn-sm stock-action-btn" onclick="deleteStock(${s.id})" style="font-size:10px;padding:0 5px;height:20px;color:#c00;border-color:#ecc">削除</button>
             </div>
           </div>
@@ -3697,9 +3697,9 @@ function saveStockAdd(){
   document.querySelectorAll('.stock-manual-row').forEach(row=>{
     const code=row.querySelector('.sma-code').value.trim();
     const qty=row.querySelector('.sma-spec').value.trim();
-    const countVal=parseInt(row.querySelector('.sma-count').value)||1;
+    const countVal=parseInt(row.querySelector('.sma-count').value)||undefined;
     if(code){
-      stocks.push({id:nextStockId++,code,qty,count:countVal>1?countVal:undefined,siteId:sid,addedBy:user,date:today,note});
+      stocks.push({id:nextStockId++,code,qty,count:countVal&&countVal>1?countVal:undefined,siteId:sid,addedBy:user,date:today,note});
       added++;
     }
   });
