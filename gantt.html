@@ -802,6 +802,9 @@ function render(){
   }catch(e){
     console.error('render error:',e.message,e.stack);
     showSyncStatus('render error:'+e.message.slice(0,40),10000);
+    // エラー内容をガントエリアに表示して原因を見えるようにする
+    const tbody=document.getElementById('ganttBody');
+    if(tbody)tbody.innerHTML=`<tr><td colspan="999" style="padding:20px;color:#c00;font-size:13px">⚠️ 表示エラー: ${e.message}<br><small>${(e.stack||'').slice(0,200)}</small></td></tr>`;
   }
   // 描画後、実際の列幅と計算に使った_dayWがズレていたら1回だけ再描画する。
   // 初回描画時やフォント読み込み前はth.day-colの幅が未確定で、バーの位置/幅がズレるため。
