@@ -2700,6 +2700,7 @@ function renderSumpouMode(){
     html+=`<div class="smp-empty">${mode==='incomplete'?'未入力の物件はありません 🎉':'発注管理対象の子項目を持つ物件がありません'}</div>`;
   }else{
     targetSites.forEach(site=>{
+      try{
       const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr||'');
       html+=`<div class="smp-block">
         <div class="smp-site-head">
