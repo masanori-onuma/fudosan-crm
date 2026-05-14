@@ -2713,7 +2713,7 @@ function renderSumpouMode(){
 
       // 工程ごとに区切る
       site.processes.forEach(proc=>{
-        const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
+        const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
         if(!orderedChildren.length)return;
         html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
         orderedChildren.forEach(child=>{
@@ -2752,7 +2752,7 @@ function renderSumpouMode(){
                 ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
               </div>
               <div class="smp-fields">
-                ${isSizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(exParts.num||child.material.split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                ${isSizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
@@ -2782,6 +2782,10 @@ function renderSumpouMode(){
       }
 
       html+='</div>';
+      }catch(e){
+        console.error('renderSumpouMode error: site=',site.name,e);
+        html+=`<div class="smp-block" style="border:2px solid #e55;padding:12px;color:#c00">⚠️ ${esc(site.name||'不明')}：表示エラー（${esc(String(e.message))}）</div>`;
+      }
     });
   }
 
