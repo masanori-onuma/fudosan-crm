@@ -2,6 +2,24 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>gantt リセット</title>
+<style>
+body{font-family:sans-serif;padding:30px;max-width:400px;margin:0 auto}
+button{width:100%;height:48px;font-size:16px;border-radius:8px;border:none;cursor:pointer;margin-bottom:12px}
+.btn-reset{background:#e55;color:#fff}
+.btn-go{background:#185FA5;color:#fff}
+#log{font-size:12px;color:#555;margin-top:16px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h2>🔧 gantt リセット</h2>
+<p>画面が壊れた時にローカルキャッシュをクリアしてGASから再ロードします。</p>
+<button class="btn-reset" onclick="doReset()">① ローカルキャッシュをクリア</button>
+<button class="btn-go" onclick="location.href='gantt.html'">② gantt.html を開く</button><!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -4156,4 +4174,29 @@ if(_isSP){
 </script>
 </body>
 
+</html>
+
+<div id="log"></div>
+<script>
+function doReset(){
+  const log=document.getElementById('log');
+  const keys=['gantt_sites','gantt_masters','gantt_stocks','colInfoW'];
+  let cleared=[];
+  keys.forEach(k=>{
+    if(localStorage.getItem(k)!==null){
+      localStorage.removeItem(k);
+      cleared.push(k);
+    }
+  });
+  // gantt_で始まる全キーも念のため削除
+  Object.keys(localStorage).filter(k=>k.startsWith('gantt_')).forEach(k=>{
+    localStorage.removeItem(k);
+    if(!cleared.includes(k))cleared.push(k);
+  });
+  log.textContent=cleared.length
+    ?'✓ クリアしました:\n'+cleared.join('\n')+'\n\n次に「② gantt.html を開く」を押してください。'
+    :'キャッシュはありませんでした。「② gantt.html を開く」を押してください。';
+}
+</script>
+</body>
 </html>
