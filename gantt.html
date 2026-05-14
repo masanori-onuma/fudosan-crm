@@ -474,10 +474,10 @@ function normalizeSites(raw){
     if(!p.periods){p.periods=[];if(p.startD||p.endD)p.periods.push({startD:p.startD||'',endD:p.endD||''});delete p.startD;delete p.endD;}
     if(!p.children)p.children=[];
   }));
-  nextSid=Math.max(nextSid,...raw.map(s=>s.id))+1;
-  const pids=raw.flatMap(s=>s.processes.map(p=>p.id));if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
-  const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id)));if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
-  const eids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).flatMap(c=>(c.extraMaterials||[]).map(e=>e.id))));if(eids.length)nextCid=Math.max(nextCid,...eids)+1;
+  nextSid=Math.max(nextSid,...raw.map(s=>s.id).filter(id=>id!=null&&!isNaN(id)))+1;
+  const pids=raw.flatMap(s=>s.processes.map(p=>p.id).filter(id=>id!=null&&!isNaN(id)));if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
+  const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id).filter(id=>id!=null&&!isNaN(id))));if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
+  const eids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).flatMap(c=>(c.extraMaterials||[]).map(e=>e.id).filter(id=>id!=null&&!isNaN(id))))); if(eids.length)nextCid=Math.max(nextCid,...eids)+1;
   return raw;
 }
 async function loadData(){
