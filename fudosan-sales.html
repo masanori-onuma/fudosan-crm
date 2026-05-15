@@ -378,6 +378,60 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
 
+/* ─── 変更履歴タブ ─── */
+.detail-tabs {
+  display: flex;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 14px;
+}
+.detail-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+.detail-tab.active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.change-log-list { display: flex; flex-direction: column; gap: 8px; }
+.change-log-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.change-log-item.source-claude { border-left: 3px solid #7C3AED; }
+.change-log-item.source-manual { border-left: 3px solid #1a3a5c; }
+.change-log-item.source-rollback { border-left: 3px solid #e53e3e; }
+.change-log-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.change-log-time { color: #a0aec0; font-size: 11px; }
+.change-log-source { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+.change-log-source.claude { background: #EDE9FE; color: #7C3AED; }
+.change-log-source.manual { background: #e6f3ff; color: #1a3a5c; }
+.change-log-source.rollback { background: #fff5f5; color: #e53e3e; }
+.change-log-field { font-weight: 600; color: #4a5568; margin-bottom: 2px; }
+.change-log-diff { color: #718096; }
+.change-log-diff .before { text-decoration: line-through; color: #a0aec0; }
+.change-log-diff .arrow { margin: 0 4px; }
+.change-log-diff .after { color: #2d3748; font-weight: 500; }
+.btn-rollback {
+  margin-top: 6px;
+  background: none;
+  border: 1px solid #e53e3e;
+  color: #e53e3e;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.btn-rollback:hover { background: #fff5f5; }
+.change-log-empty { text-align: center; color: #a0aec0; font-size: 13px; padding: 20px; }
+
 /* ─── ミニカレンダー ─── */
 .mini-cal { margin-top: 10px; background: white; border: 1.5px solid #c7d2fe; border-radius: 10px; overflow: hidden; }
 .mini-cal-header { background: #1a3a5c; color: white; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
@@ -894,7 +948,11 @@ function openDetail(id) {
 
   const body = document.getElementById('modalBody');
   body.innerHTML = `
-    <div class="field-group">
+    <div class="detail-tabs">
+      <div class="detail-tab active" id="tab-btn-info" onclick="switchTab('tab-info')">物件情報</div>
+      <div class="detail-tab" id="tab-btn-log" onclick="switchTab('tab-log')">変更履歴</div>
+    </div>
+    <div id="tab-info" class="tab-content active">
       <div class="field-label">所有者氏名</div>
       <input type="text" class="field-input" id="f_owner_name" value="${escHtml(p.owner_name)}">
     </div>
@@ -983,6 +1041,13 @@ function openDetail(id) {
         </div>
       </div>
     </div>
+  </div>
+
+  <div id="tab-log" class="tab-content">
+    <div id="changeLogContainer" class="change-log-list">
+      <div class="change-log-empty">読み込み中...</div>
+    </div>
+  </div>
   `;
   document.getElementById('detailModal').classList.add('show');
   // 住所が入っていて県内/県外が未判定なら自動判定
@@ -1173,6 +1238,83 @@ function showToast(msg, type) {
 
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── タブ切り替え ────────────────────────────────
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.detail-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  const btnId = tabId === 'tab-info' ? 'tab-btn-info' : 'tab-btn-log';
+  document.getElementById(btnId).classList.add('active');
+  if (tabId === 'tab-log') loadChangeLog();
+}
+
+async function loadChangeLog() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  const container = document.getElementById('changeLogContainer');
+  if (!gasUrl || !currentDetailId) {
+    container.innerHTML = '<div class="change-log-empty">GAS URL未設定</div>';
+    return;
+  }
+  container.innerHTML = '<div class="change-log-empty">読み込み中...</div>';
+  try {
+    const res = await fetch(`${gasUrl}?action=changeLog&id=${currentDetailId}`);
+    const data = await res.json();
+    const logs = data.logs || [];
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="change-log-empty">変更履歴はありません</div>';
+      return;
+    }
+    const FIELD_LABELS = {
+      stage: 'ステージ', next_action_date: '次アクション日',
+      next_action_note: '次アクション内容', memo: 'メモ',
+      owner_name: '所有者氏名', owner_address: '所有者住所',
+      is_local: '県内/県外', tohon_obtained: '謄本取得日',
+      photo_url: '写真URL', response_pattern: '反応パターン'
+    };
+    container.innerHTML = logs.map(log => {
+      const src = log.source || 'manual';
+      const srcLabel = src === 'claude' ? 'Claude' : src === 'rollback' ? '取り消し' : '手動';
+      const timeStr = log.timestamp ? String(log.timestamp).substring(0, 16) : '';
+      const fieldLabel = FIELD_LABELS[log.field] || log.field;
+      const canRollback = src !== 'rollback';
+      return `<div class="change-log-item source-${src}">
+        <div class="change-log-meta">
+          <span class="change-log-time">${escHtml(timeStr)}</span>
+          <span class="change-log-source ${src}">${srcLabel}</span>
+        </div>
+        <div class="change-log-field">${escHtml(fieldLabel)}</div>
+        <div class="change-log-diff">
+          <span class="before">${escHtml(String(log.before || '（未設定）'))}</span>
+          <span class="arrow">→</span>
+          <span class="after">${escHtml(String(log.after || '（クリア）'))}</span>
+        </div>
+        ${log.note ? `<div style="font-size:11px;color:#a0aec0;margin-top:3px;">${escHtml(log.note)}</div>` : ''}
+        ${canRollback ? `<button class="btn-rollback" onclick="doRollback(${log.row}, '${escHtml(fieldLabel)}', '${escHtml(String(log.before || ''))}')">↩ この変更を取り消す</button>` : ''}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="change-log-empty">読み込みエラー：${e.message}</div>`;
+  }
+}
+
+async function doRollback(logRow, fieldLabel, beforeVal) {
+  if (!confirm(`「${fieldLabel}」を「${beforeVal}」に戻しますか？`)) return;
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'rollback', log_row: logRow })
+    });
+    showToast('取り消しました', 'success');
+    loadChangeLog();
+    setTimeout(loadAll, 800);
+  } catch (e) {
+    showToast('取り消し失敗：' + e.message, 'error');
+  }
 }
 
 // ─── ミニカレンダー ────────────────────────────────
