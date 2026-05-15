@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FudosanSales｜営業リスト</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #2d3748;
+}
+
+/* ヘッダー */
+.header {
+  background: #1a3a5c;
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header h1 { font-size: 17px; font-weight: 600; flex: 1; }
+.header .btn-refresh {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.header .btn-config {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* タブ */
+.tabs {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 50px;
+  z-index: 99;
+}
+.tab {
+  flex: 1;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+.tab.active {
+  color: #1a3a5c;
+  border-bottom-color: #1a3a5c;
+}
+.tab .badge {
+  display: inline-block;
+  background: #e53e3e;
+  color: white;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+/* メイン */
+.main {
+  padding: 12px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* 物件カード */
+.property-card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.property-card:active { transform: scale(0.98); }
+.property-card.overdue { border-left: 4px solid #e53e3e; }
+.property-card.soon { border-left: 4px solid #ecc94b; }
+.property-card.normal { border-left: 4px solid #cbd5e0; }
+.property-card.migrated { opacity: 0.6; }
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.card-id {
+  font-size: 11px;
+  color: #a0aec0;
+  font-family: 'SF Mono', Menlo, monospace;
+}
+.card-stage {
+  font-size: 11px;
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+.card-stage.stage-tohon-wait { background: #fef5e7; color: #c05621; }
+.card-stage.stage-tohon-done { background: #e6fffa; color: #234e52; }
+.card-stage.stage-dm1, .card-stage.stage-dm2 { background: #ebf8ff; color: #2c5282; }
+.card-stage.stage-visit { background: #faf5ff; color: #553c9a; }
+.card-stage.stage-revisit { background: #fff5f5; color: #c53030; }
+.card-stage.stage-response { background: #f0fff4; color: #22543d; font-weight: 700; }
+.card-stage.stage-migrated { background: #c6f6d5; color: #276749; }
+.card-stage.stage-closed { background: #e2e8f0; color: #718096; }
+
+.card-address {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 4px;
+}
+.card-owner {
+  font-size: 13px;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+.card-owner .local-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.local-badge.kennai { background: #c6f6d5; color: #276749; }
+.local-badge.kengai { background: #fed7d7; color: #c53030; }
+
+.card-next {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #718096;
+  background: #f7fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.card-next.overdue-text { background: #fed7d7; color: #c53030; font-weight: 600; }
+.card-next.soon-text { background: #fff9c4; color: #744210; }
+
+/* 詳細モーダル */
+.modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: flex-end;
+  z-index: 200;
+}
+.modal.show { display: flex; }
+.modal-inner {
+  background: white;
+  width: 100%;
+  max-height: 90vh;
+  border-radius: 16px 16px 0 0;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-handle {
+  width: 40px;
+  height: 4px;
+  background: #cbd5e0;
+  border-radius: 2px;
+  margin: 8px auto;
+}
+.modal-header {
+  padding: 8px 18px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.modal-header h2 {
+  font-size: 18px;
+  color: #1a3a5c;
+}
+.modal-header .modal-id {
+  font-size: 11px;
+  color: #a0aec0;
+  font-family: monospace;
+}
+.modal-body { padding: 16px 18px; }
+
+.field-group { margin-bottom: 14px; }
+.field-label {
+  font-size: 11px;
+  color: #718096;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.field-value {
+  font-size: 15px;
+  color: #2d3748;
+}
+.field-value.empty { color: #cbd5e0; font-style: italic; }
+
+.field-input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+textarea.field-input { min-height: 80px; resize: vertical; }
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.modal-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-update { background: #1a3a5c; color: white; }
+.btn-update:hover { background: #2a527a; }
+.btn-migrate { background: #2f855a; color: white; }
+.btn-migrate:hover { background: #276749; }
+.btn-close { background: #e2e8f0; color: #4a5568; }
+
+/* 設定モーダル */
+.config-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+.config-modal.show { display: flex; }
+.config-modal-inner {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 420px;
+}
+.config-modal h3 { margin-bottom: 12px; color: #1a3a5c; }
+.config-modal label { display: block; font-size: 12px; color: #4a5568; margin: 8px 0 4px; }
+.config-modal input {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+/* 空状態 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #a0aec0;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+/* ローディング */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #718096;
+  font-size: 14px;
+}
+
+/* トースト */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2d3748;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 1000;
+  animation: toastSlide 0.3s ease;
+}
+.toast.success { background: #2f855a; }
+.toast.error { background: #c53030; }
+@keyframes toastSlide {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ステータスバー */
+.stat-bar {
+  background: white;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #718096;
+  flex-wrap: wrap;
+}
+.stat-bar strong { color: #2d3748; }
+
+/* スマホ向け微調整 */
+@media (max-width: 480px) {
+  .header h1 { font-size: 15px; }
+  .property-card { padding: 12px; }
+  .card-address { font-size: 14px; }
+}
+
+/* ─── Phase 2: チャットUI ─── */
+.chat-section {
+  margin-top: 20px;
+  border-top: 2px solid #e2e8f0;
+  padding-top: 14px;
+}
+.chat-toggle {
+  width: 100%;
+  background: #eef2ff;
+  border: 1.5px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3730a3;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+.chat-toggle:hover { background: #e0e7ff; }
+.chat-toggle .toggle-arrow { margin-left: auto; transition: transform 0.2s; }
+.chat-toggle.open .toggle-arrow { transform: rotate(180deg); }
+
+.chat-area {
+  display: none;
+  margin-top: 8px;
+  border: 1.5px solid #c7d2fe;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+.chat-area.open { display: flex; flex-direction: column; }
+
+.chat-messages {
+  height: 250px;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8faff;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: #1a3a5c;
+  color: white;
+  border-bottom-right-radius: 3px;
+}
+.chat-msg.claude {
+  align-self: flex-start;
+  background: white;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 3px;
+}
+.chat-msg.system-msg {
+  align-self: center;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 12px;
+  border-radius: 6px;
+  max-width: 95%;
+  text-align: center;
+}
+.chat-msg.thinking {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 12px;
+  font-style: italic;
+  border: 1px dashed #cbd5e0;
+}
+.escalate-wrap { margin-top: 8px; }
+.escalate-btn {
+  display: inline-block;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.escalate-btn:hover { background: #6d28d9; }
+
+.chat-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid #e2e8f0;
+  background: white;
+}
+.chat-input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  min-height: 38px;
+  max-height: 100px;
+}
+.chat-send {
+  background: #1a3a5c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0 14px;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.chat-send:disabled { background: #a0aec0; cursor: not-allowed; }
+
+/* ─── 確認モーダル ─── */
+.confirm-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 600;
+  padding: 20px;
+}
+.confirm-modal.show { display: flex; }
+.confirm-modal-inner {
+  background: white;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.confirm-header {
+  background: #1a3a5c;
+  color: white;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.confirm-body { padding: 14px 18px; max-height: 60vh; overflow-y: auto; }
+.confirm-item {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #c7d2fe;
+}
+.confirm-item-label {
+  font-size: 11px;
+  color: #718096;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.confirm-item-before { font-size: 12px; color: #a0aec0; text-decoration: line-through; }
+.confirm-item-after { font-size: 14px; color: #2d3748; font-weight: 500; margin-top: 2px; }
+.confirm-item-append { font-size: 13px; color: #2d3748; font-style: italic; margin-top: 2px; }
+.confirm-footer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid #e2e8f0;
+}
+.confirm-footer button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-confirm-no { background: #e2e8f0; color: #4a5568; }
+.btn-confirm-yes { background: #2f855a; color: white; }
+.btn-confirm-yes:hover { background: #276749; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>📋</div>
+  <h1>営業リスト</h1>
+  <button class="btn-refresh" onclick="loadAll()">🔄</button>
+  <button class="btn-config" onclick="openConfig()">⚙</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-view="today" onclick="setView('today')">
+    本日 <span class="badge" id="todayCount" style="display:none">0</span>
+  </div>
+  <div class="tab" data-view="active" onclick="setView('active')">
+    進行中 <span class="badge" id="activeCount" style="display:none">0</span>
+  </div>
+  <div class="tab" data-view="all" onclick="setView('all')">すべて</div>
+</div>
+
+<div class="main">
+  <div id="statBar" class="stat-bar" style="display:none"></div>
+  <div id="propertyList">
+    <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal" id="detailModal">
+  <div class="modal-inner">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-id" id="modalId"></div>
+      <h2 id="modalAddress"></h2>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="config-modal" id="configModal">
+  <div class="config-modal-inner">
+    <h3>設定</h3>
+    <label>FudosanSales GAS URL</label>
+    <input type="text" id="configGasUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button onclick="closeConfig()" style="flex:1;border:none;background:#e2e8f0;color:#4a5568;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">キャンセル</button>
+      <button onclick="saveConfig()" style="flex:1;border:none;background:#1a3a5c;color:white;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 確認モーダル（Claude書き込み用） -->
+<div class="confirm-modal" id="confirmModal">
+  <div class="confirm-modal-inner">
+    <div class="confirm-header">以下の変更を行います。よろしいですか？</div>
+    <div class="confirm-body" id="confirmBody"></div>
+    <div class="confirm-footer">
+      <button class="btn-confirm-no" onclick="confirmNo()">いいえ</button>
+      <button class="btn-confirm-yes" onclick="confirmYes()">はい、反映する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allProperties = [];
+let currentView = 'today';
+let currentDetailId = null;
+
+const STAGES = [
+  '謄本取得待ち',
+  '謄本取得済',
+  'DM1回目送付',
+  'DM2回目送付',
+  '訪問済',
+  '再訪問待ち',
+  '反応あり',
+  '顧客化（CRM移管済）',
+  '見送り'
+];
+
+const STAGE_CLASS = {
+  '謄本取得待ち': 'stage-tohon-wait',
+  '謄本取得済': 'stage-tohon-done',
+  'DM1回目送付': 'stage-dm1',
+  'DM2回目送付': 'stage-dm2',
+  '訪問済': 'stage-visit',
+  '再訪問待ち': 'stage-revisit',
+  '反応あり': 'stage-response',
+  '顧客化（CRM移管済）': 'stage-migrated',
+  '見送り': 'stage-closed'
+};
+
+const RESPONSE_PATTERNS = [
+  '',
+  '反応なし',
+  '興味なし・送らないで',
+  '今は売る気ない',
+  '条件次第で検討',
+  '他社にも相談中',
+  'すぐ売りたい',
+  '不在',
+  '居住中（拒否的）',
+  '居住中（話できた）',
+  '即面談OK'
+];
+
+// ─── 初期化 ────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  loadAll();
+});
+
+// ─── データ取得 ────────────────────────────────────
+
+async function loadAll() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) {
+    document.getElementById('propertyList').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚙</div>
+        <p>GAS URLを設定してください</p>
+        <button onclick="openConfig()" style="margin-top:12px;background:#1a3a5c;color:white;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">設定を開く</button>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('propertyList').innerHTML = '<div class="loading">読み込み中...</div>';
+
+  try {
+    const res = await fetch(gasUrl + '?action=list', { method: 'GET' });
+    const data = await res.json();
+    allProperties = data.properties || [];
+    render();
+    updateBadges();
+  } catch (err) {
+    document.getElementById('propertyList').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        <p>読み込みに失敗しました</p>
+        <p style="font-size:12px;margin-top:8px">${escHtml(err.message)}</p>
+      </div>`;
+  }
+}
+
+// ─── 表示切替 ────────────────────────────────────
+
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === view);
+  });
+  render();
+}
+
+function getFilteredProperties() {
+  const today = todayStr();
+  switch (currentView) {
+    case 'today':
+      return allProperties.filter(p => {
+        if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+        if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
+        if (!p.next_action_date) return false;
+        return p.next_action_date <= today;
+      }).sort((a, b) => (a.next_action_date < b.next_action_date ? -1 : 1));
+    case 'active':
+      return allProperties.filter(p => {
+        if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+        return p.stage !== '顧客化（CRM移管済）' && p.stage !== '見送り';
+      }).sort((a, b) => {
+        if (!a.next_action_date) return 1;
+        if (!b.next_action_date) return -1;
+        return a.next_action_date < b.next_action_date ? -1 : 1;
+      });
+    case 'all':
+    default:
+      return [...allProperties].sort((a, b) => 
+        (a.registered_at > b.registered_at ? -1 : 1)
+      );
+  }
+}
+
+// ─── レンダリング ────────────────────────────────
+
+function render() {
+  const list = getFilteredProperties();
+  const container = document.getElementById('propertyList');
+  const statBar = document.getElementById('statBar');
+
+  if (list.length === 0) {
+    const msg = currentView === 'today' 
+      ? '🎉 本日のアクションはありません' 
+      : currentView === 'active'
+      ? '進行中の案件はありません'
+      : '物件が登録されていません';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">${currentView === 'today' ? '✨' : '📭'}</div>
+        <p>${msg}</p>
+      </div>`;
+    statBar.style.display = 'none';
+    return;
+  }
+
+  // ステータスバー
+  if (currentView === 'all' || currentView === 'active') {
+    const stageCount = {};
+    list.forEach(p => {
+      stageCount[p.stage] = (stageCount[p.stage] || 0) + 1;
+    });
+    statBar.innerHTML = `<strong>${list.length}</strong>件 ` + 
+      Object.keys(stageCount).slice(0, 4).map(s => 
+        `${escHtml(s)} <strong>${stageCount[s]}</strong>`
+      ).join(' / ');
+    statBar.style.display = 'flex';
+  } else {
+    statBar.style.display = 'none';
+  }
+
+  const today = todayStr();
+  const soonDate = addDays(today, 3);
+
+  container.innerHTML = list.map(p => {
+    const isMigrated = p.crm_migrated === true || p.crm_migrated === 'TRUE';
+    const isOverdue = p.next_action_date && p.next_action_date <= today && !isMigrated;
+    const isSoon = p.next_action_date && p.next_action_date > today && p.next_action_date <= soonDate;
+    const cardClass = isMigrated ? 'migrated' : isOverdue ? 'overdue' : isSoon ? 'soon' : 'normal';
+    const stageClass = STAGE_CLASS[p.stage] || '';
+    const localBadge = p.is_local 
+      ? `<span class="local-badge ${p.is_local === '県内' ? 'kennai' : 'kengai'}">${escHtml(p.is_local)}</span>` 
+      : '';
+    const nextClass = isOverdue ? 'overdue-text' : isSoon ? 'soon-text' : '';
+    const nextText = p.next_action_date 
+      ? `📅 ${escHtml(p.next_action_date)} ${escHtml(p.next_action_note || '')}` 
+      : '次アクション未設定';
+
+    return `
+      <div class="property-card ${cardClass}" onclick="openDetail('${escHtml(p.id)}')">
+        <div class="card-top">
+          <span class="card-id">${escHtml(p.id)}</span>
+          <span class="card-stage ${stageClass}">${escHtml(p.stage || '未設定')}</span>
+        </div>
+        <div class="card-address">${escHtml(p.address || '住所未入力')}</div>
+        <div class="card-owner">${escHtml(p.owner_name || '所有者未入力')}${localBadge}</div>
+        <div class="card-next ${nextClass}">${nextText}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateBadges() {
+  const today = todayStr();
+  const todayList = allProperties.filter(p => {
+    if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+    if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
+    if (!p.next_action_date) return false;
+    return p.next_action_date <= today;
+  });
+  const activeList = allProperties.filter(p => {
+    if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+    return p.stage !== '顧客化（CRM移管済）' && p.stage !== '見送り';
+  });
+
+  const tBadge = document.getElementById('todayCount');
+  const aBadge = document.getElementById('activeCount');
+  if (todayList.length > 0) {
+    tBadge.textContent = todayList.length;
+    tBadge.style.display = 'inline-block';
+  } else {
+    tBadge.style.display = 'none';
+  }
+  aBadge.textContent = activeList.length;
+  aBadge.style.display = activeList.length > 0 ? 'inline-block' : 'none';
+}
+
+// ─── 詳細モーダル ────────────────────────────────
+
+function openDetail(id) {
+  const p = allProperties.find(x => x.id === id);
+  if (!p) return;
+  
+  currentDetailId = id;
+  document.getElementById('modalId').textContent = p.id;
+  document.getElementById('modalAddress').textContent = p.address || '住所未入力';
+
+  const body = document.getElementById('modalBody');
+  body.innerHTML = `
+    <div class="field-group">
+      <div class="field-label">所有者氏名</div>
+      <input type="text" class="field-input" id="f_owner_name" value="${escHtml(p.owner_name)}">
+    </div>
+    <div class="field-group">
+      <div class="field-label">所有者住所</div>
+      <input type="text" class="field-input" id="f_owner_address" value="${escHtml(p.owner_address)}" 
+             oninput="autoDetectLocal()">
+    </div>
+    <div class="field-group">
+      <div class="field-label">県内/県外</div>
+      <select class="field-input" id="f_is_local">
+        <option value="">未判定</option>
+        <option value="県内" ${p.is_local==='県内'?'selected':''}>県内（訪問対象）</option>
+        <option value="県外" ${p.is_local==='県外'?'selected':''}>県外（DM対象）</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">登記受付日</div>
+      <div class="field-value ${!p.registration_date?'empty':''}">${escHtml(p.registration_date) || '未入力'}</div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">登記原因</div>
+      <div class="field-value ${!p.registration_reason?'empty':''}">${escHtml(p.registration_reason) || '未入力'}</div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">謄本取得日</div>
+      <input type="date" class="field-input" id="f_tohon_obtained" value="${escHtml(p.tohon_obtained)}"
+             onchange="autoStageFromTohon()">
+    </div>
+    <div class="field-group">
+      <div class="field-label">写真URL（Google Drive等）</div>
+      <input type="text" class="field-input" id="f_photo_url" value="${escHtml(p.photo_url)}">
+    </div>
+    <div class="field-group">
+      <div class="field-label">ステージ</div>
+      <select class="field-input" id="f_stage">
+        ${STAGES.map(s => `<option value="${escHtml(s)}" ${p.stage===s?'selected':''}>${escHtml(s)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">反応パターン</div>
+      <select class="field-input" id="f_response_pattern">
+        ${RESPONSE_PATTERNS.map(r => `<option value="${escHtml(r)}" ${p.response_pattern===r?'selected':''}>${escHtml(r) || '（未選択）'}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">次アクション予定日</div>
+      <input type="date" class="field-input" id="f_next_action_date" value="${escHtml(p.next_action_date)}">
+    </div>
+    <div class="field-group">
+      <div class="field-label">次アクション内容</div>
+      <input type="text" class="field-input" id="f_next_action_note" value="${escHtml(p.next_action_note)}">
+    </div>
+    <div class="field-group">
+      <div class="field-label">メモ</div>
+      <textarea class="field-input" id="f_memo">${escHtml(p.memo)}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-close" onclick="closeDetail()">閉じる</button>
+      <button class="btn-update" onclick="saveDetail()">💾 保存</button>
+      ${(p.stage !== '顧客化（CRM移管済）' && !p.crm_migrated) 
+        ? '<button class="btn-migrate" onclick="migrateToCrm()">→ CRMへ</button>'
+        : ''}
+    </div>
+
+    <div class="chat-section">
+      <button class="chat-toggle" id="chatToggleBtn" onclick="toggleChat()">
+        <span>💬</span>
+        <span>Claudeに相談</span>
+        <span class="toggle-arrow">▼</span>
+      </button>
+      <div class="chat-area" id="chatArea">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg system-msg">この物件について戦略・次アクションを相談できます</div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chatInput" placeholder="例：どうアプローチすべき？" rows="1"
+            onkeydown="chatKeyDown(event)"></textarea>
+          <button class="chat-send" id="chatSendBtn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('detailModal').classList.add('show');
+  // 住所が入っていて県内/県外が未判定なら自動判定
+  autoDetectLocal();
+}
+
+function closeDetail() {
+  chatHistory = [];
+  pendingToolCall = null;
+  document.getElementById('detailModal').classList.remove('show');
+  currentDetailId = null;
+}
+
+function autoDetectLocal() {
+  const addr = document.getElementById('f_owner_address').value;
+  const sel = document.getElementById('f_is_local');
+  if (!sel.value && addr) {
+    // 埼玉県内判定
+    const saitamaKeywords = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市',
+      '蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市',
+      '八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市',
+      '吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市',
+      '本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市',
+      '行田市','秩父市','北埼玉郡','比企郡','入間郡','児玉郡','大里郡','秩父郡',
+      '北足立郡','南埼玉郡','北葛飾郡'];
+    const isSaitama = saitamaKeywords.some(k => addr.includes(k));
+    if (isSaitama) {
+      sel.value = '県内';
+    } else {
+      sel.value = '県外';
+    }
+  }
+}
+
+function autoStageFromTohon() {
+  const tohon = document.getElementById('f_tohon_obtained').value;
+  const stageEl = document.getElementById('f_stage');
+  if (tohon && stageEl.value === '謄本取得待ち') {
+    stageEl.value = '謄本取得済';
+    showToast('ステージを「謄本取得済」に変更しました', 'success');
+  }
+}
+
+async function saveDetail() {
+  if (!currentDetailId) return;
+  
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+  
+  const updates = {
+    owner_name: document.getElementById('f_owner_name').value,
+    owner_address: document.getElementById('f_owner_address').value,
+    is_local: document.getElementById('f_is_local').value,
+    tohon_obtained: document.getElementById('f_tohon_obtained').value,
+    photo_url: document.getElementById('f_photo_url').value,
+    response_pattern: document.getElementById('f_response_pattern').value,
+    next_action_date: document.getElementById('f_next_action_date').value,
+    next_action_note: document.getElementById('f_next_action_note').value,
+    memo: document.getElementById('f_memo').value
+  };
+  
+  const newStage = document.getElementById('f_stage').value;
+  const p = allProperties.find(x => x.id === currentDetailId);
+  const stageChanged = p && p.stage !== newStage;
+  
+  try {
+    if (stageChanged) {
+      // ステージ変更は専用APIで（次アクション日を自動算出してくれる）
+      await fetch(gasUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ 
+          action: 'updateStage', 
+          id: currentDetailId, 
+          stage: newStage,
+          note: updates.next_action_note
+        })
+      });
+    }
+    
+    // その他のフィールド更新
+    await fetch(gasUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ 
+        action: 'update', 
+        id: currentDetailId, 
+        updates: updates
+      })
+    });
+    
+    showToast('保存しました', 'success');
+    closeDetail();
+    setTimeout(loadAll, 800);
+  } catch (err) {
+    showToast('保存失敗：' + err.message, 'error');
+  }
+}
+
+async function migrateToCrm() {
+  if (!currentDetailId) return;
+  if (!confirm('FudosanCRMへ移管します。\nSales側は「顧客化済」になり、CRM側には手動で登録が必要です。\nよろしいですか？')) return;
+  
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ 
+        action: 'migrateToCRM', 
+        id: currentDetailId
+      })
+    });
+    
+    showToast('CRM移管しました（手動でCRMに登録してください）', 'success');
+    closeDetail();
+    setTimeout(loadAll, 800);
+  } catch (err) {
+    showToast('移管失敗：' + err.message, 'error');
+  }
+}
+
+// ─── 設定 ────────────────────────────────────────
+
+function openConfig() {
+  document.getElementById('configGasUrl').value = localStorage.getItem('sales_gas_url') || '';
+  document.getElementById('configModal').classList.add('show');
+}
+
+function closeConfig() {
+  document.getElementById('configModal').classList.remove('show');
+}
+
+function saveConfig() {
+  const url = document.getElementById('configGasUrl').value.trim();
+  localStorage.setItem('sales_gas_url', url);
+  closeConfig();
+  showToast('設定を保存しました', 'success');
+  setTimeout(loadAll, 500);
+}
+
+// ─── ユーティリティ ────────────────────────────────
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + 
+    String(d.getMonth()+1).padStart(2,'0') + '-' + 
+    String(d.getDate()).padStart(2,'0');
+}
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + '-' + 
+    String(d.getMonth()+1).padStart(2,'0') + '-' + 
+    String(d.getDate()).padStart(2,'0');
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Phase 2: チャット機能 ────────────────────────
+
+let chatHistory = [];         // 会話履歴（APIに送る形式）
+let pendingToolCall = null;   // 確認待ちのツール呼び出し
+
+// チャット開閉
+function toggleChat() {
+  const btn = document.getElementById('chatToggleBtn');
+  const area = document.getElementById('chatArea');
+  const isOpen = area.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  area.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    document.getElementById('chatInput').focus();
+  }
+}
+
+// Enterで送信（Shift+Enterで改行）
+function chatKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+// メッセージ追加
+function addChatMsg(role, text, extra) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.textContent = text;
+
+  // escalateボタンを動的追加
+  if (extra && extra.escalate) {
+    div.textContent = text;
+    const wrap = document.createElement('div');
+    wrap.className = 'escalate-wrap';
+    const btn = document.createElement('button');
+    btn.className = 'escalate-btn';
+    btn.textContent = '🔗 claude.ai で詳しく相談する →';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(extra.escalate.prepared_prompt).catch(() => {});
+      window.open('https://claude.ai/new', '_blank');
+    };
+    wrap.appendChild(btn);
+    div.appendChild(wrap);
+  }
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+// 送信
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const text = input.value.trim();
+  if (!text || sendBtn.disabled) return;
+
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  // UI更新
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+  addChatMsg('user', text);
+
+  // 会話履歴に追加
+  chatHistory.push({ role: 'user', content: text });
+
+  // thinking表示
+  const thinkingEl = addChatMsg('thinking', '考えています…');
+
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'chat',
+        property_id: currentDetailId,
+        history: chatHistory
+      })
+    });
+    const data = await res.json();
+    thinkingEl.remove();
+
+    if (data.error) {
+      addChatMsg('system-msg', '⚠️ エラー：' + data.error);
+      chatHistory.pop(); // 失敗したユーザーメッセージを取り消し
+      return;
+    }
+
+    const reply = data.reply;
+    const toolCall = data.tool_call; // { name, args } or null
+
+    // 会話履歴にアシスタント返答を追加
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    if (toolCall && toolCall.name === 'escalate_to_claude_ai') {
+      // escalate：動的ボタン付きで表示
+      addChatMsg('claude', reply, { escalate: toolCall.args });
+    } else if (toolCall && (toolCall.name === 'update_property' || toolCall.name === 'update_stage')) {
+      // 確認モーダル表示
+      addChatMsg('claude', reply);
+      showConfirmModal(toolCall.name, toolCall.args);
+    } else {
+      // 通常返答
+      addChatMsg('claude', reply);
+    }
+
+  } catch (err) {
+    thinkingEl.remove();
+    addChatMsg('system-msg', '⚠️ 通信エラー：' + err.message);
+    chatHistory.pop();
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+// ─── 確認モーダル ────────────────────────────────
+
+function showConfirmModal(toolName, args) {
+  pendingToolCall = { toolName, args };
+  const body = document.getElementById('confirmBody');
+  const p = allProperties.find(x => x.id === currentDetailId) || {};
+
+  let html = '';
+
+  if (toolName === 'update_stage') {
+    html += makeConfirmItem('ステージ', p.stage || '未設定', args.new_stage);
+    // ステージ変更時の次アクション日自動計算
+    const NEXT_DAYS = {
+      '謄本取得待ち': 3, '謄本取得済': 7, 'DM1回目送付': 60,
+      'DM2回目送付': 60, '訪問済': 14, '再訪問待ち': 7, '反応あり': 1
+    };
+    const days = NEXT_DAYS[args.new_stage];
+    if (days) {
+      const nd = addDays(todayStr(), days);
+      html += makeConfirmItem('次アクション日（自動）', p.next_action_date || '未設定', nd);
+    } else {
+      html += makeConfirmItem('次アクション日', p.next_action_date || '未設定', '（クリア）');
+    }
+    if (args.note) {
+      html += makeConfirmItem('次アクション内容', p.next_action_note || '未設定', args.note);
+    }
+  }
+
+  if (toolName === 'update_property') {
+    if (args.next_action_date) html += makeConfirmItem('次アクション日', p.next_action_date || '未設定', args.next_action_date);
+    if (args.next_action_note) html += makeConfirmItem('次アクション内容', p.next_action_note || '未設定', args.next_action_note);
+    if (args.memo_append) html += makeConfirmItemAppend('メモ追記', args.memo_append);
+    if (args.owner_name) html += makeConfirmItem('所有者氏名', p.owner_name || '未設定', args.owner_name);
+    if (args.owner_address) html += makeConfirmItem('所有者住所', p.owner_address || '未設定', args.owner_address);
+    if (args.is_local) html += makeConfirmItem('県内/県外', p.is_local || '未設定', args.is_local);
+    if (args.tohon_obtained) html += makeConfirmItem('謄本取得日', p.tohon_obtained || '未設定', args.tohon_obtained);
+    if (args.photo_url) html += makeConfirmItem('写真URL', p.photo_url || '未設定', args.photo_url);
+  }
+
+  body.innerHTML = html || '<p style="color:#718096;font-size:13px">変更内容を確認中…</p>';
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+function makeConfirmItem(label, before, after) {
+  return `<div class="confirm-item">
+    <div class="confirm-item-label">${escHtml(label)}</div>
+    <div class="confirm-item-before">${escHtml(String(before))}</div>
+    <div class="confirm-item-after">→ ${escHtml(String(after))}</div>
+  </div>`;
+}
+function makeConfirmItemAppend(label, text) {
+  return `<div class="confirm-item">
+    <div class="confirm-item-label">${escHtml(label)}</div>
+    <div class="confirm-item-append">「${escHtml(text)}」を追記</div>
+  </div>`;
+}
+
+function confirmNo() {
+  document.getElementById('confirmModal').classList.remove('show');
+  addChatMsg('system-msg', '取り消しました。別の指示を入力してください。');
+  pendingToolCall = null;
+}
+
+async function confirmYes() {
+  document.getElementById('confirmModal').classList.remove('show');
+  if (!pendingToolCall) return;
+
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  const { toolName, args } = pendingToolCall;
+  pendingToolCall = null;
+
+  try {
+    let action, body;
+    if (toolName === 'update_stage') {
+      action = 'updateStage';
+      body = { action, id: currentDetailId, stage: args.new_stage, note: args.note || '' };
+    } else {
+      // update_property: memo_appendを既存memoに追記
+      const p = allProperties.find(x => x.id === currentDetailId) || {};
+      const updates = { ...args };
+      delete updates.memo_append;
+      if (args.memo_append) {
+        const now = new Date().toLocaleString('ja-JP');
+        updates.memo = (p.memo ? p.memo + '\n' : '') + `[Claude ${now}] ${args.memo_append}`;
+      }
+      action = 'update';
+      body = { action, id: currentDetailId, updates, source: 'claude' };
+    }
+
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+
+    addChatMsg('claude', '✅ 反映しました。');
+    showToast('変更を保存しました', 'success');
+    setTimeout(loadAll, 800);
+  } catch (err) {
+    addChatMsg('system-msg', '⚠️ 保存に失敗しました：' + err.message);
+  }
+}
+
+// モーダル外側タップで閉じる
+document.getElementById('detailModal').addEventListener('click', e => {
+  if (e.target.id === 'detailModal') closeDetail();
+});
+document.getElementById('configModal').addEventListener('click', e => {
+  if (e.target.id === 'configModal') closeConfig();
+});
+</script>
+</body>
+</html>
