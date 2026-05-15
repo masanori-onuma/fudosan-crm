@@ -661,6 +661,7 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 <div class="header">
   <div>📋</div>
   <h1>営業リスト</h1>
+  <span id="currentUserBadge" style="font-size:12px;background:#e6f3ff;color:#1a3a5c;border-radius:4px;padding:2px 8px;font-weight:600;"></span>
   <button class="btn-refresh" onclick="loadAll()">🔄</button>
   <button class="btn-refresh" onclick="openCalendarToday()" title="Googleカレンダー">📅</button>
   <button class="btn-config" onclick="openConfig()">⚙</button>
@@ -701,6 +702,11 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
     <h3>設定</h3>
     <label>FudosanSales GAS URL</label>
     <input type="text" id="configGasUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    <label style="margin-top:12px;display:block;">担当者</label>
+    <select id="configUser" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:16px;margin-top:4px;">
+      <option value="正範">正範</option>
+      <option value="由美子">由美子</option>
+    </select>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="closeConfig()" style="flex:1;border:none;background:#e2e8f0;color:#4a5568;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">キャンセル</button>
       <button onclick="saveConfig()" style="flex:1;border:none;background:#1a3a5c;color:white;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">保存</button>
@@ -778,6 +784,9 @@ window.addEventListener('load', () => {
 
 async function loadAll() {
   const gasUrl = localStorage.getItem('sales_gas_url');
+  // 担当者バッジ更新
+  const badge = document.getElementById('currentUserBadge');
+  if (badge) badge.textContent = localStorage.getItem('sales_user') || '正範';
   if (!gasUrl) {
     document.getElementById('propertyList').innerHTML = `
       <div class="empty-state">
@@ -1142,7 +1151,8 @@ async function saveDetail() {
           id: currentDetailId,
           stage: newStage,
           note: updates.next_action_note,
-          source: 'manual'
+          source: 'manual',
+          user: localStorage.getItem('sales_user') || '正範'
         })
       });
     }
@@ -1156,7 +1166,8 @@ async function saveDetail() {
         action: 'update',
         id: currentDetailId,
         updates: updates,
-        source: 'manual'
+        source: 'manual',
+        user: localStorage.getItem('sales_user') || '正範'
       })
     });
     
@@ -1197,6 +1208,7 @@ async function migrateToCrm() {
 
 function openConfig() {
   document.getElementById('configGasUrl').value = localStorage.getItem('sales_gas_url') || '';
+  document.getElementById('configUser').value = localStorage.getItem('sales_user') || '正範';
   document.getElementById('configModal').classList.add('show');
 }
 
@@ -1206,9 +1218,11 @@ function closeConfig() {
 
 function saveConfig() {
   const url = document.getElementById('configGasUrl').value.trim();
+  const user = document.getElementById('configUser').value;
   localStorage.setItem('sales_gas_url', url);
+  localStorage.setItem('sales_user', user);
   closeConfig();
-  showToast('設定を保存しました', 'success');
+  showToast(`設定を保存しました（担当：${user}）`, 'success');
   setTimeout(loadAll, 500);
 }
 
@@ -1703,9 +1717,8 @@ async function confirmYes() {
     let action, body;
     if (toolName === 'update_stage') {
       action = 'updateStage';
-      body = { action, id: currentDetailId, stage: args.new_stage, note: args.note || '', source: 'claude' };
+      body = { action, id: currentDetailId, stage: args.new_stage, note: args.note || '', source: 'claude', user: localStorage.getItem('sales_user') || '正範' };
     } else {
-      // update_property: memo_appendを既存memoに追記
       const p = allProperties.find(x => x.id === currentDetailId) || {};
       const updates = { ...args };
       delete updates.memo_append;
@@ -1714,7 +1727,7 @@ async function confirmYes() {
         updates.memo = (p.memo ? p.memo + '\n' : '') + `[Claude ${now}] ${args.memo_append}`;
       }
       action = 'update';
-      body = { action, id: currentDetailId, updates, source: 'claude' };
+      body = { action, id: currentDetailId, updates, source: 'claude', user: localStorage.getItem('sales_user') || '正範' };
     }
 
     await fetch(gasUrl, {
