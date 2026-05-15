@@ -2768,13 +2768,15 @@ function renderSumpouMode(){
 
       // 物件ブロック末尾：子項目追加ボタン
       const _allProcs=site.processes||[];
-      if(_allProcs.length){
+      const _masterProcNames=masters.procNames||[];
+      if(_masterProcNames.length||_allProcs.length){
+        const _procOpts=_masterProcNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
         html+=`<div class="smp-child-add-wrap" id="smpAddWrap_${site.id}">
           <button class="smp-child-add-btn" onclick="smpToggleAddChild(${site.id})">＋ 項目追加</button>
           <div class="smp-child-add-form" id="smpAddForm_${site.id}" style="display:none">
             <div style="margin-bottom:6px;font-size:11px;color:#555;font-weight:500">工程を選択</div>
             <select class="smp-child-add-proc" id="smpAddProc_${site.id}">
-              ${_allProcs.map(p=>`<option value="${p.id}">${esc(p.name||'(工程名なし)')}</option>`).join('')}
+              ${_procOpts}
             </select>
             <input class="smp-child-add-name" id="smpAddName_${site.id}" placeholder="項目名（例：クロス張替）" maxlength="40">
             <div style="display:flex;gap:6px;margin-top:6px">
@@ -3131,11 +3133,19 @@ function smpDoAddChild(siteId){
   const procSel=document.getElementById('smpAddProc_'+siteId);
   const nameInp=document.getElementById('smpAddName_'+siteId);
   if(!procSel||!nameInp)return;
-  const procId=parseInt(procSel.value,10);
+  const selVal=procSel.value;
   const name=nameInp.value.trim();
   if(!name){nameInp.focus();nameInp.style.borderColor='#E74C3C';return;}
   nameInp.style.borderColor='';
-  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+
+  // 選んだ工程名が現場にあればその工程に、なければ新規工程として追加
+  const procName=selVal;
+  let p=s.processes.find(x=>x.name===procName);
+  if(!p){
+    p={id:nextPid++,name:procName,periods:[],children:[],color:'#7cb9ff'};
+    s.processes.push(p);
+  }
+  if(!p)return;
   if(!p.children)p.children=[];
   const newChild={id:nextCid++,name,area:'',ordered:false};
   p.children.push(newChild);
