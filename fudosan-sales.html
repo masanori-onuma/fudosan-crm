@@ -342,6 +342,42 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   .card-address { font-size: 14px; }
 }
 
+.date-picker-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: white;
+  font-size: 16px;
+}
+.date-picker-wrap:hover { border-color: #c7d2fe; background: #f8faff; }
+.date-picker-display { color: #2d3748; }
+.date-picker-display.empty { color: #a0aec0; }
+
+/* ミニカレンダーポップアップ */
+.mini-cal-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 700;
+  padding: 20px;
+}
+.mini-cal-modal.show { display: flex; }
+.mini-cal-popup {
+  background: white;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
 /* ─── ミニカレンダー ─── */
 .mini-cal { margin-top: 10px; background: white; border: 1.5px solid #c7d2fe; border-radius: 10px; overflow: hidden; }
 .mini-cal-header { background: #1a3a5c; color: white; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
@@ -618,7 +654,12 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   </div>
 </div>
 
-<!-- 確認モーダル（Claude書き込み用） -->
+<!-- ミニカレンダーポップアップ -->
+<div class="mini-cal-modal" id="miniCalModal">
+  <div class="mini-cal-popup">
+    <div id="miniCalContainer"></div>
+  </div>
+</div>
 <div class="confirm-modal" id="confirmModal">
   <div class="confirm-modal-inner">
     <div class="confirm-header">以下の変更を行います。よろしいですか？</div>
@@ -901,7 +942,13 @@ function openDetail(id) {
     </div>
     <div class="field-group">
       <div class="field-label">次アクション予定日</div>
-      <input type="date" class="field-input" id="f_next_action_date" value="${escHtml(p.next_action_date)}">
+      <div class="date-picker-wrap" onclick="openMiniCal()">
+        <div class="date-picker-display" id="nextActionDisplay">
+          ${p.next_action_date ? escHtml(p.next_action_date) : '未設定（タップして設定）'}
+        </div>
+        <span style="color:#a0aec0;font-size:14px;">📅</span>
+      </div>
+      <input type="hidden" id="f_next_action_date" value="${escHtml(p.next_action_date)}">
     </div>
     <div class="field-group">
       <div class="field-label">次アクション内容</div>
@@ -911,11 +958,6 @@ function openDetail(id) {
       <div class="field-label">メモ</div>
       <textarea class="field-input" id="f_memo">${escHtml(p.memo)}</textarea>
     </div>
-    <div class="field-group">
-      <div class="field-label">カレンダー（次アクション日を設定）</div>
-      <div id="miniCalContainer"></div>
-    </div>
-
     <div class="modal-actions">
       <button class="btn-close" onclick="closeDetail()">閉じる</button>
       <button class="btn-update" onclick="saveDetail()">💾 保存</button>
@@ -945,8 +987,6 @@ function openDetail(id) {
   document.getElementById('detailModal').classList.add('show');
   // 住所が入っていて県内/県外が未判定なら自動判定
   autoDetectLocal();
-  // ミニカレンダー初期化
-  initMiniCal();
 }
 
 function closeDetail() {
@@ -1156,6 +1196,22 @@ async function initMiniCal() {
   renderMiniCal();
 }
 
+async function openMiniCal() {
+  const now = new Date();
+  const dateEl = document.getElementById('f_next_action_date');
+  if (dateEl && dateEl.value) {
+    const d = new Date(dateEl.value);
+    calYear = d.getFullYear();
+    calMonth = d.getMonth();
+  } else {
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+  }
+  document.getElementById('miniCalModal').classList.add('show');
+  await loadCalEvents();
+  renderMiniCal();
+}
+
 async function loadCalEvents() {
   const gasUrl = localStorage.getItem('sales_gas_url');
   if (!gasUrl) return;
@@ -1249,6 +1305,10 @@ function renderMiniCal() {
         <span>${calYear}年${monthNames[calMonth]}</span>
         <button onclick="calNext()">›</button>
       </div>
+      <div style="text-align:right;padding:4px 10px 0;border-bottom:0.5px solid #e2e8f0;">
+        <button onclick="document.getElementById('miniCalModal').classList.remove('show')" 
+          style="background:none;border:none;font-size:12px;color:#a0aec0;cursor:pointer;padding:2px 6px;">✕ 閉じる</button>
+      </div>
       <div class="mini-cal-dow">
         <span class="cs">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="csat">土</span>
       </div>
@@ -1259,7 +1319,7 @@ function renderMiniCal() {
           <span><span class="mcl-dot" style="background:#e6f3ff;border:1px solid #1a3a5c;"></span>他の物件</span>
           <span><span class="mcl-dot" style="background:#ebf8ff;border:1px solid #2b6cb0;"></span>カレンダーの予定</span>
         </div>
-        <div class="mini-cal-hint">日付をタップ → 次アクション日に設定</div>
+        <div class="mini-cal-hint">日付をタップ → 次アクション日に設定して閉じます</div>
       </div>
     </div>`;
 }
@@ -1267,7 +1327,11 @@ function renderMiniCal() {
 function selectCalDate(dateStr) {
   const el = document.getElementById('f_next_action_date');
   if (el) el.value = dateStr;
-  renderMiniCal();
+  // 表示更新
+  const disp = document.getElementById('nextActionDisplay');
+  if (disp) { disp.textContent = dateStr; disp.classList.remove('empty'); }
+  // ステージに応じた次アクション内容も更新済みなので閉じる
+  document.getElementById('miniCalModal').classList.remove('show');
 }
 
 async function calPrev() {
