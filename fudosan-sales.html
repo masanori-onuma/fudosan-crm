@@ -229,10 +229,11 @@ body {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
 }
-textarea.field-input { min-height: 80px; resize: vertical; }
+textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
+.chat-input { font-size: 16px; }
 
 .modal-actions {
   display: flex;
@@ -349,20 +350,20 @@ textarea.field-input { min-height: 80px; resize: vertical; }
 }
 .chat-toggle {
   width: 100%;
-  background: #eef2ff;
-  border: 1.5px solid #c7d2fe;
+  background: #7C3AED;
+  border: none;
   border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #3730a3;
+  padding: 13px 14px;
+  font-size: 15px;
+  font-weight: 500;
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
   text-align: left;
 }
-.chat-toggle:hover { background: #e0e7ff; }
+.chat-toggle:hover { background: #6d28d9; }
 .chat-toggle .toggle-arrow { margin-left: auto; transition: transform 0.2s; }
 .chat-toggle.open .toggle-arrow { transform: rotate(180deg); }
 
@@ -540,6 +541,7 @@ textarea.field-input { min-height: 80px; resize: vertical; }
   <div>📋</div>
   <h1>営業リスト</h1>
   <button class="btn-refresh" onclick="loadAll()">🔄</button>
+  <button class="btn-refresh" onclick="openCalendarToday()" title="Googleカレンダー">📅</button>
   <button class="btn-config" onclick="openConfig()">⚙</button>
 </div>
 
@@ -856,7 +858,7 @@ function openDetail(id) {
     </div>
     <div class="field-group">
       <div class="field-label">ステージ</div>
-      <select class="field-input" id="f_stage">
+      <select class="field-input" id="f_stage" onchange="autoFillNextAction(this.value)">
         ${STAGES.map(s => `<option value="${escHtml(s)}" ${p.stage===s?'selected':''}>${escHtml(s)}</option>`).join('')}
       </select>
     </div>
@@ -868,7 +870,10 @@ function openDetail(id) {
     </div>
     <div class="field-group">
       <div class="field-label">次アクション予定日</div>
-      <input type="date" class="field-input" id="f_next_action_date" value="${escHtml(p.next_action_date)}">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" class="field-input" id="f_next_action_date" value="${escHtml(p.next_action_date)}" style="flex:1;">
+        ${p.next_action_date ? `<button onclick="openCalendarByDate('${escHtml(p.next_action_date)}')" style="border:none;background:#e2e8f0;border-radius:6px;padding:8px 10px;font-size:16px;cursor:pointer;flex-shrink:0;" title="カレンダーで確認">📅</button>` : ''}
+      </div>
     </div>
     <div class="field-group">
       <div class="field-label">次アクション内容</div>
@@ -888,8 +893,8 @@ function openDetail(id) {
 
     <div class="chat-section">
       <button class="chat-toggle" id="chatToggleBtn" onclick="toggleChat()">
-        <span>💬</span>
-        <span>Claudeに相談</span>
+        <span style="font-size:17px">💬</span>
+        <span>Claudeに相談する</span>
         <span class="toggle-arrow">▼</span>
       </button>
       <div class="chat-area" id="chatArea">
@@ -942,8 +947,26 @@ function autoStageFromTohon() {
   const stageEl = document.getElementById('f_stage');
   if (tohon && stageEl.value === '謄本取得待ち') {
     stageEl.value = '謄本取得済';
+    autoFillNextAction('謄本取得済');
     showToast('ステージを「謄本取得済」に変更しました', 'success');
   }
+}
+
+// ステージに応じた次アクション内容を自動設定
+function autoFillNextAction(stage) {
+  const isLocal = document.getElementById('f_is_local').value;
+  const noteEl = document.getElementById('f_next_action_note');
+  if (!noteEl) return;
+  const map = {
+    '謄本取得待ち': '謄本取得を進める',
+    '謄本取得済': isLocal === '県内' ? '訪問する' : 'DM送付準備',
+    'DM1回目送付': '反応確認',
+    'DM2回目送付': '反応確認',
+    '訪問済': '再訪問・フォロー',
+    '再訪問待ち': '再訪問する',
+    '反応あり': '面談アポを取る',
+  };
+  if (map[stage]) noteEl.value = map[stage];
 }
 
 async function saveDetail() {
@@ -1075,6 +1098,21 @@ function showToast(msg, type) {
 
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Googleカレンダー ────────────────────────────
+
+function openCalendarToday() {
+  const d = new Date();
+  const url = `https://calendar.google.com/calendar/r/month/${d.getFullYear()}/${d.getMonth() + 1}`;
+  window.open(url, '_blank');
+}
+
+function openCalendarByDate(dateStr) {
+  if (!dateStr) return;
+  const d = new Date(dateStr);
+  const url = `https://calendar.google.com/calendar/r/month/${d.getFullYear()}/${d.getMonth() + 1}`;
+  window.open(url, '_blank');
 }
 
 // ─── Phase 2: チャット機能 ────────────────────────
