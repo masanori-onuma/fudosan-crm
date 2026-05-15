@@ -1133,29 +1133,30 @@ async function saveDetail() {
   
   try {
     if (stageChanged) {
-      // ステージ変更は専用APIで（次アクション日を自動算出してくれる）
       await fetch(gasUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ 
-          action: 'updateStage', 
-          id: currentDetailId, 
+        body: JSON.stringify({
+          action: 'updateStage',
+          id: currentDetailId,
           stage: newStage,
-          note: updates.next_action_note
+          note: updates.next_action_note,
+          source: 'manual'
         })
       });
     }
-    
+
     // その他のフィールド更新
     await fetch(gasUrl, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ 
-        action: 'update', 
-        id: currentDetailId, 
-        updates: updates
+      body: JSON.stringify({
+        action: 'update',
+        id: currentDetailId,
+        updates: updates,
+        source: 'manual'
       })
     });
     
@@ -1702,7 +1703,7 @@ async function confirmYes() {
     let action, body;
     if (toolName === 'update_stage') {
       action = 'updateStage';
-      body = { action, id: currentDetailId, stage: args.new_stage, note: args.note || '' };
+      body = { action, id: currentDetailId, stage: args.new_stage, note: args.note || '', source: 'claude' };
     } else {
       // update_property: memo_appendを既存memoに追記
       const p = allProperties.find(x => x.id === currentDetailId) || {};
