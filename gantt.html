@@ -479,6 +479,7 @@ function normalizeSites(raw){
   const pids=raw.flatMap(s=>s.processes.map(p=>p.id).filter(id=>id!=null&&!isNaN(id)));if(pids.length)nextPid=Math.max(nextPid,...pids)+1;
   const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id).filter(id=>id!=null&&!isNaN(id))));if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
   const eids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).flatMap(c=>(c.extraMaterials||[]).map(e=>e.id).filter(id=>id!=null&&!isNaN(id))))); if(eids.length)nextCid=Math.max(nextCid,...eids)+1;
+  const peids=raw.flatMap(s=>s.processes.flatMap(p=>(p.extraMaterials||[]).map(e=>e.id).filter(id=>id!=null&&!isNaN(id)))); if(peids.length)nextCid=Math.max(nextCid,...peids)+1;
   return raw;
 }
 async function loadData(){
@@ -815,12 +816,14 @@ function render(){
       const th=document.querySelector('th.day-col');
       if(!th){_renderRetried=false;return;}
       const actualW=th.getBoundingClientRect().width;
-      if(actualW>0&&_lastUsedDayW!==null&&Math.abs(actualW-_lastUsedDayW)>=1){
-        _renderRetried=true;      // リトライ実行中フラグON
+      if(actualW>0&&_lastUsedDayW!==null&&(Math.abs(actualW-_lastUsedDayW)>=1||_lastUsedDayW===0)){
+        _renderRetried=true;
         try{_renderInner();}catch(e){console.error('render retry error:',e.message);}
-        _renderRetried=false;     // リトライ完了、次回の通常renderは再度リトライ可能
       }
+      _renderRetried=false; // リトライ完了後は必ずリセット（次のrender()でも再チェック可能に）
     });
+  }else{
+    _renderRetried=false; // リトライ中のrender()が終わったらフラグを落とす
   }
 }
 function _renderInner(){
@@ -832,8 +835,13 @@ function _renderInner(){
   const fs=fsEl?fsEl.value.trim().toLowerCase().replace(/[\s　]+/g,''):'';
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
-  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  _lastUsedDayW=_dayW; // 描画後に実際の列幅とズレを検出するため記録
+  const _dayW=(()=>{
+    const th=document.querySelector('th.day-col');
+    if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}
+    return 0; // 0を返してリトライを促す
+  })();
+  // dayWが0（DOM未確定）の場合はフォールバック値で描画し、リトライで正しいサイズに修正
+  _lastUsedDayW=_dayW>0?_dayW:(_isSP?24:DAY_W);
 
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
@@ -2724,8 +2732,28 @@ function renderSumpouMode(){
       // 工程ごとに区切る
       site.processes.forEach(proc=>{
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
-        if(!orderedChildren.length)return;
-        html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+        if(!orderedChildren.length&&!(proc.extraMaterials&&proc.extraMaterials.length))return;
+        html+=`<div class="smp-proc-head" style="display:flex;align-items:center;justify-content:space-between">
+          <span>${esc(proc.name||'(工程名なし)')}</span>
+          <button class="smp-btn-sibling" style="font-size:11px;padding:2px 8px;height:24px" onclick="smpAddProcExtra(${site.id},${proc.id})">＋ 項目追加</button>
+        </div>`;
+        // proc.extraMaterials（工程直属の品番行）を表示
+        (proc.extraMaterials||[]).forEach(ex=>{
+          const exParts=_splitMaterial(ex.material||'');
+          const exHasMat=!!ex.material;
+          html+=`<div class="smp-child${exHasMat?' done-input':''}" id="procextra_${ex.id}">
+            <div class="name-row">
+              <span class="name" style="color:#888;font-size:11px">追加品番</span>
+              ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
+            </div>
+            <div class="smp-fields">
+              <input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateProcExtra(${site.id},${proc.id},${ex.id})">
+              <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateProcExtra(${site.id},${proc.id},${ex.id})">
+              <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateProcExtra(${site.id},${proc.id},${ex.id})">
+              <button class="smp-del-btn" onclick="smpDelProcExtra(${site.id},${proc.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+            </div>
+          </div>`;
+        });
         orderedChildren.forEach(child=>{
           const hasMaterial=!!child.material;
           const parts=_splitMaterial(child.material||'');
@@ -2771,27 +2799,6 @@ function renderSumpouMode(){
           });
         });
       });
-
-      // 物件ブロック末尾：子項目追加ボタン
-      const _allProcs=site.processes||[];
-      const _masterProcNames=masters.procNames||[];
-      if(_masterProcNames.length||_allProcs.length){
-        const _procOpts=_masterProcNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
-        html+=`<div class="smp-child-add-wrap" id="smpAddWrap_${site.id}">
-          <button class="smp-child-add-btn" onclick="smpToggleAddChild(${site.id})">＋ 項目追加</button>
-          <div class="smp-child-add-form" id="smpAddForm_${site.id}" style="display:none">
-            <div style="margin-bottom:6px;font-size:11px;color:#555;font-weight:500">工程を選択</div>
-            <select class="smp-child-add-proc" id="smpAddProc_${site.id}">
-              ${_procOpts}
-            </select>
-            <input class="smp-child-add-name" id="smpAddName_${site.id}" placeholder="項目名（例：クロス張替）" maxlength="40">
-            <div style="display:flex;gap:6px;margin-top:6px">
-              <button class="smp-child-add-ok" onclick="smpDoAddChild(${site.id})">追加</button>
-              <button class="smp-child-add-cancel" onclick="smpToggleAddChild(${site.id})">キャンセル</button>
-            </div>
-          </div>
-        </div>`;
-      }
 
       html+='</div>';
       }catch(e){
@@ -3137,35 +3144,90 @@ function smpToggleAddChild(siteId){
 function smpDoAddChild(siteId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const procSel=document.getElementById('smpAddProc_'+siteId);
-  const nameInp=document.getElementById('smpAddName_'+siteId);
-  if(!procSel||!nameInp)return;
+  if(!procSel)return;
   const selVal=procSel.value;
-  const name=nameInp.value.trim();
-  if(!name){nameInp.focus();nameInp.style.borderColor='#E74C3C';return;}
-  nameInp.style.borderColor='';
 
-  // 選んだ工程名が現場にあればその工程に、なければ新規工程として追加
+  // 選んだ工程名がマスターに存在するか確認
   const procName=selVal;
+  if(!procName||(masters.procNames||[]).indexOf(procName)<0){
+    console.warn('不正な工程名:', procName);return;
+  }
+
+  // 現場にその工程名があればそれを使う、なければ新規工程として追加
   let p=s.processes.find(x=>x.name===procName);
   if(!p){
     p={id:nextPid++,name:procName,periods:[],children:[],color:'#7cb9ff'};
     s.processes.push(p);
   }
-  if(!p)return;
   if(!p.children)p.children=[];
-  const newChild={id:nextCid++,name,area:'',ordered:false};
-  p.children.push(newChild);
+
+  // 工程に子項目が1つもない場合、発注管理用の空子項目を1つ追加してから品番行を追加
+  // 子項目がある場合は最初の子項目に品番追加（smpAddSiblingと同じ動き）
+  let baseChild=p.children.find(c=>c.ordered!==undefined);
+  if(!baseChild){
+    // 発注管理用の空子項目を新規作成
+    baseChild={id:nextCid++,name:procName,area:'',ordered:false};
+    p.children.push(baseChild);
+  }
+
+  // baseChildにextraMaterial（品番行）を追加
+  if(!baseChild.extraMaterials)baseChild.extraMaterials=[];
+  const newExtra={id:nextCid++,material:'',ordered:false,sizeOnly:false};
+  baseChild.extraMaterials.push(newExtra);
+
+  // フォームを閉じる
+  const form=document.getElementById('smpAddForm_'+siteId);
+  if(form)form.style.display='none';
+
   saveData();
   _sumpouFilter.mode='all';
   renderSumpouMode();
   setTimeout(()=>{
-    const row=document.getElementById('smpchild_'+newChild.id);
+    const row=document.getElementById('extra_'+newExtra.id);
     if(row){
       row.scrollIntoView({behavior:'smooth',block:'center'});
       const inp=row.querySelector('.f-num');
       if(inp)inp.focus();
     }
   },80);
+}
+
+// 工程直属の追加品番行を追加（子項目・工程は増やさない）
+function smpAddProcExtra(siteId,procId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  if(!p.extraMaterials)p.extraMaterials=[];
+  const newEx={id:nextCid++,material:'',ordered:false};
+  p.extraMaterials.push(newEx);
+  saveData();
+  _sumpouFilter.mode='all';
+  renderSumpouMode();
+  setTimeout(()=>{
+    const row=document.getElementById('procextra_'+newEx.id);
+    if(row){row.scrollIntoView({behavior:'smooth',block:'center'});const inp=row.querySelector('.f-num');if(inp)inp.focus();}
+  },80);
+}
+
+function smpUpdateProcExtra(siteId,procId,extraId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const ex=(p.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
+  const row=document.getElementById('procextra_'+extraId);if(!row)return;
+  const num=row.querySelector('.f-num');
+  const size=row.querySelector('.f-size');
+  const qty=row.querySelector('.f-qty');
+  ex.material=_joinMaterial(num?num.value:'',size?size.value:'',qty?qty.value:'');
+  row.classList.toggle('done-input',!!ex.material);
+  row.querySelectorAll('.dirty').forEach(el=>el.classList.remove('dirty'));
+  saveData();
+}
+
+function smpDelProcExtra(siteId,procId,extraId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  p.extraMaterials=(p.extraMaterials||[]).filter(x=>x.id!==extraId);
+  saveData();
+  renderSumpouMode();
 }
 
 // ============================================================
