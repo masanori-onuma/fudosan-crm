@@ -380,6 +380,7 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   max-width: 400px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-sizing: border-box;
 }
 
 /* ─── 変更履歴タブ ─── */
@@ -437,16 +438,16 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 .change-log-empty { text-align: center; color: #a0aec0; font-size: 13px; padding: 20px; }
 
 /* ─── ミニカレンダー ─── */
-.mini-cal { margin-top: 10px; background: white; border: 1.5px solid #c7d2fe; border-radius: 10px; overflow: hidden; }
+.mini-cal { background: white; border-radius: 12px; overflow: hidden; width: 100%; box-sizing: border-box; }
 .mini-cal-header { background: #1a3a5c; color: white; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
 .mini-cal-header button { background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 0 6px; line-height: 1; }
 .mini-cal-header span { font-size: 14px; font-weight: 600; }
-.mini-cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; border-bottom: 0.5px solid #e2e8f0; width: 100%; table-layout: fixed; }
-.mini-cal-dow span { font-size: 11px; font-weight: 600; padding: 5px 0; color: #718096; width: 100%; text-align: center; }
+.mini-cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; border-bottom: 0.5px solid #e2e8f0; width: 100%; box-sizing: border-box; }
+.mini-cal-dow span { font-size: 11px; font-weight: 600; padding: 5px 0; color: #718096; min-width: 0; }
 .mini-cal-dow .cs { color: #e53e3e; }
 .mini-cal-dow .csat { color: #3182ce; }
-.mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); width: 100%; }
-.mc-cell { border-right: 0.5px solid #e2e8f0; border-bottom: 0.5px solid #e2e8f0; min-height: 80px; padding: 3px 3px; }
+.mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); width: 100%; box-sizing: border-box; }
+.mc-cell { border-right: 0.5px solid #e2e8f0; border-bottom: 0.5px solid #e2e8f0; min-height: 80px; padding: 3px 2px; min-width: 0; overflow: hidden; box-sizing: border-box; }
 .mc-cell.mc-empty { background: #fafafa; }
 .mc-num { font-size: 12px; font-weight: 500; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 2px; cursor: pointer; border-radius: 50%; }
 .mc-num:hover { background: #e0e7ff; }
