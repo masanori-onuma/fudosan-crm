@@ -703,10 +703,12 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
     <label>FudosanSales GAS URL</label>
     <input type="text" id="configGasUrl" placeholder="https://script.google.com/macros/s/.../exec">
     <label style="margin-top:12px;display:block;">担当者</label>
-    <select id="configUser" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:16px;margin-top:4px;">
+    <select id="configUser" onchange="loadCalendarList()" style="width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:16px;margin-top:4px;">
       <option value="正範">正範</option>
       <option value="由美子">由美子</option>
     </select>
+    <label style="margin-top:12px;display:block;">表示するカレンダー</label>
+    <div id="calendarCheckList" style="margin-top:6px;font-size:13px;color:#a0aec0;">読み込み中...</div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="closeConfig()" style="flex:1;border:none;background:#e2e8f0;color:#4a5568;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">キャンセル</button>
       <button onclick="saveConfig()" style="flex:1;border:none;background:#1a3a5c;color:white;border-radius:6px;padding:10px;font-weight:600;cursor:pointer">保存</button>
@@ -1210,6 +1212,41 @@ function openConfig() {
   document.getElementById('configGasUrl').value = localStorage.getItem('sales_gas_url') || '';
   document.getElementById('configUser').value = localStorage.getItem('sales_user') || '正範';
   document.getElementById('configModal').classList.add('show');
+  loadCalendarList();
+}
+
+async function loadCalendarList() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  const container = document.getElementById('calendarCheckList');
+  const user = document.getElementById('configUser').value;
+  if (!gasUrl) {
+    container.innerHTML = '<span>GAS URLを先に設定してください</span>';
+    return;
+  }
+  container.innerHTML = '読み込み中...';
+  try {
+    const res = await fetch(`${gasUrl}?action=calendarList`);
+    const data = await res.json();
+    let calendars = data.calendars || [];
+
+    // 由美子は自分のカレンダーのみ表示
+    if (user === '由美子') {
+      const YUMIKO_IDS = ['y.onuma@real-links.co.jp', 'unryu69@gmail.com'];
+      calendars = calendars.filter(c => YUMIKO_IDS.includes(c.id));
+    }
+
+    const saved = JSON.parse(localStorage.getItem('sales_cal_ids') || '[]');
+    container.innerHTML = calendars.map(c => {
+      const checked = saved.length === 0 || saved.includes(c.id) ? 'checked' : '';
+      const label = c.name === c.id ? c.id : `${c.name}（${c.id}）`;
+      return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">
+        <input type="checkbox" value="${escHtml(c.id)}" ${checked} style="width:16px;height:16px;">
+        <span style="font-size:13px;color:#2d3748;">${escHtml(label)}</span>
+      </label>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<span style="color:#e53e3e;">取得失敗：' + e.message + '</span>';
+  }
 }
 
 function closeConfig() {
@@ -1221,6 +1258,12 @@ function saveConfig() {
   const user = document.getElementById('configUser').value;
   localStorage.setItem('sales_gas_url', url);
   localStorage.setItem('sales_user', user);
+
+  // 選択カレンダーIDを保存
+  const checkboxes = document.querySelectorAll('#calendarCheckList input[type=checkbox]');
+  const selectedIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+  localStorage.setItem('sales_cal_ids', JSON.stringify(selectedIds));
+
   closeConfig();
   showToast(`設定を保存しました（担当：${user}）`, 'success');
   setTimeout(loadAll, 500);
@@ -1374,8 +1417,11 @@ async function loadCalEvents() {
   if (!gasUrl) return;
   const container = document.getElementById('miniCalContainer');
   if (container) container.innerHTML = '<div class="mini-cal-loading">📅 カレンダー読み込み中...</div>';
+  const selectedIds = JSON.parse(localStorage.getItem('sales_cal_ids') || '[]');
   try {
-    const res = await fetch(`${gasUrl}?action=calEvents&year=${calYear}&month=${calMonth + 1}`);
+    const params = new URLSearchParams({ action: 'calEvents', year: calYear, month: calMonth + 1 });
+    if (selectedIds.length > 0) params.append('calIds', JSON.stringify(selectedIds));
+    const res = await fetch(`${gasUrl}?${params}`);
     const data = await res.json();
     calEvents = data.events || [];
   } catch (e) {
@@ -1602,7 +1648,8 @@ async function sendChat() {
       body: JSON.stringify({
         action: 'chat',
         property_id: currentDetailId,
-        history: chatHistory
+        history: chatHistory,
+        selected_cal_ids: JSON.parse(localStorage.getItem('sales_cal_ids') || '[]')
       })
     });
     const data = await res.json();
