@@ -498,7 +498,7 @@ async function loadData(){
     }
     return;
   }
-  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();scrollToToday();}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
+  try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();setTimeout(scrollToToday,300);}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
   showSyncStatus('読み込み中…');
   const v=await gasLoad('gantt_sites');
   if(v){
@@ -652,7 +652,7 @@ function startPolling(){
 function _expandProcPeriods(proc){
   if(!proc.children||!proc.children.length)return;
   const allChildPeriods=proc.children.flatMap(c=>c.periods||[]).filter(p=>p.startD&&p.endD);
-  if(!allChildPeriods.length){proc.periods=[];return;}
+  if(!allChildPeriods.length)return; // 子のperiodが未設定なら親periodは触らない
   // 全子バーの各期間を日単位に展開 → Setで重複排除
   const daySet=new Set();
   allChildPeriods.forEach(p=>{
@@ -799,31 +799,31 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered,isOverdue){
 let _lastUsedDayW=null;   // 直近のrenderで使った_dayW
 let _renderRetried=false; // 無限ループ防止用：この描画サイクルで既にリトライ済みか
 function render(){
+  // th.day-colが存在しない場合（ヘッダー未構築）は即座に_renderInnerを呼んでヘッダーを構築
+  // その後actualWが0なら次のフレームで再描画する
   try{
   _renderInner();
   }catch(e){
     console.error('render error:',e.message,e.stack);
     showSyncStatus('render error:'+e.message.slice(0,40),10000);
-    // エラー内容をガントエリアに表示して原因を見えるようにする
     const tbody=document.getElementById('ganttBody');
     if(tbody)tbody.innerHTML=`<tr><td colspan="999" style="padding:20px;color:#c00;font-size:13px">⚠️ 表示エラー: ${e.message}<br><small>${(e.stack||'').slice(0,200)}</small></td></tr>`;
   }
-  // 描画後、実際の列幅と計算に使った_dayWがズレていたら1回だけ再描画する。
-  // 初回描画時やフォント読み込み前はth.day-colの幅が未確定で、バーの位置/幅がズレるため。
-  // ウィンドウリサイズや縮小操作で直る症状の根本修正。
   if(!_renderRetried){
-    requestAnimationFrame(()=>{
+    // 複数フレーム待ってから列幅を確認（フォント・レイアウト確定を待つ）
+    const _checkAndRetry=(attempt)=>{
       const th=document.querySelector('th.day-col');
-      if(!th){_renderRetried=false;return;}
+      if(!th){if(attempt<5)requestAnimationFrame(()=>_checkAndRetry(attempt+1));return;}
       const actualW=th.getBoundingClientRect().width;
       if(actualW>0&&_lastUsedDayW!==null&&(Math.abs(actualW-_lastUsedDayW)>=1||_lastUsedDayW===0)){
         _renderRetried=true;
         try{_renderInner();}catch(e){console.error('render retry error:',e.message);}
       }
-      _renderRetried=false; // リトライ完了後は必ずリセット（次のrender()でも再チェック可能に）
-    });
+      _renderRetried=false;
+    };
+    requestAnimationFrame(()=>_checkAndRetry(0));
   }else{
-    _renderRetried=false; // リトライ中のrender()が終わったらフラグを落とす
+    _renderRetried=false;
   }
 }
 function _renderInner(){
