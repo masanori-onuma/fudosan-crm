@@ -1281,8 +1281,10 @@ async function loadCalendarList() {
     container.innerHTML = calendars.map(c => {
       const checked = saved.length === 0 || saved.includes(c.id) ? 'checked' : '';
       const label = c.name === c.id ? c.id : `${c.name}（${c.id}）`;
+      const col = calColor(c.id);
       return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;">
         <input type="checkbox" value="${escHtml(c.id)}" ${checked} style="width:16px;height:16px;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col.border};flex-shrink:0;"></span>
         <span style="font-size:13px;color:#2d3748;">${escHtml(label)}</span>
       </label>`;
     }).join('');
@@ -1417,6 +1419,22 @@ async function doRollback(logRow, fieldLabel, beforeVal) {
   }
 }
 
+// カレンダーIDから色設定を返す
+function calColor(calId) {
+  const map = {
+    'onuma@real-links.co.jp':     { bg: '#e6f3ff', border: '#1a3a5c', text: '#1a3a5c' },   // 紺
+    'unryu96@gmail.com':          { bg: '#ebf8ff', border: '#2b6cb0', text: '#2b6cb0' },   // 青
+    'y.onuma@real-links.co.jp':   { bg: '#fff0f6', border: '#d53f8c', text: '#d53f8c' },   // ピンク
+    'unryu69@gmail.com':          { bg: '#fff8f0', border: '#dd6b20', text: '#dd6b20' },   // オレンジ
+    'nara@real-links.co.jp':      { bg: '#f0fff4', border: '#276749', text: '#276749' },   // 緑
+  };
+  // 共有カレンダー（group.calendar）はグレー
+  if (calId && calId.includes('group.calendar')) {
+    return { bg: '#f7fafc', border: '#a0aec0', text: '#718096' };
+  }
+  return map[calId] || { bg: '#f7fafc', border: '#c7d2fe', text: '#4a5568' };
+}
+
 // ─── ミニカレンダー ────────────────────────────────
 
 let calYear = 0;
@@ -1497,7 +1515,7 @@ function renderMiniCal() {
   const evMap = {};
   calEvents.forEach(ev => {
     if (!evMap[ev.date]) evMap[ev.date] = [];
-    evMap[ev.date].push(ev.title);
+    evMap[ev.date].push(ev); // オブジェクトごと保持
   });
 
   let cells = '';
@@ -1529,8 +1547,9 @@ function renderMiniCal() {
       });
     }
     if (evMap[dateStr]) {
-      evMap[dateStr].slice(0, 2).forEach(t => {
-        evHtml += `<div class="mc-event ev-blue">${escHtml(t)}</div>`;
+      evMap[dateStr].slice(0, 2).forEach(ev => {
+        const c = calColor(ev.calId);
+        evHtml += `<div class="mc-event" style="background:${c.bg};color:${c.text};border-left:2px solid ${c.border};">${escHtml(ev.title)}</div>`;
       });
       if (evMap[dateStr].length > 2) {
         evHtml += `<div style="font-size:9px;color:#a0aec0;padding:0 3px;">他${evMap[dateStr].length - 2}件</div>`;
@@ -1564,9 +1583,14 @@ function renderMiniCal() {
         <div class="mini-cal-legend">
           <span><span class="mcl-dot" style="background:#EDE9FE;border:1px solid #7C3AED;"></span>この物件</span>
           <span><span class="mcl-dot" style="background:#e6f3ff;border:1px solid #1a3a5c;"></span>他の物件</span>
-          <span><span class="mcl-dot" style="background:#ebf8ff;border:1px solid #2b6cb0;"></span>カレンダーの予定</span>
+          <span><span class="mcl-dot" style="background:#1a3a5c;"></span>正範</span>
+          <span><span class="mcl-dot" style="background:#2b6cb0;"></span>正範個人</span>
+          <span><span class="mcl-dot" style="background:#d53f8c;"></span>由美子</span>
+          <span><span class="mcl-dot" style="background:#dd6b20;"></span>由美子個人</span>
+          <span><span class="mcl-dot" style="background:#276749;"></span>奈良</span>
+          <span><span class="mcl-dot" style="background:#a0aec0;"></span>共有</span>
         </div>
-        <div class="mini-cal-hint">日付をタップ → 次アクション日に設定して閉じます</div>
+        <div class="mini-cal-hint">日付をタップ → 予定確認・アクション日設定</div>
       </div>
     </div>`;
 }
@@ -1607,8 +1631,9 @@ function showCalPopup(e, dateStr, dayNum) {
     html += `<div style="background:#e6f3ff;border-left:3px solid #1a3a5c;border-radius:6px;padding:8px 12px;font-size:13px;color:#1a3a5c;">${escHtml(addr)}</div>`;
   });
   dayEvs.forEach(ev => {
-    const timeLabel = ev.time ? `<span style="font-size:11px;color:#a0aec0;margin-left:6px;">${escHtml(ev.time)}</span>` : '';
-    html += `<div style="background:#f8fafc;border-left:3px solid #c7d2fe;border-radius:6px;padding:8px 12px;font-size:13px;color:#2d3748;">${escHtml(ev.title)}${timeLabel}</div>`;
+    const c = calColor(ev.calId);
+    const timeLabel = ev.time ? `<span style="font-size:11px;color:${c.text};opacity:0.7;margin-left:6px;">${escHtml(ev.time)}</span>` : '';
+    html += `<div style="background:${c.bg};border-left:3px solid ${c.border};border-radius:6px;padding:8px 12px;font-size:13px;color:${c.text};">${escHtml(ev.title)}${timeLabel}</div>`;
   });
   if (!html) html = '<div style="text-align:center;color:#a0aec0;font-size:13px;padding:8px;">予定なし</div>';
   evContainer.innerHTML = html;
