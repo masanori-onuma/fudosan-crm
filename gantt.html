@@ -2733,10 +2733,7 @@ function renderSumpouMode(){
       site.processes.forEach(proc=>{
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
         if(!orderedChildren.length&&!(proc.extraMaterials&&proc.extraMaterials.length))return;
-        html+=`<div class="smp-proc-head" style="display:flex;align-items:center;justify-content:space-between">
-          <span>${esc(proc.name||'(工程名なし)')}</span>
-          <button class="smp-btn-sibling" style="font-size:11px;padding:2px 8px;height:24px" onclick="smpAddProcExtra(${site.id},${proc.id})">＋ 項目追加</button>
-        </div>`;
+        html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
         // proc.extraMaterials（工程直属の品番行）を表示
         (proc.extraMaterials||[]).forEach(ex=>{
           const exParts=_splitMaterial(ex.material||'');
@@ -2799,6 +2796,33 @@ function renderSumpouMode(){
           });
         });
       });
+
+      // 物件末尾：＋ 項目追加（案A：工程セレクト＋品番サイズ数量入力）
+      const _addProcs=site.processes||[];
+      if(_addProcs.length){
+        const _addProcOpts=_addProcs.map(p=>`<option value="${p.id}">${esc(p.name||'(工程名なし)')}</option>`).join('');
+        html+=`<div class="smp-child-add-wrap" id="smpAddWrap_${site.id}">
+          <button class="smp-child-add-btn" onclick="smpToggleAddChild(${site.id})">＋ 項目追加</button>
+          <div class="smp-child-add-form" id="smpAddForm_${site.id}" style="display:none;flex-direction:column;gap:8px">
+            <div style="font-size:11px;color:#555;font-weight:500">工程</div>
+            <select id="smpAddProc_${site.id}" style="height:36px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box">
+              ${_addProcOpts}
+            </select>
+            <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:4px;font-size:10px;color:#888">
+              <span>品番</span><span>サイズ</span><span>数量</span>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:4px">
+              <input id="smpAddNum_${site.id}" placeholder="品番" style="height:34px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box">
+              <input id="smpAddSize_${site.id}" placeholder="サイズ" style="height:34px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box">
+              <input id="smpAddQty_${site.id}" placeholder="数量" style="height:34px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;text-align:center">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="smp-child-add-ok" onclick="smpDoAddProcExtra(${site.id})">追加</button>
+              <button class="smp-child-add-cancel" onclick="smpToggleAddChild(${site.id})">キャンセル</button>
+            </div>
+          </div>
+        </div>`;
+      }
 
       html+='</div>';
       }catch(e){
@@ -3192,19 +3216,36 @@ function smpDoAddChild(siteId){
   },80);
 }
 
-// 工程直属の追加品番行を追加（子項目・工程は増やさない）
-function smpAddProcExtra(siteId,procId){
+// 案A：物件末尾の「＋ 項目追加」から工程選択＋品番サイズ数量を追加
+function smpDoAddProcExtra(siteId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const procSel=document.getElementById('smpAddProc_'+siteId);
+  const numInp=document.getElementById('smpAddNum_'+siteId);
+  const sizeInp=document.getElementById('smpAddSize_'+siteId);
+  const qtyInp=document.getElementById('smpAddQty_'+siteId);
+  if(!procSel)return;
+  const procId=parseInt(procSel.value,10);
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const material=_joinMaterial(
+    numInp?numInp.value.trim():'',
+    sizeInp?sizeInp.value.trim():'',
+    qtyInp?qtyInp.value.trim():''
+  );
   if(!p.extraMaterials)p.extraMaterials=[];
-  const newEx={id:nextCid++,material:'',ordered:false};
+  const newEx={id:nextCid++,material,ordered:false};
   p.extraMaterials.push(newEx);
+  // フォームを閉じてリセット
+  const form=document.getElementById('smpAddForm_'+siteId);
+  if(form)form.style.display='none';
+  if(numInp)numInp.value='';
+  if(sizeInp)sizeInp.value='';
+  if(qtyInp)qtyInp.value='';
   saveData();
   _sumpouFilter.mode='all';
   renderSumpouMode();
   setTimeout(()=>{
     const row=document.getElementById('procextra_'+newEx.id);
-    if(row){row.scrollIntoView({behavior:'smooth',block:'center'});const inp=row.querySelector('.f-num');if(inp)inp.focus();}
+    if(row){row.scrollIntoView({behavior:'smooth',block:'center'});}
   },80);
 }
 
