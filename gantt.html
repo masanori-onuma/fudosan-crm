@@ -835,13 +835,14 @@ function _renderInner(){
   const fs=fsEl?fsEl.value.trim().toLowerCase().replace(/[\s　]+/g,''):'';
   const days=getDays();
   // 実際のセル幅を取得（スマホは34px、PCは26px）
-  const _dayW=(()=>{
+  const _dayWRaw=(()=>{
     const th=document.querySelector('th.day-col');
-    if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}
-    return 0; // 0を返してリトライを促す
+    if(th){const w=th.getBoundingClientRect().width;return w>0?w:0;}
+    return 0;
   })();
-  // dayWが0（DOM未確定）の場合はフォールバック値で描画し、リトライで正しいサイズに修正
-  _lastUsedDayW=_dayW>0?_dayW:(_isSP?24:DAY_W);
+  // _dayWが0（DOM未確定）の場合はフォールバック値で描画し、リトライで正しいサイズに修正
+  const _dayW=_dayWRaw>0?_dayWRaw:(_isSP?24:DAY_W);
+  _lastUsedDayW=_dayWRaw; // リトライ判定用に生の値を記録（0のままでもリトライさせる）
 
   // headは日付範囲が変わったときだけ再構築（毎回リビルドするとscrollLeftがリセットされる）
   const _headKey=fmt(viewStart)+'_'+fmt(viewEnd);
