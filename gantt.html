@@ -240,7 +240,8 @@ td.day-cell.drag-over{background:rgba(74,144,217,0.15)!important}
 
 /* === 親工程と子項目の階層表示 === */
 /* 子項目を持つ親行：左に色バーを付けて強調 */
-tr.row-proc.row-parent td.col-info{
+tr.row-proc.no-person td.col-info{border-left:3px solid #E74C3C;}
+.badge-noperson{display:inline-block;font-size:9px;color:#fff;background:#E74C3C;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle;font-weight:500;}
   background:linear-gradient(to right,#eef3fa 0,#eef3fa 4px,#fff 4px);
   border-left:none;
   /* position:stickyは.col-infoで設定済み。上書きしない */
@@ -1159,12 +1160,14 @@ function _renderInner(){
         const procWarn=isWarn&&!hasPeriod;
 
         const procRow=document.createElement('tr');
-        procRow.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'')+((proc.children&&proc.children.length>0)?' row-parent':'');
+        const _hasPerson=!!(proc.persons&&proc.persons.length||proc.person);
+        procRow.className='row-proc'+(proc.done?' done':procWarn?' proc-warn':'')+((proc.children&&proc.children.length>0)?' row-parent':'')+(!_hasPerson&&!proc.done?' no-person':'');
         procRow.style.height=ROW_H+'px';
         const procTd=document.createElement('td');
         procTd.className='col-info';
         const meta=(proc.persons&&proc.persons.length?proc.persons:proc.person?[proc.person]:[]).join(' / ');
         const nodateBadge=procWarn?'<span class="badge-procwarn">⚠ 未発注</span>':(!hasPeriod?'<span class="badge-nodate">未定</span>':'');
+        const nopersonBadge=!_hasPerson&&!proc.done?'<span class="badge-noperson">担当者未設定</span>':'';
         const children=proc.children||[];
         const hasChildren=children.length>0;
         const childCollapsed=proc.childCollapsed||false;
@@ -1174,7 +1177,7 @@ function _renderInner(){
           <div class="chk${proc.done?' done':(hasChildren&&!proc.done?' disabled':'')} " onclick="${hasChildren?'allChildrenDone('+proc.id+')?toggleDone('+proc.id+'):null':'toggleDone('+proc.id+')'}" style="${hasChildren&&!proc.done?'opacity:0.3;cursor:not-allowed':''}">${proc.done?'✓':''}</div>
           ${hasChildren?`<span style="cursor:pointer;font-size:11px;color:#888;flex-shrink:0;width:12px" onclick="toggleChildren(${proc.id})">${toggleIcon}</span>`:'<span style="width:12px;flex-shrink:0"></span>'}
           <span class="proc-name${proc.done?' done':''}">${esc(proc.name)}</span>
-          ${nodateBadge}
+          ${nodateBadge}${nopersonBadge}
           <span class="proc-meta">${esc(meta)}</span>
           <button class="btn btn-sm" style="flex-shrink:0" onclick="openProcModal(${site.id},${proc.id})">編集</button>
           <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openChildModal(${site.id},${proc.id},null)" title="子項目追加">＋</button>
@@ -2509,6 +2512,9 @@ function saveProc(siteId,procId){
       Object.assign(p,{name,person,persons,area,color});
       if(newChildren.length>0)p.children=[...p.children,...newChildren];
     }
+  }
+  if(!persons.length){
+    if(!confirm('担当者が未入力です。このまま保存しますか？'))return;
   }
   saveData();closeModal();
 }
