@@ -1490,14 +1490,13 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  // マウス位置からdi計算
+  // マウス位置からdi計算（elementFromPointで高速化）
   let di=null;
-  const cells=document.querySelectorAll('td.day-cell');
-  for(const cell of cells){
-    if(cell.dataset.ischild&&!barDrag.isChild)continue;  // 子バードラッグ中は子セルも対象
-    const r=cell.getBoundingClientRect();
-    if(e.clientX>=r.left&&e.clientX<r.right&&e.clientY>=r.top&&e.clientY<r.bottom){
-      di=parseInt(cell.dataset.di);break;
+  const _hitEl=document.elementFromPoint(e.clientX,e.clientY);
+  const _hitCell=_hitEl?_hitEl.closest('td.day-cell'):null;
+  if(_hitCell){
+    if(!(_hitCell.dataset.ischild&&!barDrag.isChild)){
+      di=parseInt(_hitCell.dataset.di);
     }
   }
   if(di===null)return;
