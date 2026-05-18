@@ -1849,8 +1849,8 @@ function openDetail(id) {
     </div>
     <div class="field-group">
       <div class="field-label">謄本取得日</div>
-      <input type="date" class="field-input" id="f_tohon_obtained" value="${escHtml(p.tohon_obtained)}"
-             onchange="autoStageFromTohon()">
+      <div class="field-value ${!p.tohon_obtained?'empty':''}" id="f_tohon_obtained_display">${escHtml(p.tohon_obtained) || '未取得'}</div>
+      <input type="hidden" id="f_tohon_obtained" value="${escHtml(p.tohon_obtained)}">
     </div>
     <div class="field-group">
       <div class="field-label">現地写真</div>
@@ -2151,7 +2151,7 @@ async function loadCalendarList() {
 
     // 由美子は自分のカレンダーのみ表示
     if (user === '由美子') {
-      const YUMIKO_IDS = ['y.onuma@real-links.co.jp', 'unryu69@gmail.com'];
+      const YUMIKO_IDS = ['y.onuma@real-links.co.jp', 'unryu96@gmail.com'];
       calendars = calendars.filter(c => YUMIKO_IDS.includes(c.id));
     }
 
@@ -2183,7 +2183,14 @@ function saveConfig() {
 
   // 選択カレンダーIDを保存
   const checkboxes = document.querySelectorAll('#calendarCheckList input[type=checkbox]');
-  const selectedIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+  let selectedIds = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+
+  // 由美子の場合、チェックが空なら自動でYUMIKO_IDSをセット
+  const YUMIKO_IDS = ['y.onuma@real-links.co.jp', 'unryu96@gmail.com'];
+  if (user === '由美子' && selectedIds.length === 0) {
+    selectedIds = YUMIKO_IDS;
+  }
+
   localStorage.setItem('sales_cal_ids', JSON.stringify(selectedIds));
 
   closeConfig();
@@ -2327,9 +2334,9 @@ async function doRollback(logRow, fieldLabel, beforeVal) {
 function calColor(calId) {
   const map = {
     'onuma@real-links.co.jp':     { bg: '#e8f0fe', border: '#4285f4', text: '#1a73e8' },   // 青（小沼正範）
-    'unryu96@gmail.com':          { bg: '#e8f0fe', border: '#4285f4', text: '#1a73e8' },   // 青（正範個人）
+    'unryu96@gmail.com':          { bg: '#ede7f6', border: '#a8a0d9', text: '#7b61c7' },   // ラベンダー（由美子個人）
     'y.onuma@real-links.co.jp':   { bg: '#fce8e6', border: '#f28b82', text: '#c5221f' },   // サーモン（由美子）
-    'unryu69@gmail.com':          { bg: '#ede7f6', border: '#a8a0d9', text: '#7b61c7' },   // ラベンダー（由美子個人）
+    'unryu69@gmail.com':          { bg: '#e8f0fe', border: '#4285f4', text: '#1a73e8' },   // 青（正範個人）
     'nara@real-links.co.jp':      { bg: '#f1f3f4', border: '#9e9e9e', text: '#5f6368' },   // グレー（奈良）
   };
   if (calId && calId.includes('group.calendar')) {
