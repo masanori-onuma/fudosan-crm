@@ -2551,11 +2551,15 @@ async function analyzeTohon(input) {
 
   document.getElementById('tohonUploadArea').style.display = 'none';
   document.getElementById('tohonStatus').style.display = 'block';
+  document.getElementById('tohonStatus').innerHTML = `
+    <div style="font-size:28px;margin-bottom:10px;">🔍</div>
+    <div style="font-size:14px;color:#7C3AED;font-weight:600;margin-bottom:4px;">謄本を深く読み込んでいます…</div>
+    <div style="font-size:12px;color:#a0aec0;">権利変遷・所有者状況・アプローチ戦略まで一括分析中</div>
+  `;
   document.getElementById('tohonResult').style.display = 'none';
   document.getElementById('tohonError').style.display = 'none';
 
   try {
-    // PDFをbase64に変換
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -2563,13 +2567,16 @@ async function analyzeTohon(input) {
       reader.readAsDataURL(file);
     });
 
-    // Claude APIで解析
+    const today = new Date().toISOString().slice(0, 10);
+    const saitamaKeywords = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市','八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市','吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市','本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市','行田市','秩父市'];
+
+    // 1回のAPIコールで抽出＋深い分析＋アプローチ提案まで全部やる
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 3000,
         messages: [{
           role: 'user',
           content: [
@@ -2579,17 +2586,86 @@ async function analyzeTohon(input) {
             },
             {
               type: 'text',
-              text: `この登記事項証明書から以下の情報をJSON形式で抽出してください。他のテキストは一切出力しないでください。
+              text: `あなたは不動産物上げ営業の専門家です。この登記事項証明書を隅々まで読み込み、以下のJSONを出力してください。他のテキストは一切出力しないでください。本日：${today}
+
+【読み込むべきポイント】
+- 表題部：所在・地番・地目・地積
+- 甲区（権利部）：全順位番号の所有権移転の流れ、登記原因、受付日、権利者住所氏名
+- 乙区（あれば）：抵当権・根抵当権の有無と内容
+- 「推定」「相続人申告」などの特殊な記載
+- 抹消事項（下線あり）の有無
 
 {
-  "address": "物件の所在と地番（例：春日部市緑町一丁目1708番5）",
-  "chimoku": "地目（例：宅地、田、畑など）",
-  "owner_name": "最新の所有者氏名（甲区の最新順位番号の所有者）",
-  "owner_address": "最新の所有者住所",
-  "registration_date": "最新の登記受付日（YYYY-MM-DD形式）",
-  "registration_reason": "最新の登記原因（例：所有権移転・相続）",
-  "memo": "特記事項があれば（抵当権の有無など）"
-}`
+  "address": "物件の所在と地番（例：春日部市豊町五丁目2番9）",
+  "chimoku": "地目",
+  "menseki": "地積（㎡）",
+  "owner_name": "最新所有者氏名",
+  "owner_address": "最新所有者住所",
+  "registration_date": "最新登記受付日（YYYY-MM-DD）",
+  "registration_reason": "最新登記原因",
+
+  "rights_history": [
+    {
+      "junban": 順位番号（整数）,
+      "mokuteki": "登記の目的",
+      "date": "受付日（YYYY-MM-DD）",
+      "reason": "原因",
+      "owner": "権利者氏名",
+      "address": "権利者住所"
+    }
+  ],
+
+  "has_mortgage": true または false,
+  "mortgage_detail": "抵当権・根抵当権の内容（あれば）",
+
+  "special_notes": "「推定」「相続人申告」「抹消」など特殊な記載（なければ空文字）",
+
+  "inheritance_chain": "相続の連鎖分析（例：2代続けて相続、売買→相続など権利変遷のポイントを端的に）",
+
+  "memo": "登録時のメモ（地目・抵当権・特記事項を簡潔に）",
+
+  "situation_hypothesis": "所有者の今の状況・心理状態の仮説（60〜80文字。権利変遷・経過年数・居住地から推定。断定ではなく仮説として）",
+
+  "why_not_selling": ["売らない・放置している理由として考えられること（1つ15文字以内）を2〜4個"],
+
+  "priority": "高" または "中" または "低",
+  "priority_reason": "優先度の根拠（25文字以内）",
+
+  "hook": "最初の接触で刺さりそうな切り口（50文字以内。県内なら玄関先の一言のヒント、県外ならDMの書き出し）",
+
+  "caution": "この所有者特有の注意点（あれば40文字以内、なければ空文字）",
+
+  "schedule": [
+    {
+      "step": 1,
+      "label": "最初のアクション（20文字以内）",
+      "offset_days": 本日から何日後（整数）,
+      "note": "なぜこのタイミングか（40文字以内）"
+    },
+    {
+      "step": 2,
+      "label": "2回目のアクション（20文字以内）",
+      "offset_days": 整数,
+      "note": "1回目で会えなかった場合（40文字以内）"
+    },
+    {
+      "step": 3,
+      "label": "3回目のアクション（20文字以内）",
+      "offset_days": 整数,
+      "note": "それでも反応なしの場合（40文字以内）"
+    }
+  ],
+
+  "dm_template": "県外所有者の場合のみDM全文。所有者名は「○○様」。読んだ人が思わず電話したくなる文体で。査定の強要はしない。200〜300文字。県内の場合は空文字。"
+}
+
+重要な判断軸：
+- 相続直後（1年以内）は気持ちが動いている → 優先度高
+- 2代以上続けて相続は特に整理したい可能性が高い
+- 「推定」がついた相続は特殊手続き → 複雑な事情がある可能性
+- 県外所有者は管理が大変 → DM有効
+- 抵当権あり → 売却動機があるかもしれないが慎重に
+- 放置年数が長いほど「忘れてる or 手段を知らない」可能性大`
             }
           ]
         }]
@@ -2597,9 +2673,14 @@ async function analyzeTohon(input) {
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+    const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(text);
+
+    // 県内/県外自動判定
+    const ownerAddr = parsed.owner_address || '';
+    const isLocal = saitamaKeywords.some(k => ownerAddr.includes(k)) ? '県内' : (ownerAddr ? '県外' : '');
 
     // フォームに反映
     document.getElementById('tr_address').value = parsed.address || '';
@@ -2609,16 +2690,31 @@ async function analyzeTohon(input) {
     document.getElementById('tr_registration_date').value = parsed.registration_date || '';
     document.getElementById('tr_registration_reason').value = parsed.registration_reason || '';
     document.getElementById('tr_memo').value = parsed.memo || '';
+    if (isLocal) document.getElementById('tr_is_local').value = isLocal;
 
-    // 県内/県外自動判定
-    const addr = parsed.owner_address || '';
-    const saitamaKeywords = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市','八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市','吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市','本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市','行田市','秩父市'];
-    if (addr) {
-      document.getElementById('tr_is_local').value = saitamaKeywords.some(k => addr.includes(k)) ? '県内' : '県外';
+    // 深い分析結果をグローバルに保持（登録後の提案パネルで使う）
+    window._tohonDeepAnalysis = parsed;
+    window._tohonIsLocal = isLocal;
+
+    // 権利変遷サマリーをメモ欄に追記
+    if (parsed.inheritance_chain) {
+      const current = document.getElementById('tr_memo').value;
+      document.getElementById('tr_memo').value = [current, `[権利変遷] ${parsed.inheritance_chain}`].filter(Boolean).join('\n');
     }
 
     document.getElementById('tohonStatus').style.display = 'none';
     document.getElementById('tohonResult').style.display = 'block';
+
+    // 解析完了メッセージに権利変遷を追加表示
+    const resultHeader = document.querySelector('#tohonResult div');
+    if (resultHeader && parsed.inheritance_chain) {
+      resultHeader.innerHTML = `✅ 解析完了 - 内容を確認してください<br>
+        <span style="font-size:11px;color:#4a5568;font-weight:400;">
+          📋 ${parsed.inheritance_chain}
+          ${parsed.has_mortgage ? '　⚠️ 抵当権あり' : ''}
+          ${parsed.special_notes ? `　📝 ${parsed.special_notes}` : ''}
+        </span>`;
+    }
 
   } catch (e) {
     document.getElementById('tohonStatus').style.display = 'none';
@@ -2706,80 +2802,42 @@ function copyDmTemplate() {
 
 async function generateApproachProposal(property) {
   registeredPropertyData = property;
+
+  // analyzeTohon で既に深い分析が完了している場合はそのまま使う
+  if (window._tohonDeepAnalysis) {
+    const analysis = window._tohonDeepAnalysis;
+    // property に is_local を補完
+    property.is_local = property.is_local || window._tohonIsLocal || '';
+    renderApproachProposal(analysis, property);
+    window._tohonDeepAnalysis = null;
+    window._tohonIsLocal = null;
+    return;
+  }
+
+  // フォールバック：分析データがない場合は従来通りAPIを呼ぶ
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
-
-  // 登記からの経過月数を計算
   let monthsElapsed = null;
   if (property.registration_date) {
     const regDate = new Date(property.registration_date);
     monthsElapsed = Math.floor((today - regDate) / (1000 * 60 * 60 * 24 * 30));
   }
-
   const channel = property.is_local === '県内' ? '飛び込み訪問（県内）' : 'DM・手紙（県外）';
 
-  const prompt = `あなたは不動産物上げ営業の専門家です。以下の情報をもとに、担当者が訪問・DM前に読む「状況分析カード」をJSONで出力してください。他のテキストは一切出力しないでください。
+  const prompt = `あなたは不動産物上げ営業の専門家です。以下の情報をもとに「状況分析カード」をJSONで出力してください。他のテキストは一切出力しないでください。
 
 【基本情報】
 - 物件住所: ${property.address}
 - 地目: ${property.chimoku || '不明'}
 - 所有者氏名: ${property.owner_name}
 - 所有者住所: ${property.owner_address}
-- 県内/県外: ${property.is_local || '未判定'} → アプローチ手段: ${channel}
+- 県内/県外: ${property.is_local || '未判定'} → ${channel}
 - 登記原因: ${property.registration_reason || '不明'}
 - 登記受付日: ${property.registration_date || '不明'}（経過約${monthsElapsed !== null ? monthsElapsed + 'ヶ月' : '不明'}）
 - 特記: ${property.memo || 'なし'}
 - 本日: ${todayStr}
 
-【出力形式】
-{
-  "priority": "高" | "中" | "低",
-  "priority_reason": "優先度の根拠（25文字以内・端的に）",
-
-  "situation_hypothesis": "この所有者の今の状況・心理状態の仮説（60〜80文字。登記原因・経過年数・居住地から推定。断定ではなく仮説として書く）",
-
-  "why_not_selling": ["売らない・放置している理由として考えられること（1つ15文字以内）を2〜4個"],
-
-  "hook": "最初の接触で刺さりそうな切り口・話題（50文字以内。県内なら玄関先の一言のヒント、県外ならDMの書き出し）",
-
-  "caution": "この所有者特有の注意点（あれば40文字以内、なければ空文字）",
-
-  "schedule": [
-    {
-      "step": 1,
-      "label": "最初のアクション（20文字以内）",
-      "offset_days": 本日から何日後が推奨か（整数）,
-      "note": "何をするか・なぜこのタイミングか（40文字以内）"
-    },
-    {
-      "step": 2,
-      "label": "2回目のアクション（20文字以内）",
-      "offset_days": 整数,
-      "note": "1回目で会えなかった場合の次の手（40文字以内）"
-    },
-    {
-      "step": 3,
-      "label": "3回目のアクション（20文字以内）",
-      "offset_days": 整数,
-      "note": "それでも反応なしの場合（40文字以内）"
-    }
-  ],
-
-  "first_action": {
-    "date": "YYYY-MM-DD（scheduleのstep1と同じ日）",
-    "note": "最初のアクション内容（30文字以内）"
-  },
-
-  "dm_template": "${property.is_local === '県外' ? '県外所有者へのDM全文。所有者名は「○○様」。読んだ人が思わず電話したくなる、押しつけがましくない文体で。査定の強要はしない。200〜300文字' : ''}"
-}
-
-重要な考え方：
-- 「会える確率を上げる」ことが最大の目的。会えれば営業担当が必ず決める前提
-- 相続直後（〜1年）は気持ちが動いている。売ることへの罪悪感にも配慮
-- 放置10年以上は「忘れてる or 手段を知らない」可能性大
-- 県内は飛び込み訪問。担当者が玄関先でアドリブを効かせるための「素材」を渡す感覚で書く
-- 県外はDMで電話・返信をもらうことが目標
-- よくある営業トークの焼き直しは不要。この物件・この所有者固有の仮説を書く`;
+{"priority":"高"|"中"|"低","priority_reason":"25文字以内","situation_hypothesis":"60〜80文字","why_not_selling":["15文字以内を2〜4個"],"hook":"50文字以内","caution":"40文字以内またはは空文字","schedule":[{"step":1,"label":"20文字以内","offset_days":整数,"note":"40文字以内"},{"step":2,"label":"20文字以内","offset_days":整数,"note":"40文字以内"},{"step":3,"label":"20文字以内","offset_days":整数,"note":"40文字以内"}],"first_action":{"date":"YYYY-MM-DD","note":"30文字以内"},"dm_template":"県外のみDM全文、県内は空文字"}`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2791,17 +2849,14 @@ async function generateApproachProposal(property) {
         messages: [{ role: 'user', content: prompt }]
       })
     });
-
     const data = await response.json();
     const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(text);
-
-    renderApproachProposal(parsed, property);
+    renderApproachProposal(JSON.parse(text), property);
   } catch (e) {
     document.getElementById('approachThinking').textContent = '⚠️ 提案生成に失敗しました';
-    console.error('Approach proposal error:', e);
   }
 }
+
 
 function renderApproachProposal(data, property) {
   document.getElementById('approachThinking').style.display = 'none';
