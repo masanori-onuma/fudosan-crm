@@ -677,6 +677,127 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 .btn-confirm-no { background: #e2e8f0; color: #4a5568; }
 .btn-confirm-yes { background: #2f855a; color: white; }
 .btn-confirm-yes:hover { background: #276749; }
+/* ─── 訪問結果ワンタップ ─── */
+.visit-result-section {
+  background: #f8faff;
+  border: 1.5px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.visit-result-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+}
+.visit-result-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.vr-btn {
+  border: 1.5px solid;
+  border-radius: 8px;
+  padding: 9px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  background: white;
+  transition: background 0.15s;
+}
+.vr-btn.absent    { border-color: #a0aec0; color: #4a5568; }
+.vr-btn.absent:active { background: #edf2f7; }
+.vr-btn.talked    { border-color: #3182ce; color: #2b6cb0; }
+.vr-btn.talked:active { background: #ebf8ff; }
+.vr-btn.interested { border-color: #38a169; color: #276749; }
+.vr-btn.interested:active { background: #f0fff4; }
+.vr-btn.rejected  { border-color: #e53e3e; color: #c53030; }
+.vr-btn.rejected:active { background: #fff5f5; }
+.vr-btn.dm-sent   { border-color: #7C3AED; color: #553c9a; }
+.vr-btn.dm-sent:active { background: #faf5ff; }
+.vr-btn.callback  { border-color: #d69e2e; color: #744210; }
+.vr-btn.callback:active { background: #fffff0; }
+
+/* ─── DM管理 ─── */
+.dm-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #f8faff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.dm-history-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.dm-history-badge.dm1 { background: #ebf8ff; color: #2c5282; }
+.dm-history-badge.dm2 { background: #e9d8fd; color: #553c9a; }
+.dm-history-badge.letter { background: #fef3c7; color: #744210; }
+
+/* ─── 週次サマリー ─── */
+.weekly-section { padding: 12px; max-width: 700px; margin: 0 auto; }
+.weekly-card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.weekly-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a3a5c;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.weekly-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid #f0f2f5;
+  cursor: pointer;
+}
+.weekly-item:last-child { border-bottom: none; }
+.weekly-item-addr { flex: 1; font-size: 13px; font-weight: 600; color: #2d3748; }
+.weekly-item-sub { font-size: 11px; color: #718096; margin-top: 2px; }
+.weekly-item-date { font-size: 12px; color: #e53e3e; font-weight: 600; flex-shrink: 0; }
+.weekly-alert-badge {
+  font-size: 10px;
+  background: #fed7d7;
+  color: #c53030;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.weekly-ai-loading {
+  text-align: center;
+  padding: 20px;
+  color: #7C3AED;
+  font-size: 13px;
+}
+.weekly-ai-card {
+  background: #f0f4ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 13px;
+  color: #2d3748;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
 </style>
 </head>
 <body>
@@ -698,12 +819,123 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
     進行中 <span class="badge" id="activeCount" style="display:none">0</span>
   </div>
   <div class="tab" data-view="all" onclick="setView('all')">すべて</div>
+  <div class="tab" data-view="weekly" onclick="setView('weekly')">週次</div>
 </div>
 
 <div class="main">
   <div id="statBar" class="stat-bar" style="display:none"></div>
   <div id="propertyList">
     <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<!-- 謄本アップロードモーダル -->
+<div class="modal" id="tohonModal">
+  <div class="modal-inner">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-id">新規登録</div>
+      <h2>謄本から登録</h2>
+    </div>
+    <div class="modal-body">
+      <div id="tohonUploadArea" onclick="document.getElementById('tohonFileInput').click()"
+        style="border:2px dashed #c7d2fe;border-radius:10px;padding:30px;text-align:center;cursor:pointer;background:#f8faff;margin-bottom:16px;">
+        <div style="font-size:32px;margin-bottom:8px;">📄</div>
+        <div style="font-size:15px;font-weight:600;color:#1a3a5c;">謄本PDFをタップして選択</div>
+        <div style="font-size:12px;color:#a0aec0;margin-top:4px;">登記事項証明書（全部事項）</div>
+      </div>
+      <input type="file" id="tohonFileInput" accept=".pdf" style="display:none" onchange="analyzeTohon(this)">
+
+      <div id="tohonStatus" style="display:none;text-align:center;padding:20px;">
+        <div style="font-size:24px;">🔍</div>
+        <div style="font-size:14px;color:#718096;margin-top:8px;">Claude が謄本を解析中...</div>
+      </div>
+
+      <div id="tohonResult" style="display:none;">
+        <div style="font-size:12px;font-weight:600;color:#2f855a;margin-bottom:12px;">✅ 解析完了 - 内容を確認してください</div>
+
+        <div class="field-group">
+          <div class="field-label">物件住所</div>
+          <input type="text" class="field-input" id="tr_address">
+        </div>
+        <div class="field-group">
+          <div class="field-label">地目</div>
+          <input type="text" class="field-input" id="tr_chimoku">
+        </div>
+        <div class="field-group">
+          <div class="field-label">所有者氏名</div>
+          <input type="text" class="field-input" id="tr_owner_name">
+        </div>
+        <div class="field-group">
+          <div class="field-label">所有者住所</div>
+          <input type="text" class="field-input" id="tr_owner_address">
+        </div>
+        <div class="field-group">
+          <div class="field-label">県内/県外</div>
+          <select class="field-input" id="tr_is_local">
+            <option value="">未判定</option>
+            <option value="県内">県内</option>
+            <option value="県外">県外</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <div class="field-label">登記受付日</div>
+          <input type="date" class="field-input" id="tr_registration_date">
+        </div>
+        <div class="field-group">
+          <div class="field-label">登記原因</div>
+          <input type="text" class="field-input" id="tr_registration_reason">
+        </div>
+        <div class="field-group">
+          <div class="field-label">メモ</div>
+          <textarea class="field-input" id="tr_memo" rows="2"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="closeTohonModal()" style="flex:1;border:none;background:#e2e8f0;color:#4a5568;border-radius:8px;padding:12px;font-weight:600;cursor:pointer;font-size:14px;">キャンセル</button>
+          <button onclick="registerFromTohon()" style="flex:2;border:none;background:#1a3a5c;color:white;border-radius:8px;padding:12px;font-weight:600;cursor:pointer;font-size:14px;">📋 登録する</button>
+        </div>
+      </div>
+
+      <div id="tohonError" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:12px;color:#e53e3e;font-size:13px;"></div>
+
+      <!-- アプローチ提案パネル -->
+      <div id="approachPanel" style="display:none;">
+        <div style="border-top:2px dashed #c7d2fe;margin:16px 0;"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="font-size:20px;">🤖</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1a3a5c;">Claudeのアプローチ提案</div>
+            <div style="font-size:11px;color:#a0aec0;">所有者情報を分析して最適な戦略を提示しています</div>
+          </div>
+          <div id="approachThinking" style="margin-left:auto;font-size:11px;color:#7C3AED;font-style:italic;">考え中…</div>
+        </div>
+        <div id="approachContent" style="display:none;">
+          <!-- 優先度バッジ -->
+          <div id="approachPriority" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px;"></div>
+
+          <!-- 戦略カード -->
+          <div id="approachCards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+
+          <!-- DMテンプレートアコーディオン -->
+          <div id="dmSection" style="border:1px solid #c7d2fe;border-radius:10px;overflow:hidden;">
+            <button onclick="toggleDmTemplate()" style="width:100%;background:#f0f4ff;border:none;padding:12px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1a3a5c;text-align:left;">
+              <span style="font-size:16px;">✉️</span>
+              <span>おすすめDM文例を見る</span>
+              <span id="dmArrow" style="margin-left:auto;transition:transform 0.2s;">▼</span>
+            </button>
+            <div id="dmTemplate" style="display:none;padding:12px 14px;background:white;">
+              <div id="dmTemplateText" style="font-size:13px;color:#2d3748;line-height:1.7;white-space:pre-wrap;background:#f8faff;padding:12px;border-radius:8px;border:1px solid #e2e8f0;"></div>
+              <button onclick="copyDmTemplate()" style="margin-top:10px;width:100%;background:#1a3a5c;color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">📋 文例をコピー</button>
+            </div>
+          </div>
+
+          <!-- 次アクション自動設定ボタン -->
+          <div id="approachActionBtns" style="display:flex;flex-direction:column;gap:8px;margin-top:12px;"></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -862,7 +1094,11 @@ function setView(view) {
   document.querySelectorAll('.tab').forEach(t => {
     t.classList.toggle('active', t.dataset.view === view);
   });
-  render();
+  if (view === 'weekly') {
+    renderWeekly();
+  } else {
+    render();
+  }
 }
 
 function getFilteredProperties() {
@@ -954,7 +1190,11 @@ function render() {
         </div>
         <div class="card-address">${escHtml(p.address || '住所未入力')}</div>
         <div class="card-owner">${escHtml(p.owner_name || '所有者未入力')}${localBadge}</div>
-        <div class="card-next ${nextClass}">${nextText}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="card-next ${nextClass}" style="flex:1;">${nextText}</div>
+          <button onclick="event.stopPropagation();openMapByAddress('${escHtml(p.address)}')" 
+            style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -985,6 +1225,496 @@ function updateBadges() {
   aBadge.style.display = activeList.length > 0 ? 'inline-block' : 'none';
 }
 
+// ─── ① 訪問結果ワンタップ ────────────────────────
+
+async function recordVisitResult(responsePattern, newStage) {
+  if (!currentDetailId) return;
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  const p = allProperties.find(x => x.id === currentDetailId);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+  // 次アクション日を自動計算
+  const NEXT_DAYS = {
+    '再訪問待ち': 14, 'DM1回目送付': 60, 'DM2回目送付': 60, '訪問済': 7, '反応あり': 3
+  };
+  const nextDays = NEXT_DAYS[newStage];
+  const nextDate = nextDays ? addDays(dateStr, nextDays) : '';
+  const nextNote = {
+    '不在だった': '再訪問する', '話せた': '内容をフォローアップ',
+    '条件次第で検討': '面談アポを調整', '興味なし・送らないで': '—',
+    'DM送付済み': '反応確認', '反応あり・電話あり': '面談アポを取る', '反応なし': 'DM2回目を送付'
+  }[responsePattern] || 'フォローする';
+
+  const memoAppend = `[${timeStr}] 結果：${responsePattern}`;
+
+  try {
+    // ステージ更新
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'updateStage',
+        id: currentDetailId,
+        stage: newStage,
+        note: nextNote,
+        source: 'manual',
+        user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+    // フィールド更新
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'update',
+        id: currentDetailId,
+        updates: {
+          response_pattern: responsePattern,
+          next_action_date: nextDate,
+          next_action_note: nextNote,
+          memo: (p?.memo ? p.memo + '\n' : '') + memoAppend
+        },
+        source: 'manual',
+        user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+
+    showToast(`✅ 記録しました：${responsePattern}`, 'success');
+    closeDetail();
+    setTimeout(loadAll, 600);
+  } catch(e) {
+    showToast('記録失敗：' + e.message, 'error');
+  }
+}
+
+// ─── 写真管理 ────────────────────────────────────
+
+function buildPhotoGrid(p) {
+  var urls = parsePhotoUrls(p.photo_url);
+  if (urls.length === 0) {
+    return `<div style="grid-column:1/-1;text-align:center;padding:16px;color:#a0aec0;font-size:12px;background:#fafafa;border-radius:8px;border:1px dashed #e2e8f0;">
+      写真がありません。現地で撮影した写真を追加できます。
+    </div>`;
+  }
+  return urls.map((item, i) => `
+    <div style="position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#f0f2f5;">
+      <img src="${escHtml(item.url)}" style="width:100%;height:100%;object-fit:cover;" 
+           onclick="openPhotoViewer('${escHtml(item.url)}')" 
+           onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;\\'>📷</div>'">
+      <button onclick="deletePhotoByIndex(${i})" 
+        style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.55);border:none;color:white;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+    </div>
+  `).join('');
+}
+
+function parsePhotoUrls(photoUrl) {
+  if (!photoUrl) return [];
+  // JSON配列形式 or カンマ区切り の両方に対応
+  try {
+    const parsed = JSON.parse(photoUrl);
+    if (Array.isArray(parsed)) {
+      return parsed.map(u => typeof u === 'string' ? { url: u, fileId: extractFileId(u) } : u);
+    }
+  } catch(e) {}
+  // カンマ区切り
+  return photoUrl.split(',').map(u => u.trim()).filter(Boolean).map(u => ({
+    url: u, fileId: extractFileId(u)
+  }));
+}
+
+function extractFileId(url) {
+  const m = url.match(/id=([^&]+)/);
+  return m ? m[1] : '';
+}
+
+function serializePhotoUrls(urls) {
+  return JSON.stringify(urls.map(u => u.url));
+}
+
+async function uploadPhotos(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+  if (!currentDetailId) return;
+
+  const statusEl = document.getElementById('photoUploadStatus');
+  statusEl.style.display = 'block';
+
+  const p = allProperties.find(x => x.id === currentDetailId);
+  let currentUrls = parsePhotoUrls(p?.photo_url || document.getElementById('f_photo_url').value);
+
+  // 最大6枚制限
+  if (currentUrls.length + files.length > 6) {
+    showToast('写真は最大6枚までです', 'error');
+    statusEl.style.display = 'none';
+    return;
+  }
+
+  let uploaded = 0;
+  for (const file of files) {
+    statusEl.textContent = `アップロード中… ${uploaded + 1}/${files.length}枚`;
+    try {
+      // リサイズ（1200px以内に圧縮してから送信）
+      const base64 = await resizeAndEncode(file, 1200);
+      const filename = `${currentDetailId}_${Date.now()}_${uploaded}.jpg`;
+
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'uploadPhoto',
+          property_id: currentDetailId,
+          base64: base64,
+          filename: filename,
+          mime_type: 'image/jpeg'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        currentUrls.push({ url: data.url, fileId: data.file_id || '' });
+        uploaded++;
+      } else {
+        showToast('1枚の写真でエラーが発生しました', 'error');
+      }
+    } catch(e) {
+      showToast('アップロード失敗：' + e.message, 'error');
+    }
+  }
+
+  // photo_urlを更新して保存
+  const newPhotoUrl = serializePhotoUrls(currentUrls);
+  document.getElementById('f_photo_url').value = newPhotoUrl;
+
+  await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'update',
+      id: currentDetailId,
+      updates: { photo_url: newPhotoUrl },
+      source: 'manual',
+      user: localStorage.getItem('sales_user') || '正範'
+    })
+  });
+
+  // allPropertiesのキャッシュも更新
+  if (p) p.photo_url = newPhotoUrl;
+
+  statusEl.style.display = 'none';
+  showToast(`✅ ${uploaded}枚アップロードしました`, 'success');
+
+  // グリッド再描画
+  document.getElementById('photoGrid').innerHTML = buildPhotoGrid({ ...p, photo_url: newPhotoUrl });
+  input.value = '';
+}
+
+// 画像リサイズ＆base64変換
+function resizeAndEncode(file, maxPx) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      resolve(dataUrl.split(',')[1]); // base64部分だけ
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function deletePhotoByIndex(index) {
+  if (!currentDetailId) return;
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) return;
+
+  const p = allProperties.find(x => x.id === currentDetailId);
+  let currentUrls = parsePhotoUrls(p?.photo_url || document.getElementById('f_photo_url').value);
+  if (index < 0 || index >= currentUrls.length) return;
+
+  const item = currentUrls[index];
+
+  // DriveファイルをGAS経由で削除
+  if (item.fileId) {
+    try {
+      await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'deletePhoto', file_id: item.fileId })
+      });
+    } catch(e) { /* 削除失敗でもURLだけ消す */ }
+  }
+
+  currentUrls.splice(index, 1);
+  const newPhotoUrl = serializePhotoUrls(currentUrls);
+  document.getElementById('f_photo_url').value = newPhotoUrl;
+
+  await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      action: 'update', id: currentDetailId,
+      updates: { photo_url: newPhotoUrl },
+      source: 'manual', user: localStorage.getItem('sales_user') || '正範'
+    })
+  });
+
+  if (p) p.photo_url = newPhotoUrl;
+  showToast('写真を削除しました', 'success');
+  document.getElementById('photoGrid').innerHTML = buildPhotoGrid({ ...p, photo_url: newPhotoUrl });
+}
+
+// 写真フルスクリーンビューア
+function openPhotoViewer(url) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:2000;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = () => overlay.remove();
+  const img = document.createElement('img');
+  img.src = url;
+  img.style.cssText = 'max-width:95vw;max-height:90vh;object-fit:contain;border-radius:6px;';
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
+}
+
+// ─── ② 地図表示 ────────────────────────────────
+
+function openMapByAddress(address) {
+  if (!address) return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  window.open(url, '_blank');
+}
+
+function openMapForProperty() {
+  const p = allProperties.find(x => x.id === currentDetailId);
+  if (!p) return;
+  openMapByAddress(p.address);
+}
+
+// ─── ③ DM送付管理 ────────────────────────────────
+
+function buildDmHistory(p) {
+  const memo = p.memo || '';
+  const lines = memo.split('\n').filter(l => l.includes('DM') || l.includes('手紙') || l.includes('送付'));
+  if (lines.length === 0) {
+    return '<div style="color:#a0aec0;font-size:13px;padding:8px 0;">まだDM送付の記録がありません</div>';
+  }
+  return lines.map(l => {
+    const isDm1 = l.includes('DM1') || (l.includes('DM') && !l.includes('DM2'));
+    const isDm2 = l.includes('DM2');
+    const isLetter = l.includes('手紙');
+    const cls = isDm2 ? 'dm2' : isLetter ? 'letter' : 'dm1';
+    const label = isDm2 ? 'DM2回目' : isLetter ? '手紙' : 'DM1回目';
+    return `<div class="dm-history-item">
+      <span class="dm-history-badge ${cls}">${label}</span>
+      <span style="font-size:12px;color:#4a5568;flex:1;">${escHtml(l.replace(/^\[.*?\]\s*/, ''))}</span>
+    </div>`;
+  }).join('');
+}
+
+async function recordDmSend(dmType) {
+  if (!currentDetailId) return;
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  const p = allProperties.find(x => x.id === currentDetailId);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toLocaleString('ja-JP', { month:'numeric', day:'numeric' });
+
+  const stageMap = { 'DM1回目': 'DM1回目送付', 'DM2回目': 'DM2回目送付', '手紙': 'DM2回目送付' };
+  const newStage = stageMap[dmType] || 'DM1回目送付';
+  const nextDate = addDays(dateStr, 60);
+  const memoAppend = `[${timeStr}] ${dmType}送付済み`;
+
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'updateStage', id: currentDetailId, stage: newStage,
+        note: '反応確認', source: 'manual', user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'update', id: currentDetailId,
+        updates: {
+          next_action_date: nextDate,
+          next_action_note: '反応確認（' + dmType + '送付から60日）',
+          memo: (p?.memo ? p.memo + '\n' : '') + memoAppend
+        },
+        source: 'manual', user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+    showToast(`✅ ${dmType}送付を記録しました`, 'success');
+    closeDetail();
+    setTimeout(loadAll, 600);
+  } catch(e) {
+    showToast('記録失敗：' + e.message, 'error');
+  }
+}
+
+async function saveNextAction() {
+  if (!currentDetailId) return;
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+  const date = document.getElementById('f_next_action_date').value;
+  const note = document.getElementById('f_next_action_note').value;
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'update', id: currentDetailId,
+        updates: { next_action_date: date, next_action_note: note },
+        source: 'manual', user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+    showToast('✅ 保存しました', 'success');
+    closeDetail();
+    setTimeout(loadAll, 600);
+  } catch(e) {
+    showToast('保存失敗：' + e.message, 'error');
+  }
+}
+
+// ─── ④ 週次サマリー ────────────────────────────────
+
+async function renderWeekly() {
+  const container = document.getElementById('propertyList');
+  const statBar = document.getElementById('statBar');
+  statBar.style.display = 'none';
+
+  const today = todayStr();
+  const weekEnd = addDays(today, 7);
+
+  // 今週アクションすべき物件
+  const thisWeek = allProperties.filter(p => {
+    if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+    if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
+    return p.next_action_date && p.next_action_date <= weekEnd;
+  }).sort((a, b) => a.next_action_date < b.next_action_date ? -1 : 1);
+
+  // 優先度高・止まってる物件（謄本取得済から2週以上）
+  const stalled = allProperties.filter(p => {
+    if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+    if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
+    if (p.next_action_date && p.next_action_date >= today) return false;
+    if (!p.next_action_date && p.stage === '謄本取得済') {
+      return true;
+    }
+    if (p.next_action_date && p.next_action_date < addDays(today, -14)) return true;
+    return false;
+  });
+
+  container.innerHTML = `
+    <div class="weekly-section">
+      <div class="weekly-card">
+        <div class="weekly-card-title">📅 今週アクションすべき物件 <span style="font-size:12px;color:#718096;font-weight:400;">${thisWeek.length}件</span></div>
+        ${thisWeek.length === 0
+          ? '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:12px;">今週のアクション予定はありません 🎉</div>'
+          : thisWeek.map(p => {
+              const isOverdue = p.next_action_date <= today;
+              return `<div class="weekly-item" onclick="openDetail('${escHtml(p.id)}')">
+                <div style="flex:1;">
+                  <div class="weekly-item-addr">${escHtml(p.address || '住所未入力')}</div>
+                  <div class="weekly-item-sub">${escHtml(p.owner_name || '')} ／ ${escHtml(p.stage || '')}</div>
+                  <div class="weekly-item-sub">${escHtml(p.next_action_note || '')}</div>
+                </div>
+                <div>
+                  <div class="weekly-item-date" style="color:${isOverdue ? '#e53e3e' : '#2d3748'};">${escHtml(p.next_action_date)}</div>
+                  ${isOverdue ? '<div class="weekly-alert-badge">期限超過</div>' : ''}
+                </div>
+              </div>`;
+            }).join('')
+        }
+      </div>
+
+      ${stalled.length > 0 ? `
+      <div class="weekly-card">
+        <div class="weekly-card-title">⚠️ 止まっている物件 <span style="font-size:12px;color:#718096;font-weight:400;">${stalled.length}件</span></div>
+        ${stalled.map(p => `
+          <div class="weekly-item" onclick="openDetail('${escHtml(p.id)}')">
+            <div style="flex:1;">
+              <div class="weekly-item-addr">${escHtml(p.address || '住所未入力')}</div>
+              <div class="weekly-item-sub">${escHtml(p.owner_name || '')} ／ ${escHtml(p.stage || '')} ／ ${escHtml(p.is_local || '')}</div>
+            </div>
+            <div class="weekly-alert-badge">要対応</div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <div class="weekly-card">
+        <div class="weekly-card-title">🤖 今週のClaudeアドバイス</div>
+        <div id="weeklyAiAdvice" class="weekly-ai-loading">分析中…</div>
+      </div>
+    </div>
+  `;
+
+  // Claudeによる週次アドバイス生成
+  generateWeeklyAdvice(thisWeek, stalled);
+}
+
+async function generateWeeklyAdvice(thisWeek, stalled) {
+  const today = todayStr();
+  const activeAll = allProperties.filter(p =>
+    p.stage !== '顧客化（CRM移管済）' && p.stage !== '見送り' &&
+    p.crm_migrated !== true && p.crm_migrated !== 'TRUE'
+  );
+
+  const stageSummary = {};
+  activeAll.forEach(p => { stageSummary[p.stage] = (stageSummary[p.stage] || 0) + 1; });
+
+  const prompt = `不動産物上げ営業チームの週次状況を分析して、今週の優先アドバイスを3点で教えてください。
+
+【今日】${today}
+【進行中物件数】${activeAll.length}件
+【ステージ別内訳】${JSON.stringify(stageSummary)}
+【今週アクション予定】${thisWeek.length}件
+【止まっている物件】${stalled.length}件
+【今週の物件詳細（上位5件）】
+${thisWeek.slice(0, 5).map(p => `・${p.address} / ${p.stage} / ${p.is_local} / 次：${p.next_action_date} ${p.next_action_note || ''}`).join('\n')}
+
+短く実践的に、今週やるべきことを優先順に3点。各点30文字以内。番号付きで改行して出力。前置きや後書き不要。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const el = document.getElementById('weeklyAiAdvice');
+    if (el) {
+      el.className = 'weekly-ai-card';
+      el.textContent = text;
+    }
+  } catch(e) {
+    const el = document.getElementById('weeklyAiAdvice');
+    if (el) { el.className = ''; el.textContent = '⚠️ アドバイス生成に失敗しました'; }
+  }
+}
+
 // ─── 詳細モーダル ────────────────────────────────
 
 function openDetail(id) {
@@ -999,11 +1729,35 @@ function openDetail(id) {
   body.innerHTML = `
     <div class="detail-tabs">
       <div class="detail-tab active" id="tab-btn-info" onclick="switchTab('tab-info')">物件情報</div>
+      <div class="detail-tab" id="tab-btn-dm" onclick="switchTab('tab-dm')">DM管理</div>
       <div class="detail-tab" id="tab-btn-log" onclick="switchTab('tab-log')">変更履歴</div>
     </div>
     <div id="tab-info" class="tab-content active">
-      <div class="field-label">所有者氏名</div>
-      <input type="text" class="field-input" id="f_owner_name" value="${escHtml(p.owner_name)}">
+
+      ${p.is_local === '県内' ? `
+      <div class="visit-result-section">
+        <div class="visit-result-title">📍 訪問結果をワンタップで記録</div>
+        <div class="visit-result-btns">
+          <button class="vr-btn absent"   onclick="recordVisitResult('不在', '再訪問待ち')">😶 不在だった</button>
+          <button class="vr-btn talked"   onclick="recordVisitResult('話せた', '訪問済')">💬 話せた</button>
+          <button class="vr-btn interested" onclick="recordVisitResult('条件次第で検討', '反応あり')">🤝 興味あり</button>
+          <button class="vr-btn rejected"  onclick="recordVisitResult('興味なし・送らないで', '見送り')">🙅 拒否された</button>
+        </div>
+      </div>` : `
+      <div class="visit-result-section">
+        <div class="visit-result-title">✉️ DM送付結果をワンタップで記録</div>
+        <div class="visit-result-btns">
+          <button class="vr-btn dm-sent"  onclick="recordVisitResult('DM送付済み', 'DM1回目送付')">📮 DM送付した</button>
+          <button class="vr-btn callback" onclick="recordVisitResult('反応あり・電話あり', '反応あり')">📞 連絡が来た</button>
+          <button class="vr-btn absent"   onclick="recordVisitResult('反応なし', 'DM2回目送付')">📭 反応なし</button>
+          <button class="vr-btn rejected" onclick="recordVisitResult('興味なし・送らないで', '見送り')">🙅 拒否された</button>
+        </div>
+      </div>`}
+
+      <div class="field-group">
+        <div class="field-label">所有者氏名</div>
+        <input type="text" class="field-input" id="f_owner_name" value="${escHtml(p.owner_name)}">
+      </div>
     </div>
     <div class="field-group">
       <div class="field-label">所有者住所</div>
@@ -1032,8 +1786,22 @@ function openDetail(id) {
              onchange="autoStageFromTohon()">
     </div>
     <div class="field-group">
-      <div class="field-label">写真URL（Google Drive等）</div>
-      <input type="text" class="field-input" id="f_photo_url" value="${escHtml(p.photo_url)}">
+      <div class="field-label">現地写真</div>
+      <div id="photoSection">
+        <!-- サムネイル一覧 -->
+        <div id="photoGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;">
+          ${buildPhotoGrid(p)}
+        </div>
+        <!-- アップロードボタン -->
+        <div style="display:flex;gap:8px;">
+          <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#f0f4ff;border:1.5px dashed #c7d2fe;border-radius:8px;padding:10px;font-size:13px;font-weight:600;color:#1a3a5c;cursor:pointer;">
+            📷 写真を追加
+            <input type="file" accept="image/*" multiple capture="environment" style="display:none" onchange="uploadPhotos(this)">
+          </label>
+        </div>
+        <div id="photoUploadStatus" style="display:none;font-size:12px;color:#7C3AED;margin-top:6px;text-align:center;">アップロード中…</div>
+      </div>
+      <input type="hidden" id="f_photo_url" value="${escHtml(p.photo_url)}">
     </div>
     <div class="field-group">
       <div class="field-label">ステージ</div>
@@ -1073,6 +1841,11 @@ function openDetail(id) {
         : ''}
       <button class="btn-delete" onclick="deleteProperty()">🗑️</button>
     </div>
+    <div style="margin-top:10px;">
+      <button onclick="openMapForProperty()" style="width:100%;background:#f0fff4;border:1.5px solid #9ae6b4;color:#276749;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;">
+        🗺️ Googleマップで場所を確認
+      </button>
+    </div>
     </div>
 
     <div class="chat-section">
@@ -1091,6 +1864,40 @@ function openDetail(id) {
           <button class="chat-send" id="chatSendBtn" onclick="sendChat()">➤</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="tab-dm" class="tab-content">
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:10px;">DM送付履歴</div>
+      <div id="dmHistoryList">
+        ${buildDmHistory(p)}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button onclick="recordDmSend('DM1回目')" style="flex:1;min-width:120px;background:#ebf8ff;border:1.5px solid #90cdf4;color:#2b6cb0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">
+          ✉️ DM1回目を送った
+        </button>
+        <button onclick="recordDmSend('DM2回目')" style="flex:1;min-width:120px;background:#e9d8fd;border:1.5px solid #b794f4;color:#553c9a;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">
+          ✉️ DM2回目を送った
+        </button>
+        <button onclick="recordDmSend('手紙')" style="flex:1;min-width:120px;background:#fef3c7;border:1.5px solid #f6d860;color:#744210;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;">
+          📮 手紙を送った
+        </button>
+      </div>
+    </div>
+    <div style="border-top:1px solid #e2e8f0;padding-top:12px;">
+      <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:8px;">次回DM予定日</div>
+      <div class="date-picker-wrap" onclick="openMiniCal()" style="margin-bottom:8px;">
+        <div class="date-picker-display" id="nextActionDisplay" style="font-size:14px;">
+          ${p.next_action_date ? escHtml(p.next_action_date) : '未設定（タップして設定）'}
+        </div>
+        <span style="color:#a0aec0;font-size:14px;">📅</span>
+      </div>
+      <input type="hidden" id="f_next_action_date" value="${escHtml(p.next_action_date)}">
+      <input type="text" class="field-input" id="f_next_action_note" value="${escHtml(p.next_action_note)}" placeholder="次アクション内容">
+      <button onclick="saveNextAction()" style="width:100%;margin-top:8px;background:#1a3a5c;color:white;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;">
+        💾 次アクション日を保存
+      </button>
     </div>
   </div>
 
@@ -1674,12 +2481,6 @@ function closeCalDaySheet() {
   pendingCalDate = null;
 }
 
-function confirmCalDate() {
-  if (!pendingCalDate) return;
-  selectCalDate(pendingCalDate);
-  closeCalDaySheet();
-}
-
 function closeMiniCal() {
   document.getElementById('miniCalModal').classList.remove('show');
 }
@@ -1706,6 +2507,525 @@ async function calNext() {
   if (calMonth > 11) { calMonth = 0; calYear++; }
   await loadCalEvents();
   renderMiniCal();
+}
+
+// ─── 謄本から登録 ────────────────────────────────
+
+function openTohonModal() {
+  // リセット
+  document.getElementById('tohonUploadArea').style.display = 'block';
+  document.getElementById('tohonStatus').style.display = 'none';
+  document.getElementById('tohonResult').style.display = 'none';
+  document.getElementById('tohonError').style.display = 'none';
+  document.getElementById('approachPanel').style.display = 'none';
+  document.getElementById('approachContent').style.display = 'none';
+  document.getElementById('approachThinking').style.display = 'block';
+  document.getElementById('approachCards').innerHTML = '';
+  document.getElementById('approachActionBtns').innerHTML = '';
+  document.getElementById('dmTemplate').style.display = 'none';
+  document.getElementById('dmArrow').style.transform = '';
+  approachDmText = '';
+  approachNextActionDate = '';
+  approachNextActionNote = '';
+  registeredPropertyData = null;
+  // 登録ボタンを再有効化
+  const regBtn = document.querySelector('[onclick="registerFromTohon()"]');
+  if (regBtn) regBtn.disabled = false;
+  document.getElementById('tohonFileInput').value = '';
+  document.getElementById('tohonModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
+}
+
+function closeTohonModal() {
+  document.getElementById('tohonModal').classList.remove('show');
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+}
+
+async function analyzeTohon(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  document.getElementById('tohonUploadArea').style.display = 'none';
+  document.getElementById('tohonStatus').style.display = 'block';
+  document.getElementById('tohonResult').style.display = 'none';
+  document.getElementById('tohonError').style.display = 'none';
+
+  try {
+    // PDFをbase64に変換
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // Claude APIで解析
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: base64 }
+            },
+            {
+              type: 'text',
+              text: `この登記事項証明書から以下の情報をJSON形式で抽出してください。他のテキストは一切出力しないでください。
+
+{
+  "address": "物件の所在と地番（例：春日部市緑町一丁目1708番5）",
+  "chimoku": "地目（例：宅地、田、畑など）",
+  "owner_name": "最新の所有者氏名（甲区の最新順位番号の所有者）",
+  "owner_address": "最新の所有者住所",
+  "registration_date": "最新の登記受付日（YYYY-MM-DD形式）",
+  "registration_reason": "最新の登記原因（例：所有権移転・相続）",
+  "memo": "特記事項があれば（抵当権の有無など）"
+}`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    // フォームに反映
+    document.getElementById('tr_address').value = parsed.address || '';
+    document.getElementById('tr_chimoku').value = parsed.chimoku || '';
+    document.getElementById('tr_owner_name').value = parsed.owner_name || '';
+    document.getElementById('tr_owner_address').value = parsed.owner_address || '';
+    document.getElementById('tr_registration_date').value = parsed.registration_date || '';
+    document.getElementById('tr_registration_reason').value = parsed.registration_reason || '';
+    document.getElementById('tr_memo').value = parsed.memo || '';
+
+    // 県内/県外自動判定
+    const addr = parsed.owner_address || '';
+    const saitamaKeywords = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市','八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市','吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市','本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市','行田市','秩父市'];
+    if (addr) {
+      document.getElementById('tr_is_local').value = saitamaKeywords.some(k => addr.includes(k)) ? '県内' : '県外';
+    }
+
+    document.getElementById('tohonStatus').style.display = 'none';
+    document.getElementById('tohonResult').style.display = 'block';
+
+  } catch (e) {
+    document.getElementById('tohonStatus').style.display = 'none';
+    document.getElementById('tohonError').style.display = 'block';
+    document.getElementById('tohonError').textContent = '解析失敗：' + e.message;
+    document.getElementById('tohonUploadArea').style.display = 'block';
+  }
+}
+
+async function registerFromTohon() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  const chimoku = document.getElementById('tr_chimoku').value;
+  const memo = [
+    document.getElementById('tr_chimoku').value ? `[地目] ${chimoku}` : '',
+    document.getElementById('tr_memo').value
+  ].filter(Boolean).join('\n');
+
+  const property = {
+    address: document.getElementById('tr_address').value,
+    owner_name: document.getElementById('tr_owner_name').value,
+    owner_address: document.getElementById('tr_owner_address').value,
+    is_local: document.getElementById('tr_is_local').value,
+    registration_date: document.getElementById('tr_registration_date').value,
+    registration_reason: document.getElementById('tr_registration_reason').value,
+    stage: '謄本取得済',
+    tohon_obtained: new Date().toISOString().slice(0, 10),
+    memo: memo,
+    next_action_date: '',
+    next_action_note: '所有者情報確認済み。アプローチ方針を決定する。'
+  };
+
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'add', property })
+    });
+    showToast('✅ 登録しました。アプローチ戦略を分析中…', 'success');
+    setTimeout(loadAll, 500);
+
+    // 登録ボタンを無効化してアプローチパネル表示
+    document.querySelector('[onclick="registerFromTohon()"]').disabled = true;
+    document.getElementById('approachPanel').style.display = 'block';
+    document.getElementById('approachThinking').style.display = 'block';
+    document.getElementById('approachContent').style.display = 'none';
+
+    // スクロールしてパネルを見せる
+    setTimeout(() => {
+      document.getElementById('approachPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+
+    // Claude APIでアプローチ戦略を生成
+    await generateApproachProposal(property);
+
+  } catch (e) {
+    showToast('登録失敗：' + e.message, 'error');
+  }
+}
+
+// ─── アプローチ提案生成 ────────────────────────────
+
+let approachDmText = '';
+let approachNextActionDate = '';
+let approachNextActionNote = '';
+let registeredPropertyData = null;
+
+function toggleDmTemplate() {
+  const el = document.getElementById('dmTemplate');
+  const arrow = document.getElementById('dmArrow');
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function copyDmTemplate() {
+  if (!approachDmText) return;
+  navigator.clipboard.writeText(approachDmText).then(() => {
+    showToast('📋 DM文例をコピーしました', 'success');
+  }).catch(() => {
+    showToast('コピー失敗。手動で選択してください', 'error');
+  });
+}
+
+async function generateApproachProposal(property) {
+  registeredPropertyData = property;
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // 登記からの経過月数を計算
+  let monthsElapsed = null;
+  if (property.registration_date) {
+    const regDate = new Date(property.registration_date);
+    monthsElapsed = Math.floor((today - regDate) / (1000 * 60 * 60 * 24 * 30));
+  }
+
+  const channel = property.is_local === '県内' ? '飛び込み訪問（県内）' : 'DM・手紙（県外）';
+
+  const prompt = `あなたは不動産物上げ営業の専門家です。以下の情報をもとに、担当者が訪問・DM前に読む「状況分析カード」をJSONで出力してください。他のテキストは一切出力しないでください。
+
+【基本情報】
+- 物件住所: ${property.address}
+- 地目: ${property.chimoku || '不明'}
+- 所有者氏名: ${property.owner_name}
+- 所有者住所: ${property.owner_address}
+- 県内/県外: ${property.is_local || '未判定'} → アプローチ手段: ${channel}
+- 登記原因: ${property.registration_reason || '不明'}
+- 登記受付日: ${property.registration_date || '不明'}（経過約${monthsElapsed !== null ? monthsElapsed + 'ヶ月' : '不明'}）
+- 特記: ${property.memo || 'なし'}
+- 本日: ${todayStr}
+
+【出力形式】
+{
+  "priority": "高" | "中" | "低",
+  "priority_reason": "優先度の根拠（25文字以内・端的に）",
+
+  "situation_hypothesis": "この所有者の今の状況・心理状態の仮説（60〜80文字。登記原因・経過年数・居住地から推定。断定ではなく仮説として書く）",
+
+  "why_not_selling": ["売らない・放置している理由として考えられること（1つ15文字以内）を2〜4個"],
+
+  "hook": "最初の接触で刺さりそうな切り口・話題（50文字以内。県内なら玄関先の一言のヒント、県外ならDMの書き出し）",
+
+  "caution": "この所有者特有の注意点（あれば40文字以内、なければ空文字）",
+
+  "schedule": [
+    {
+      "step": 1,
+      "label": "最初のアクション（20文字以内）",
+      "offset_days": 本日から何日後が推奨か（整数）,
+      "note": "何をするか・なぜこのタイミングか（40文字以内）"
+    },
+    {
+      "step": 2,
+      "label": "2回目のアクション（20文字以内）",
+      "offset_days": 整数,
+      "note": "1回目で会えなかった場合の次の手（40文字以内）"
+    },
+    {
+      "step": 3,
+      "label": "3回目のアクション（20文字以内）",
+      "offset_days": 整数,
+      "note": "それでも反応なしの場合（40文字以内）"
+    }
+  ],
+
+  "first_action": {
+    "date": "YYYY-MM-DD（scheduleのstep1と同じ日）",
+    "note": "最初のアクション内容（30文字以内）"
+  },
+
+  "dm_template": "${property.is_local === '県外' ? '県外所有者へのDM全文。所有者名は「○○様」。読んだ人が思わず電話したくなる、押しつけがましくない文体で。査定の強要はしない。200〜300文字' : ''}"
+}
+
+重要な考え方：
+- 「会える確率を上げる」ことが最大の目的。会えれば営業担当が必ず決める前提
+- 相続直後（〜1年）は気持ちが動いている。売ることへの罪悪感にも配慮
+- 放置10年以上は「忘れてる or 手段を知らない」可能性大
+- 県内は飛び込み訪問。担当者が玄関先でアドリブを効かせるための「素材」を渡す感覚で書く
+- 県外はDMで電話・返信をもらうことが目標
+- よくある営業トークの焼き直しは不要。この物件・この所有者固有の仮説を書く`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(text);
+
+    renderApproachProposal(parsed, property);
+  } catch (e) {
+    document.getElementById('approachThinking').textContent = '⚠️ 提案生成に失敗しました';
+    console.error('Approach proposal error:', e);
+  }
+}
+
+function renderApproachProposal(data, property) {
+  document.getElementById('approachThinking').style.display = 'none';
+  document.getElementById('approachContent').style.display = 'block';
+
+  // 優先度バッジ
+  const priorityEl = document.getElementById('approachPriority');
+  const priorityColors = {
+    '高': { bg: '#fff5f5', border: '#e53e3e', color: '#c53030', icon: '🔴' },
+    '中': { bg: '#fffbeb', border: '#d97706', color: '#92400e', icon: '🟡' },
+    '低': { bg: '#f0fff4', border: '#38a169', color: '#276749', icon: '🟢' }
+  };
+  const pc = priorityColors[data.priority] || priorityColors['中'];
+  priorityEl.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:12px;background:${pc.bg};border:1.5px solid ${pc.border};color:${pc.color};`;
+  priorityEl.innerHTML = `${pc.icon} 優先度：${data.priority}　<span style="font-weight:400;font-size:11px;">${escHtml(data.priority_reason)}</span>`;
+
+  const cardsEl = document.getElementById('approachCards');
+  cardsEl.innerHTML = '';
+
+  // 状況仮説カード
+  if (data.situation_hypothesis) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#f0f4ff;border:1px solid #c7d2fe;border-left:4px solid #1a3a5c;border-radius:10px;padding:12px 14px;';
+    card.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:#1a3a5c;letter-spacing:0.05em;margin-bottom:6px;">この所有者の状況仮説</div>
+      <div style="font-size:13px;color:#2d3748;line-height:1.7;">${escHtml(data.situation_hypothesis)}</div>
+    `;
+    cardsEl.appendChild(card);
+  }
+
+  // 売らない理由
+  if (data.why_not_selling && data.why_not_selling.length > 0) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#fafafa;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;';
+    const tags = data.why_not_selling.map(r =>
+      `<span style="display:inline-block;background:#edf2f7;color:#4a5568;border-radius:6px;padding:3px 10px;font-size:12px;margin:3px 4px 3px 0;">${escHtml(r)}</span>`
+    ).join('');
+    card.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:#718096;letter-spacing:0.05em;margin-bottom:8px;">売らない・放置している理由の仮説</div>
+      <div>${tags}</div>
+    `;
+    cardsEl.appendChild(card);
+  }
+
+  // 刺さる切り口
+  if (data.hook) {
+    const isLocal = property.is_local === '県内';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:12px 14px;';
+    card.innerHTML = `
+      <div style="font-size:11px;font-weight:700;color:#276749;letter-spacing:0.05em;margin-bottom:6px;">${isLocal ? '🚪 玄関先のフック' : '✉️ DMの切り口'}</div>
+      <div style="font-size:13px;color:#22543d;line-height:1.7;font-style:italic;">"${escHtml(data.hook)}"</div>
+    `;
+    cardsEl.appendChild(card);
+  }
+
+  // 注意点
+  if (data.caution) {
+    const cautionDiv = document.createElement('div');
+    cautionDiv.style.cssText = 'background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;';
+    cautionDiv.innerHTML = `⚠️ ${escHtml(data.caution)}`;
+    cardsEl.appendChild(cautionDiv);
+  }
+
+  // DM文例
+  approachDmText = data.dm_template || '';
+  if (approachDmText) {
+    document.getElementById('dmTemplateText').textContent = approachDmText.replace('○○様', `${property.owner_name}様`);
+  }
+
+  // スケジュールカード（カレンダー選択付き）
+  const btnsEl = document.getElementById('approachActionBtns');
+  btnsEl.innerHTML = '';
+
+  if (data.schedule && data.schedule.length > 0) {
+    const today = new Date();
+
+    // スケジュールヘッダー
+    const schedHeader = document.createElement('div');
+    schedHeader.style.cssText = 'font-size:11px;font-weight:700;color:#718096;letter-spacing:0.05em;margin-bottom:8px;margin-top:4px;';
+    schedHeader.textContent = '推奨スケジュール（タップしてカレンダーで日付確認・変更）';
+    btnsEl.appendChild(schedHeader);
+
+    // approachSchedule に日付を保存
+    approachSchedule = data.schedule.map(s => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + (s.offset_days || 0));
+      return {
+        step: s.step,
+        label: s.label,
+        note: s.note,
+        date: d.toISOString().slice(0, 10)
+      };
+    });
+
+    // step 1 を next_action に使う
+    if (data.first_action) {
+      approachNextActionDate = approachSchedule[0]?.date || data.first_action.date || '';
+      approachNextActionNote = data.first_action.note || '';
+    }
+
+    approachSchedule.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.id = `schedRow_${i}`;
+      row.style.cssText = `background:${i === 0 ? '#f0f4ff' : '#fafafa'};border:1px solid ${i === 0 ? '#c7d2fe' : '#e2e8f0'};border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;`;
+      row.onclick = () => openApproachCalPicker(i);
+      row.innerHTML = `
+        <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:${i === 0 ? '#1a3a5c' : '#cbd5e0'};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${s.step}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:#2d3748;">${escHtml(s.label)}</div>
+          <div style="font-size:11px;color:#718096;margin-top:2px;">${escHtml(s.note)}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;">
+          <div id="schedDate_${i}" style="font-size:13px;font-weight:700;color:${i === 0 ? '#1a3a5c' : '#4a5568'};">${s.date}</div>
+          <div style="font-size:10px;color:#a0aec0;">📅 変更</div>
+        </div>
+      `;
+      btnsEl.appendChild(row);
+    });
+
+    // 確定ボタン
+    const confirmBtn = document.createElement('button');
+    confirmBtn.style.cssText = 'background:#2f855a;color:white;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:4px;';
+    confirmBtn.textContent = '✅ 最初のアクション日を設定して完了';
+    confirmBtn.onclick = applyApproachAction;
+    btnsEl.appendChild(confirmBtn);
+  }
+
+  // スキップ
+  const skipBtn = document.createElement('button');
+  skipBtn.style.cssText = 'background:none;border:none;color:#a0aec0;font-size:13px;padding:8px;cursor:pointer;width:100%;';
+  skipBtn.textContent = 'スキップして閉じる';
+  skipBtn.onclick = closeTohonModal;
+  btnsEl.appendChild(skipBtn);
+}
+
+// アプローチ用カレンダーピッカー
+let approachSchedule = [];
+let approachPickingIndex = -1;
+
+function openApproachCalPicker(index) {
+  approachPickingIndex = index;
+  const s = approachSchedule[index];
+  if (!s) return;
+
+  // ミニカレンダーを開く（既存のopenMiniCalを流用）
+  // 日付選択後にapproachCalDateSelected()を呼ぶようにする
+  const dateStr = s.date || todayStr();
+  const d = new Date(dateStr);
+  calYear = d.getFullYear();
+  calMonth = d.getMonth();
+
+  // カレンダーを開く前にコールバックを上書き
+  _approachCalMode = true;
+  openMiniCalForApproach(dateStr);
+}
+
+let _approachCalMode = false;
+
+function openMiniCalForApproach(selectedDate) {
+  _approachCalMode = true;
+  const d = new Date(selectedDate);
+  calYear = d.getFullYear();
+  calMonth = d.getMonth();
+  document.getElementById('miniCalModal').classList.add('show');
+  loadCalEvents().then(() => renderMiniCal());
+}
+
+function confirmCalDate() {
+  if (_approachCalMode && approachPickingIndex >= 0 && pendingCalDate) {
+    // アプローチスケジュールの日付を更新
+    approachSchedule[approachPickingIndex].date = pendingCalDate;
+    // step1なら next_action_date も更新
+    if (approachPickingIndex === 0) {
+      approachNextActionDate = pendingCalDate;
+    }
+    // 表示を更新
+    const dateEl = document.getElementById(`schedDate_${approachPickingIndex}`);
+    if (dateEl) dateEl.textContent = pendingCalDate;
+    _approachCalMode = false;
+    approachPickingIndex = -1;
+    closeCalDaySheet();
+    closeMiniCal();
+    return;
+  }
+  // 通常モード（詳細画面のカレンダー）
+  if (pendingCalDate) selectCalDate(pendingCalDate);
+  closeCalDaySheet();
+}
+
+async function applyApproachAction() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl || !approachNextActionDate) { closeTohonModal(); return; }
+
+  // 最新の物件IDを取得（最後に登録した物件）
+  try {
+    const res = await fetch(gasUrl + '?action=list');
+    const all = await res.json();
+    const props = Array.isArray(all) ? all : (all.properties || []);
+    // 住所でマッチング
+    const target = props.find(p => p.address === registeredPropertyData?.address);
+    if (target) {
+      await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'update',
+          id: target.id,
+          updates: {
+            next_action_date: approachNextActionDate,
+            next_action_note: approachNextActionNote
+          },
+          source: 'claude',
+          user: localStorage.getItem('sales_user') || '正範'
+        })
+      });
+      showToast('✅ 次アクションを設定しました', 'success');
+    }
+  } catch(e) {
+    showToast('設定に失敗しました', 'error');
+  }
+
+  closeTohonModal();
+  setTimeout(loadAll, 500);
 }
 
 // ─── Googleカレンダー ────────────────────────────
