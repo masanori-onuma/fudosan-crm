@@ -874,7 +874,7 @@ function _renderInner(){
         parts.push(p.name||'');
         (p.children||[]).forEach(c=>{
           parts.push(c.name||'');
-          parts.push(c.material||'');
+          parts.push(_materialStr(c.material));
         });
       });
       // 検索語側と同じ正規化（全半角スペース除去＋小文字化）
@@ -958,9 +958,9 @@ function _renderInner(){
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
-    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&!c.material));
+    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material)?false:true));
     // 📋：品番入力済みの未発注がある？（発注待ち）
-    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&!!c.material));
+    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material)));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
@@ -1307,7 +1307,7 @@ function _renderInner(){
             const _oMark='';
             childTd.innerHTML=`<div class="proc-inner" style="padding-left:56px">
               <div class="chk${child.done?' done':''}" onclick="toggleChildDone(${proc.id},${child.id})" style="width:16px;height:16px;font-size:10px;flex-shrink:0">${child.done?'✓':''}</div>
-              <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${child.material?' <span style="color:inherit;font-size:10px"> '+esc(child.material)+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
+              <span style="font-size:11px;color:${_cColor};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(child.name)}${child.area?' <span style="color:#aaa">'+esc(child.area)+'</span>':''}${_hasMaterial(child.material)?' <span style="color:inherit;font-size:10px"> '+esc(_materialStr(child.material))+'</span>':''}${child.note?' <span style="color:#aaa;font-size:10px">'+esc(child.note)+'</span>':''}</span>
               ${_oMark}
               <button class="btn btn-sm child-edit-btn" style="flex-shrink:0;font-size:10px;height:18px;padding:0 5px" onclick="openChildModal(${site.id},${proc.id},${child.id})">編集</button>
               </div>`;
@@ -1685,7 +1685,7 @@ function allChildrenDone(procId){
 // 発注管理対象の子項目を完了にしてよいかチェック。NGならアラートを出して false を返す
 function canCompleteChild(c){
   if(!c||c.ordered===undefined)return true; // 発注管理対象外はそのまま許可
-  const material=(c.material||'').trim();
+  const material=_materialStr(c.material);
   if(!material&&c.ordered!==true){
     alert('完了にするには材料名の入力と発注済みチェックが必要です。');
     return false;
@@ -2670,7 +2670,7 @@ function renderSumpouMode(){
     // 「未入力のみ」モード：品番未入力の子項目がある、またはordered子項目が1つもない物件
     if(mode==='incomplete'){
       targetSites=targetSites.filter(s=>{
-        const hasUnfilled=s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!c.material));
+        const hasUnfilled=s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&_hasMaterial(c.material)?false:true));
         const hasNoOrderedChildren=!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
         return hasUnfilled||hasNoOrderedChildren;
       });
@@ -2683,7 +2683,7 @@ function renderSumpouMode(){
   sites.forEach(s=>{
     if(s.archived)return;
     s.processes.forEach(p=>(p.children||[]).forEach(c=>{
-      if(c.ordered!==undefined&&!c.material)totalIncomplete++;
+      if(c.ordered!==undefined&&!_hasMaterial(c.material))totalIncomplete++;
     }));
   });
 
@@ -2737,7 +2737,7 @@ function renderSumpouMode(){
         // proc.extraMaterials（工程直属の品番行）を表示
         (proc.extraMaterials||[]).forEach(ex=>{
           const exParts=_splitMaterial(ex.material||'');
-          const exHasMat=!!ex.material;
+          const exHasMat=_hasMaterial(ex.material);
           html+=`<div class="smp-child${exHasMat?' done-input':''}" id="procextra_${ex.id}">
             <div class="name-row">
               <span class="name" style="color:#888;font-size:11px">追加品番</span>
@@ -2752,7 +2752,7 @@ function renderSumpouMode(){
           </div>`;
         });
         orderedChildren.forEach(child=>{
-          const hasMaterial=!!child.material;
+          const hasMaterial=_hasMaterial(child.material);
           const parts=_splitMaterial(child.material||'');
           const _baseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
           const _siblings=orderedChildren.filter(x=>{
@@ -2779,7 +2779,7 @@ function renderSumpouMode(){
           // extraMaterials（追加品番行）を表示
           (child.extraMaterials||[]).forEach(ex=>{
             const exParts=_splitMaterial(ex.material||'');
-            const exHasMat=!!ex.material;
+            const exHasMat=_hasMaterial(ex.material);
             const isSizeOnly=ex.sizeOnly===true;
             html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}" style="${isSizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
               <div class="name-row">
@@ -2854,6 +2854,9 @@ function renderSumpouMode(){
 // material文字列を「品番」「数量」に分割（最初のスペースで区切り）
 function _splitMaterial(m){
   if(!m)return {num:'',size:'',qty:''};
+  // オブジェクト形式（新形式）はそのまま返す
+  if(typeof m==='object')return {num:m.num||'',size:m.size||'',qty:m.qty||''};
+  // 文字列形式（旧形式）はスペース区切りで分解
   const parts=m.split(/[\s　]+/);
   if(parts.length===1)return {num:parts[0],size:'',qty:''};
   if(parts.length===2)return {num:parts[0],size:'',qty:parts[1]};
@@ -2861,10 +2864,22 @@ function _splitMaterial(m){
 }
 
 function _joinMaterial(num,size,qty){
-  const n=(num||'').trim();
-  const s=(size||'').trim();
-  const q=(qty||'').trim();
-  return [n,s,q].filter(Boolean).join(' ');
+  // オブジェクト形式で保存（新形式）
+  return {num:(num||'').trim(),size:(size||'').trim(),qty:(qty||'').trim()};
+}
+
+// materialが入力済みかどうかの判定
+function _hasMaterial(m){
+  if(!m)return false;
+  if(typeof m==='object')return !!(m.num||m.size||m.qty);
+  return !!m.trim();
+}
+
+// material表示用文字列（品番 サイズ 数量）
+function _materialStr(m){
+  if(!m)return '';
+  if(typeof m==='object')return [m.num,m.size,m.qty].filter(Boolean).join(' ');
+  return m;
 }
 
 function onSumpouSearch(v){
@@ -2900,12 +2915,12 @@ function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
   const row=document.getElementById('extra_'+extraId);if(!row)return;
-  const num=ex.sizeOnly?(c.material||'').split(/[\s　]/)[0]:(row.querySelector('.f-num')||{value:''}).value.trim();
+  const num=ex.sizeOnly?(_splitMaterial(c.material).num):(row.querySelector('.f-num')||{value:''}).value.trim();
   const size=(row.querySelector('.f-size')||{value:''}).value.trim();
   const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
   row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList&&el.classList.remove('dirty'));
   const newMat=_joinMaterial(num,size,qty);
-  if(ex.material===newMat)return;
+  if(JSON.stringify(ex.material)===JSON.stringify(newMat))return;
   ex.material=newMat;
   saveData();
 }
@@ -2920,7 +2935,7 @@ function smpUpdateMaterial(siteId,procId,childId){
   const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
   row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList.remove('dirty'));
   const newMat=_joinMaterial(num,size,qty);
-  if(c.material===newMat){_smpUpdatePendingState();return;}
+  if(JSON.stringify(c.material)===JSON.stringify(newMat)){_smpUpdatePendingState();return;}
   c.material=newMat;
   // 使用者・日付を自動記録（寸法入力時の足跡）
   const _u=getCurrentUser();
@@ -2930,7 +2945,7 @@ function smpUpdateMaterial(siteId,procId,childId){
   saveData();
   // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
   if(row){
-    if(newMat){
+    if(_hasMaterial(newMat)){
       row.classList.add('done-input');
       const nameRow=row.querySelector('.name-row');
       if(nameRow&&!nameRow.querySelector('.smp-tag-done')){
@@ -3118,7 +3133,7 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   if(!baseChild.extraMaterials)baseChild.extraMaterials=[];
   const isSizeOnly=(mode==='size');
   // サイズ追加の場合は親の品番を引き継いでmaterialに設定
-  const inheritNum=isSizeOnly?((baseChild.material||'').split(/[\s　]/)[0]||''):'';
+  const inheritNum=isSizeOnly?(_splitMaterial(baseChild.material).num):'';
   const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:isSizeOnly};
   baseChild.extraMaterials.push(newExtra);
   saveData();
@@ -3144,7 +3159,7 @@ function smpDelSibling(siteId,procId,childId,extraId,mode){
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   if(!c.extraMaterials)return;
   const ex=c.extraMaterials.find(x=>x.id===extraId);
-  const label=ex&&ex.material?`「${ex.material}」`:'この品番';
+  const label=ex&&_hasMaterial(ex.material)?`「${_materialStr(ex.material)}」`:'この品番';
   if(!confirm(label+'を削除しますか？'))return;
   c.extraMaterials=c.extraMaterials.filter(x=>x.id!==extraId);
   saveData();
@@ -3258,7 +3273,7 @@ function smpUpdateProcExtra(siteId,procId,extraId){
   const size=row.querySelector('.f-size');
   const qty=row.querySelector('.f-qty');
   ex.material=_joinMaterial(num?num.value:'',size?size.value:'',qty?qty.value:'');
-  row.classList.toggle('done-input',!!ex.material);
+  row.classList.toggle('done-input',_hasMaterial(ex.material));
   row.querySelectorAll('.dirty').forEach(el=>el.classList.remove('dirty'));
   saveData();
 }
@@ -3415,7 +3430,7 @@ function renderOrderListMode(){
           lastProcId=proc.id;
         }
         const isOrdered=(child.ordered===true);
-        const hasMaterial=!!child.material;
+        const hasMaterial=_hasMaterial(child.material);
         const parts=_splitMaterial(child.material||'');
         // ＋×ボタン用：同名兄弟の数を計算
         const _ordBaseName=(child.name||'').replace(/[①-⑨]+\s*$/,'').trim();
@@ -3470,7 +3485,7 @@ function renderOrderListMode(){
         (child.extraMaterials||[]).forEach(ex=>{
           const exParts=_splitMaterial(ex.material||'');
           const exIsOrdered=(ex.ordered===true);
-          const exHasMat=!!ex.material;
+          const exHasMat=_hasMaterial(ex.material);
           let exRowCls='smp-child';
           if(exIsOrdered)exRowCls+=' ord-done';
           else if(!exHasMat)exRowCls+=' ord-disabled';
@@ -3682,9 +3697,9 @@ function _onStockSiteChange(){
   const items=[];
   s.processes.forEach(p=>{
     (p.children||[]).forEach(c=>{
-      if(c.material){
+      if(_hasMaterial(c.material)){
         const parts=_splitMaterial(c.material);
-        items.push({procName:p.name,childName:c.name,code:parts.num,fullMaterial:c.material});
+        items.push({procName:p.name,childName:c.name,code:parts.num,fullMaterial:_materialStr(c.material)});
       }
     });
   });
@@ -3935,7 +3950,7 @@ function ordUpdateMaterial(siteId,procId,childId){
   const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
   row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList.remove('dirty'));
   const newMat=_joinMaterial(num,size,qty);
-  if(c.material===newMat)return;
+  if(JSON.stringify(c.material)===JSON.stringify(newMat))return;
   c.material=newMat;
   const _u=getCurrentUser();
   if(_u)c.materialBy=_u;
@@ -3953,7 +3968,7 @@ function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
-  if(checked&&!ex.material){
+  if(checked&&!_hasMaterial(ex.material)){
     alert('品番が未入力のため発注済みにできません。先に品番を入力してください。');
     renderOrderListMode();
     return;
@@ -3970,7 +3985,7 @@ function ordToggleOrdered(siteId,procId,childId,checked){
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   // 品番未入力で発注済みにしようとした場合は弾く
-  if(checked&&!c.material){
+  if(checked&&!_hasMaterial(c.material)){
     alert('品番が未入力のため発注済みにできません。先に品番を入力してください。');
     renderOrderListMode();
     return;
