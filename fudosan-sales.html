@@ -258,6 +258,8 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 .btn-migrate { background: #2f855a; color: white; }
 .btn-migrate:hover { background: #276749; }
 .btn-close { background: #e2e8f0; color: #4a5568; }
+.btn-delete { background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7 !important; }
+.btn-delete:hover { background: #fed7d7; }
 
 /* 設定モーダル */
 .config-modal {
@@ -1069,6 +1071,8 @@ function openDetail(id) {
       ${(p.stage !== '顧客化（CRM移管済）' && !p.crm_migrated) 
         ? '<button class="btn-migrate" onclick="migrateToCrm()">→ CRMへ</button>'
         : ''}
+      <button class="btn-delete" onclick="deleteProperty()">🗑️</button>
+    </div>
     </div>
 
     <div class="chat-section">
@@ -1340,6 +1344,32 @@ function showToast(msg, type) {
 
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function deleteProperty() {
+  const p = allProperties.find(x => x.id === currentDetailId);
+  const addr = p ? p.address : currentDetailId;
+  if (!confirm(`「${addr}」を削除します。\nこの操作は取り消せません。よろしいですか？`)) return;
+
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'delete',
+        id: currentDetailId,
+        user: localStorage.getItem('sales_user') || '正範'
+      })
+    });
+    showToast('削除しました', 'success');
+    closeDetail();
+    setTimeout(loadAll, 500);
+  } catch (e) {
+    showToast('削除失敗：' + e.message, 'error');
+  }
 }
 
 // ─── タブ切り替え ────────────────────────────────
