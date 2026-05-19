@@ -83,6 +83,13 @@ header a:hover{color:#185FA5}
 .ord-skip-badge-reason{font-size:11px;color:#7A4500;line-height:1.5}
 .ord-skip-badge-edit{font-size:9px;color:#ccc;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
 .smp-child.ord-skipped{background:#fffaf3;border-left-color:#E87C00}
+/* 寸法入力：子項目左インジケーター */
+.smp-child.has-input{border-left-color:#1D9E75}
+.smp-child.no-input{border-left-color:#E74C3C}
+/* 寸法入力：追加品番・サイズ追加行のインデント */
+.extra-indent{padding:6px 12px 6px 20px;border-bottom:1px solid #f0f0f0;border-left:3px solid #c8dff0;background:#fafcff}
+.extra-indent .extra-lbl{font-size:10px;color:#888;margin-bottom:4px}
+.extra-num-fixed{flex:0 0 110px;height:30px;display:flex;align-items:center;font-size:12px;color:#185FA5;font-family:monospace;padding:0 8px;background:#EBF3FB;border:1px solid #C5DCEF;border-radius:5px;overflow:hidden;white-space:nowrap}
 /* 在庫使用済みバッジ */
 .ord-used-badge{display:flex;align-items:center;gap:7px;background:#e8f7f1;border:1px solid #a0ddc0;border-radius:7px;padding:7px 10px;margin:6px 0}
 .ord-used-badge-icon{width:22px;height:22px;background:#1D9E75;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0}
@@ -2826,7 +2833,15 @@ function renderSumpouMode(){
       site.processes.forEach(proc=>{
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
         if(!orderedChildren.length&&!(proc.extraMaterials&&proc.extraMaterials.length))return;
-        html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+        const _smpProcColor=proc.color||'#7cb9ff';
+        html+=`<div class="smp-proc-head">
+          <div class="smp-proc-head-inner">
+            <div class="smp-proc-head-accent" style="background:${_smpProcColor}"></div>
+            <div class="smp-proc-head-body" style="background:${_smpProcColor}22">
+              <span class="smp-proc-head-name">${esc(proc.name||'(工程名なし)')}</span>
+            </div>
+          </div>
+        </div>`;
         // proc.extraMaterials（工程直属の品番行）を表示
         (proc.extraMaterials||[]).forEach(ex=>{
           const exParts=_splitMaterial(ex.material||'');
@@ -2853,7 +2868,7 @@ function renderSumpouMode(){
             return n===_baseName;
           });
           const _canDelete=_siblings.length>1;
-          html+=`<div class="smp-child${hasMaterial?' done-input':''}" id="smpchild_${child.id}">
+          html+=`<div class="smp-child${hasMaterial?' done-input has-input':' no-input'}" id="smpchild_${child.id}">
             <div class="name-row">
               <span class="name">${esc(child.name||'')}</span>
               ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
@@ -2874,13 +2889,10 @@ function renderSumpouMode(){
             const exParts=_splitMaterial(ex.material||'');
             const exHasMat=_hasMaterial(ex.material);
             const isSizeOnly=ex.sizeOnly===true;
-            html+=`<div class="smp-child${exHasMat?' done-input':''}" id="extra_${ex.id}" style="${isSizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
-              <div class="name-row">
-                <span class="name" style="color:#888;font-size:11px">${isSizeOnly?'サイズ追加':'追加品番'}</span>
-                ${exHasMat?'<span class="smp-tag-done">✓入力済</span>':''}
-              </div>
+            html+=`<div class="extra-indent${exHasMat?' has-input':''}" id="extra_${ex.id}">
+              <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
-                ${isSizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
