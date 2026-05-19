@@ -3020,74 +3020,101 @@ function _renderCalcResult(siteId, procId, baseChildId) {
   if(!baseChild) return '';
 
   const baseParts = _splitMaterial(baseChild.material);
+  if(!baseParts.num) return ''; // 品番なしは表示なし
 
   // 品番ごとにエントリをグループ化
-  // Map<品番(正規化), {num(表示用), entries:[{heightCm,qty}], extraId(リピートキー用)}>
+  // Map<品番(正規化), {num:表示用, isCF:bool, items:[{size,qty,heightCm}]}>
   const groups = new Map();
 
-  const _addToGroup = (numRaw, sizeStr, qtyStr, keyId) => {
+  const _addToGroup = (numRaw, sizeStr, qtyStr, sizeOnly) => {
     if(!numRaw) return;
-    const isCF = /^cf/i.test(numRaw.trim());
-    if(isCF) return;
     const normNum = numRaw.trim().toUpperCase();
-    const h = _parseHeightCm(sizeStr);
-    const q = parseInt(qtyStr) || 0;
-    if(!h || !q) return;
+    const isCF = /^cf/i.test(normNum);
+    const size = (sizeStr||'').trim();
+    const qty = (qtyStr||'').trim();
+    const heightCm = _parseHeightCm(size);
     if(!groups.has(normNum)) {
-      groups.set(normNum, {num: numRaw.trim(), entries: [], keyId});
+      groups.set(normNum, {num: numRaw.trim(), isCF, items: []});
     }
-    groups.get(normNum).entries.push({heightCm: h, qty: q});
+    if(size || qty) {
+      groups.get(normNum).items.push({size, qty, heightCm});
+    }
   };
 
   // メイン行
-  _addToGroup(baseParts.num, baseParts.size, baseParts.qty, 'base');
+  _addToGroup(baseParts.num, baseParts.size, baseParts.qty, false);
 
-  // extraMaterials：sizeOnly（サイズ追加）は親品番に追加、品番追加は別グループ
+  // extraMaterials
   (baseChild.extraMaterials||[]).forEach(ex => {
     const ep = _splitMaterial(ex.material);
     if(ex.sizeOnly) {
-      // サイズ追加：親品番のグループに追加
-      const normBase = baseParts.num ? baseParts.num.trim().toUpperCase() : null;
-      if(normBase && groups.has(normBase)) {
-        const h = _parseHeightCm(ep.size);
-        const q = parseInt(ep.qty) || 0;
-        if(h && q) groups.get(normBase).entries.push({heightCm: h, qty: q});
+      // サイズ追加：親品番グループに追加
+      const normBase = baseParts.num.trim().toUpperCase();
+      if(groups.has(normBase) && (ep.size || ep.qty)) {
+        groups.get(normBase).items.push({
+          size: ep.size, qty: ep.qty, heightCm: _parseHeightCm(ep.size)
+        });
       }
     } else {
-      // 品番追加：別品番として別グループ
-      _addToGroup(ep.num, ep.size, ep.qty, 'ex_'+ex.id);
+      // 品番追加：別グループ
+      _addToGroup(ep.num, ep.size, ep.qty, false);
     }
   });
 
   if(groups.size === 0) return '';
 
-  // 各品番グループのボックスを生成
   let html = '';
   groups.forEach((group, normNum) => {
-    if(group.entries.length === 0) return;
-    const repeatKey = 'repeat_' + siteId + '_' + procId + '_' + baseChildId + '_' + normNum;
-    const repeatCm = parseInt(localStorage.getItem(repeatKey)) || 0;
-    const result = _calcCrossTotal(group.entries, repeatCm, 100);
-    const totalM = Math.ceil(result.grandTotal / 100);
-    const detailHtml = result.details.map(d => {
-      const useCmStr = repeatCm && repeatCm > 0
-        ? `⌈${d.heightCm}÷${repeatCm}⌉×${repeatCm}=${d.useCm}cm`
-        : `${d.heightCm}cm`;
-      return `${useCmStr} × ${d.qty}本`;
-    }).join('、');
+    if(group.items.length === 0) return;
     const escapedNum = normNum.replace(/'/g,"\\'");
-    html += `<div class="calc-result-box">
-      <div class="cr-title">📐 ${esc(group.num)}</div>
-      <div class="cr-total">${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span></div>
-      <div class="cr-detail">${detailHtml}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-        <label style="font-size:10px;color:#888">リピート</label>
-        <input type="number" value="${repeatCm||''}" placeholder="なし(cm)" min="0"
-          style="width:70px;height:24px;font-size:11px;border:1px solid #ccc;border-radius:4px;padding:0 5px;text-align:center"
-          onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
-        <span style="font-size:10px;color:#aaa">cm (0=なし)</span>
-      </div>
-    </div>`;
+
+    if(group.isCF) {
+      // CFはサイズ一覧のみ（計算なし）
+      const itemsHtml = group.items.map(it =>
+        `${it.size||'?'}${it.qty?' × '+it.qty+'本':''}`
+      ).join('　');
+      html += `<div class="calc-result-box">
+        <div class="cr-title">${esc(group.num)}</div>
+        <div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>
+      </div>`;
+    } else {
+      // クロス等：合計計算あり
+      const repeatKey = 'repeat_' + siteId + '_' + procId + '_' + baseChildId + '_' + normNum;
+      const repeatCm = parseInt(localStorage.getItem(repeatKey)) || 0;
+      const entries = group.items.filter(it => it.heightCm && parseInt(it.qty));
+      if(entries.length === 0) {
+        // サイズが高さとして解釈できない場合はCF同様に一覧表示
+        const itemsHtml = group.items.map(it =>
+          `${it.size||'?'}${it.qty?' × '+it.qty+'本':''}`
+        ).join('　');
+        html += `<div class="calc-result-box">
+          <div class="cr-title">${esc(group.num)}</div>
+          <div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>
+        </div>`;
+        return;
+      }
+      const calcEntries = entries.map(it => ({heightCm: it.heightCm, qty: parseInt(it.qty)}));
+      const result = _calcCrossTotal(calcEntries, repeatCm, 100);
+      const totalM = Math.ceil(result.grandTotal / 100);
+      const detailHtml = result.details.map(d => {
+        const useCmStr = repeatCm && repeatCm > 0
+          ? `⌈${d.heightCm}÷${repeatCm}⌉×${repeatCm}=${d.useCm}cm`
+          : `${d.heightCm}cm`;
+        return `${useCmStr} × ${d.qty}本`;
+      }).join('、');
+      html += `<div class="calc-result-box">
+        <div class="cr-title">📐 ${esc(group.num)}</div>
+        <div class="cr-total">${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span></div>
+        <div class="cr-detail">${detailHtml}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+          <label style="font-size:10px;color:#888">リピート</label>
+          <input type="number" value="${repeatCm||''}" placeholder="なし(cm)" min="0"
+            style="width:70px;height:24px;font-size:11px;border:1px solid #ccc;border-radius:4px;padding:0 5px;text-align:center"
+            onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
+          <span style="font-size:10px;color:#aaa">cm (0=なし)</span>
+        </div>
+      </div>`;
+    }
   });
   return html;
 }
