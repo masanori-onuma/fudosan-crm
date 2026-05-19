@@ -471,7 +471,7 @@ const SP_CODE_MAP_REV=Object.fromEntries(Object.entries(SP_CODE_MAP).map(([o,n])
 
 // 品番の新旧対応を返す {matched: stocks[], note: string}
 function _stockMatchWithAlias(codeNorm){
-  const direct=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　]+/g,'')===codeNorm);
+  const direct=stocks.filter(st=>(st.code||'').toLowerCase().replace(/[\s　\-]+/g,'')===codeNorm);
   const upper=codeNorm.toUpperCase();
   let aliasCode=null, aliasLabel=null;
   if(SP_CODE_MAP[upper]){
@@ -2971,7 +2971,7 @@ function _parseHeightCm(sizeStr) {
   if(!sizeStr) return null;
   const s = String(sizeStr).trim();
   const mMatch = s.match(/^(\d+\.?\d*)\s*m$/i);
-  if(mMatch) return Math.round(parseFloat(mMatch[1]) * 100);
+  if(mMatch) { const cm2 = Math.round(parseFloat(mMatch[1]) * 100); return cm2 >= 1000 ? null : cm2; } // 10m以上スキップ
   const cmMatch = s.match(/^(\d+\.?\d*)\s*cm$/i);
   if(cmMatch) return Math.round(parseFloat(cmMatch[1]));
   const mmMatch = s.match(/^(\d+\.?\d*)\s*mm$/i);
@@ -2980,7 +2980,8 @@ function _parseHeightCm(sizeStr) {
   const numMatch = s.match(/^(\d+\.?\d*)$/);
   if(numMatch) {
     const v = parseFloat(numMatch[1]);
-    return v <= 10 ? Math.round(v * 100) : Math.round(v);
+    const cm = v <= 10 ? Math.round(v * 100) : Math.round(v);
+    return cm >= 1000 ? null : cm; // 10m以上はロール長とみなしてスキップ
   }
   return null;
 }
@@ -3736,7 +3737,7 @@ function renderOrderListMode(){
         // 同品番の在庫があるか確認（未発注かつ品番ありの行のみ）
         let stockAlertHtml='';
         if(!isOrdered&&hasMaterial){
-          const codeNorm=parts.num.toLowerCase().replace(/[\s　]+/g,'');
+          const codeNorm=parts.num.toLowerCase().replace(/[\s　\-]+/g,'');
           if(codeNorm){
             const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
             const matched=[...direct,...alias];
@@ -3811,7 +3812,7 @@ function renderOrderListMode(){
           // 在庫チェック
           let exStockHtml='';
           if(!exIsOrdered&&exHasMat){
-            const codeNorm=exParts.num.toLowerCase().replace(/[\s　]+/g,'');
+            const codeNorm=exParts.num.toLowerCase().replace(/[\s　\-]+/g,'');
             if(codeNorm){
               const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
               const matched=[...direct,...alias];
