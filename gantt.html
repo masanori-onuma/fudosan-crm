@@ -148,6 +148,11 @@ header a:hover{color:#185FA5}
 .smp-field-labels .l-qty{flex:0 0 68px;text-align:center}
 .smp-field-labels .l-btn{flex:0 0 28px}
 /* クロス合計計算 */
+.ord-summary-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:4px 0 2px}
+.ord-summary-box .osb-child-name{font-size:10px;color:#185FA5;margin-bottom:3px}
+.ord-summary-box .osb-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ord-summary-box .osb-main span{font-size:16px;font-weight:700;color:#0C447C}
+.ord-summary-box .osb-main .osb-unit{font-size:11px;font-weight:400;color:#185FA5}
 .calc-result-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:6px 0;font-size:12px;color:#0C447C}
 .calc-result-box .cr-title{font-size:10px;font-weight:700;color:#185FA5;margin-bottom:4px;letter-spacing:0.5px}
 .calc-result-box .cr-total{font-size:16px;font-weight:700;color:#0C447C;margin-bottom:2px}
@@ -3810,6 +3815,31 @@ function renderOrderListMode(){
               </div>
             </div>
           </div>`;
+          // サマリーボックス：品番入力済み・未発注の子項目をまとめて表示
+          const _summaryChildren=(proc.children||[]).filter(c=>c.ordered!==true&&_hasMaterial(c.material));
+          if(_summaryChildren.length>0){
+            html+=_summaryChildren.map(c=>{
+              const p=_splitMaterial(c.material||'');
+              const numTxt=p.num?`<span>${esc(p.num)}</span>`:'';
+              const sizeTxt=p.size?`<span>${esc(p.size)}</span>`:'';
+              const qtyTxt=p.qty?`<span>${esc(p.qty)}<span class="osb-unit"></span></span>`:'';
+              // extraMaterialsも追記
+              const extraHtml=(c.extraMaterials||[]).filter(ex=>ex.ordered!==true&&_hasMaterial(ex.material)).map(ex=>{
+                const ep=_splitMaterial(ex.material||'');
+                const en=ep.num?`<span>${esc(ep.num)}</span>`:'';
+                const es=ep.size?`<span>${esc(ep.size)}</span>`:'';
+                const eq=ep.qty?`<span>${esc(ep.qty)}<span class="osb-unit"></span></span>`:'';
+                return `<div class="ord-summary-box" style="margin-top:2px">
+                  <div class="osb-child-name">${esc(c.name||'')} (追加品番)</div>
+                  <div class="osb-main">${en}${es}${eq}</div>
+                </div>`;
+              }).join('');
+              return `<div class="ord-summary-box">
+                <div class="osb-child-name">${esc(c.name||'')}</div>
+                <div class="osb-main">${numTxt}${sizeTxt}${qtyTxt}</div>
+              </div>${extraHtml}`;
+            }).join('');
+          }
           lastProcId=proc.id;
         }
         const isOrdered=(child.ordered===true);
