@@ -3012,7 +3012,7 @@ function _calcCrossTotal(entries, repeatCm, lossCm) {
 }
 
 // 発注一覧で同一品番グループの計算結果HTMLを生成
-function _renderCalcResult(siteId, procId, baseChildId) {
+function _renderCalcResult(siteId, procId, baseChildId, procName) {
   const site = sites.find(s => s.id === siteId);
   if(!site) return '';
   const proc = site.processes.find(p => p.id === procId);
@@ -3030,12 +3030,18 @@ function _renderCalcResult(siteId, procId, baseChildId) {
   const _addToGroup = (numRaw, sizeStr, qtyStr, sizeOnly) => {
     if(!numRaw) return;
     const normNum = numRaw.trim().toUpperCase();
-    const isCF = /^cf/i.test(normNum);
+    // CF：表示あり・計算なし
+    const isCF = /^CF/.test(normNum);
+    // クロス工程かどうかは工程名で判断
+    const isCross = !isCF && /クロス/.test(procName||'');
+    // 日本語等のメモ書きはスキップ（英数字始まりのみボックス表示）
+    if(!/^[A-Z0-9]/.test(normNum)) return;
     const size = (sizeStr||'').trim();
     const qty = (qtyStr||'').trim();
     const heightCm = _parseHeightCm(size);
     if(!groups.has(normNum)) {
-      groups.set(normNum, {num: numRaw.trim(), isCF, items: []});
+      // CF以外でクロス系でもない品番はボックス非表示
+      groups.set(normNum, {num: numRaw.trim(), isCF, isCross, items: []});
     }
     if(size || qty) {
       groups.get(normNum).items.push({size, qty, heightCm});
@@ -3078,8 +3084,7 @@ function _renderCalcResult(siteId, procId, baseChildId) {
         <div class="cr-title">${esc(group.num)}</div>
         <div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>
       </div>`;
-    } else {
-      // クロス等：合計計算あり
+    } else if(group.isCross) {
       const repeatKey = 'repeat_' + siteId + '_' + procId + '_' + baseChildId + '_' + normNum;
       const repeatCm = parseInt(localStorage.getItem(repeatKey)) || 0;
       const entries = group.items.filter(it => it.heightCm && parseInt(it.qty));
@@ -3114,6 +3119,15 @@ function _renderCalcResult(siteId, procId, baseChildId) {
             onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
           <span style="font-size:10px;color:#aaa">cm (0=なし)</span>
         </div>
+      </div>`;
+    } else {
+      // その他工程：品番＋サイズ一覧のみ表示（計算なし）
+      const itemsHtml = group.items.map(it =>
+        `${it.size||''}${it.qty?' × '+it.qty+'本':''}`
+      ).filter(Boolean).join('　');
+      html += `<div class="calc-result-box">
+        <div class="cr-title">${esc(group.num)}</div>
+        ${itemsHtml?`<div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>`:''}
       </div>`;
     }
   });
@@ -3770,7 +3784,7 @@ function renderOrderListMode(){
           }
         }
         // クロス計算結果（発注済みでない場合のみ）
-        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id) : '';
+        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id, proc.name) : '';
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
