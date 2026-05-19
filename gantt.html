@@ -3012,7 +3012,7 @@ function _calcCrossTotal(entries, repeatCm, lossCm) {
 }
 
 // 発注一覧で同一品番グループの計算結果HTMLを生成
-function _renderCalcResult(siteId, procId, baseChildId, procName) {
+function _renderCalcResult(siteId, procId, baseChildId, procName, childName) {
   const site = sites.find(s => s.id === siteId);
   if(!site) return '';
   const proc = site.processes.find(p => p.id === procId);
@@ -3033,7 +3033,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName) {
     // CF：表示あり・計算なし
     const isCF = /^CF/.test(normNum);
     // クロス工程かどうかは工程名で判断
-    const isCross = !isCF && /クロス/.test(procName||'');
+    const isCross = !isCF && (/クロス/.test(procName||'')||/クロス/.test(childName||''));
     // 日本語等のメモ書きはスキップ（英数字始まりのみボックス表示）
     if(!/^[A-Z0-9]/.test(normNum)) return;
     const size = (sizeStr||'').trim();
@@ -3784,7 +3784,7 @@ function renderOrderListMode(){
           }
         }
         // クロス計算結果（発注済みでない場合のみ）
-        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id, proc.name) : '';
+        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id, proc.name, child.name) : '';
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
