@@ -1042,7 +1042,7 @@ function _renderInner(){
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
-    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material)?false:true));
+    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&!_hasMaterial(c.material)));
     // 📋：品番入力済みの未発注がある？（発注待ち）
     const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material)));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
@@ -2754,7 +2754,7 @@ function renderSumpouMode(){
     // 「未入力のみ」モード：品番未入力の子項目がある、またはordered子項目が1つもない物件
     if(mode==='incomplete'){
       targetSites=targetSites.filter(s=>{
-        const hasUnfilled=s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&_hasMaterial(c.material)?false:true));
+        const hasUnfilled=s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined&&!_hasMaterial(c.material)));
         const hasNoOrderedChildren=!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
         return hasUnfilled||hasNoOrderedChildren;
       });
