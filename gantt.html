@@ -46,7 +46,64 @@ header a:hover{color:#185FA5}
 .smp-site-name{font-size:14px;color:#185FA5;font-weight:500}
 .smp-site-meta{font-size:11px;color:#555;line-height:1.6}
 .smp-site-meta a{color:#185FA5;text-decoration:none}
-.smp-proc-head{padding:6px 12px;background:#f5f5f3;font-size:11px;color:#666;border-bottom:1px solid #eee;font-weight:500}
+.smp-proc-head{padding:0;background:#f5f5f3;font-size:11px;color:#666;border-bottom:1px solid #eee;font-weight:500}
+.smp-proc-head-inner{display:flex;align-items:stretch;min-height:34px}
+.smp-proc-head-accent{width:5px;flex-shrink:0;border-radius:0}
+.smp-proc-head-body{flex:1;padding:7px 10px;display:flex;align-items:center;gap:7px}
+.smp-proc-head-name{font-size:12px;font-weight:700;color:#1D3A5C}
+.smp-proc-head-sub{font-size:10px;color:#888;font-weight:400}
+.smp-proc-head-right{display:flex;align-items:center;gap:5px;margin-left:auto;padding-right:8px}
+.smp-proc-badge{font-size:9px;padding:2px 6px;border-radius:5px;font-weight:600;white-space:nowrap}
+.smp-proc-badge-done{background:#e1f5ee;color:#0F6E56}
+.smp-proc-badge-pending{background:#fde8e8;color:#A02020}
+.smp-proc-badge-partial{background:#fff3cd;color:#7A5800}
+/* 担当者ドロップダウン */
+.assignee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.assignee-select{height:24px;font-size:10px;border:1px solid #ddd;border-radius:5px;background:#fff;color:#444;padding:0 4px;cursor:pointer}
+.assignee-changed{font-size:9px;color:#E87C00;background:#fff5e6;border-radius:4px;padding:1px 4px}
+/* 子項目左インジケーター */
+.smp-child{border-left:3px solid transparent}
+.smp-child.ord-done{border-left-color:#1D9E75}
+.smp-child.ord-pending{border-left-color:#E74C3C}
+.smp-child.ord-disabled{border-left-color:#ddd}
+/* 発注一覧 物件ブロック間の余白 */
+.smp-block{margin-bottom:12px}
+/* 在庫スキップ */
+.ord-skip-reason-wrap{background:#fff8f0;border:1px solid #ffd8a0;border-radius:7px;padding:9px 11px;margin:6px 0}
+.ord-skip-reason-wrap label{font-size:10px;font-weight:700;color:#b06000;display:block;margin-bottom:5px}
+.ord-skip-reason-wrap textarea{width:100%;border:1px solid #ffd8a0;border-radius:5px;padding:6px 8px;font-size:12px;resize:none;height:50px;font-family:inherit;background:#fff}
+.ord-skip-reason-btns{display:flex;gap:6px;margin-top:5px;justify-content:flex-end}
+.ord-skip-reason-btns button{height:28px;padding:0 14px;font-size:11px;border-radius:5px;cursor:pointer}
+.btn-skip-cancel{background:#fff;color:#888;border:1px solid #ddd}
+.btn-skip-confirm{background:#E87C00;color:#fff;border:none;font-weight:700}
+.ord-skip-badge{display:flex;align-items:flex-start;gap:7px;background:#fff5e6;border:1px solid #ffd8a0;border-radius:7px;padding:8px 10px;margin:6px 0}
+.ord-skip-badge-icon{width:22px;height:22px;background:#E87C00;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0;margin-top:1px}
+.ord-skip-badge-body{flex:1}
+.ord-skip-badge-lbl{font-size:9px;font-weight:700;color:#E87C00;letter-spacing:0.5px;margin-bottom:2px}
+.ord-skip-badge-reason{font-size:11px;color:#7A4500;line-height:1.5}
+.ord-skip-badge-edit{font-size:9px;color:#ccc;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
+.smp-child.ord-skipped{background:#fffaf3;border-left-color:#E87C00}
+/* 在庫使用済みバッジ */
+.ord-used-badge{display:flex;align-items:center;gap:7px;background:#e8f7f1;border:1px solid #a0ddc0;border-radius:7px;padding:7px 10px;margin:6px 0}
+.ord-used-badge-icon{width:22px;height:22px;background:#1D9E75;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0}
+.ord-used-badge-text{font-size:11px;color:#156B4E;font-weight:600}
+/* 在庫アラート改善 */
+.ord-stock-alert{background:#fffde7;border:1px solid #ffd54f;border-radius:7px;padding:9px 11px;margin:6px 0}
+.ord-stock-alert-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.ord-stock-alert-icon{width:24px;height:24px;background:#F9A825;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.ord-stock-alert-title{font-size:12px;font-weight:700;color:#7A5800}
+.ord-stock-detail{background:#fff;border:1px solid #ffe082;border-radius:6px;padding:6px 9px;margin-bottom:7px}
+.ord-stock-detail .code{font-family:monospace;font-weight:700;color:#0C447C;font-size:13px}
+.ord-stock-detail .origin{font-size:10px;color:#aaa;margin-top:1px}
+.ord-stock-use-row{display:flex;align-items:center;gap:7px;padding-top:7px;border-top:1px dashed #ffd54f}
+.ord-stock-use-row .sul{font-size:10px;color:#7A5800;font-weight:700;white-space:nowrap}
+.ord-stock-use-row .suq{width:52px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7;font-weight:700}
+.ord-stock-use-row .sut{font-size:10px;color:#bbb}
+.ord-stock-use{height:30px;padding:0 12px;font-size:11px;font-weight:700;background:#1D9E75;color:#fff;border:none;border-radius:5px;cursor:pointer;margin-left:auto}
+.ord-stock-skip-row{display:flex;justify-content:flex-end;margin-top:5px}
+.ord-stock-skip-link{font-size:10px;color:#bbb;background:none;border:none;cursor:pointer;text-decoration:underline}
+.ord-check-wrap.disabled-by-stock input{opacity:0.2;cursor:not-allowed}
+.ord-check-wrap.disabled-by-stock .lbl-pending{color:#ccc}
 .smp-child{padding:8px 12px;border-bottom:1px solid #eee}
 .smp-child.done-input{background:#f9fff9}
 .smp-child .name-row{display:flex;align-items:center;gap:5px;margin-bottom:4px}
@@ -422,6 +479,33 @@ let nextSid=100,nextPid=1000,nextCid=10000;
 const _isSP=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 window._isSP=_isSP;
 let masters={clients:[],persons:[],procNames:[],users:[]};
+// 担当者デフォルト設定（工程名→担当者）
+const ASSIGNEE_DEFAULTS = {
+  '内装工事': 'okawa',
+  '大工工事': 'nishiya',
+};
+const ASSIGNEE_DEFAULT_OTHER = 'self';
+const ASSIGNEE_COLORS = {
+  okawa: '#1ABC9C',
+  nishiya: '#795548',
+  self: '#4A90D9',
+};
+const ASSIGNEE_NAMES = {
+  okawa: '大川',
+  nishiya: '西谷',
+  self: '自分',
+};
+function getAssignee(procName, siteId, procId) {
+  const key = 'assignee_' + siteId + '_' + procId;
+  const stored = localStorage.getItem(key);
+  if (stored) return stored;
+  return ASSIGNEE_DEFAULTS[procName] || ASSIGNEE_DEFAULT_OTHER;
+}
+function setAssignee(siteId, procId, value) {
+  const key = 'assignee_' + siteId + '_' + procId;
+  localStorage.setItem(key, value);
+  renderOrderListMode();
+}
 const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
@@ -3426,7 +3510,38 @@ function renderOrderListMode(){
       let lastProcId=null;
       visibleChildren.forEach(({proc,child})=>{
         if(proc.id!==lastProcId){
-          html+=`<div class="smp-proc-head">${esc(proc.name||'(工程名なし)')}</div>`;
+          // 発注件数カウント
+          const _procChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
+          const _procDone=_procChildren.filter(c=>c.ordered===true).length;
+          const _procTotal=_procChildren.length;
+          let _procBadgeCls='smp-proc-badge-pending';
+          let _procBadgeTxt=`未発注${_procTotal-_procDone}件`;
+          if(_procDone===_procTotal){_procBadgeCls='smp-proc-badge-done';_procBadgeTxt='✓ 全発注済';}
+          else if(_procDone>0){_procBadgeCls='smp-proc-badge-partial';_procBadgeTxt=`${_procDone}/${_procTotal} 発注済`;}
+          // 担当者
+          const _assignee=getAssignee(proc.name,site.id,proc.id);
+          const _assigneeColor=ASSIGNEE_COLORS[_assignee]||'#888';
+          const _assigneeName=ASSIGNEE_NAMES[_assignee]||_assignee;
+          const _isDefault=_assignee===(ASSIGNEE_DEFAULTS[proc.name]||ASSIGNEE_DEFAULT_OTHER);
+          const _procColor=proc.color||'#7cb9ff';
+          html+=`<div class="smp-proc-head">
+            <div class="smp-proc-head-inner">
+              <div class="smp-proc-head-accent" style="background:${_procColor}"></div>
+              <div class="smp-proc-head-body" style="background:${_procColor}22">
+                <span class="smp-proc-head-name" style="color:${_procColor.toLowerCase()==='#ffffff'||_procColor.toLowerCase()==='#fff'?'#333':'#1D3A5C'}">${esc(proc.name||'(工程名なし)')}</span>
+                <span class="smp-proc-badge ${_procBadgeCls}">${_procBadgeTxt}</span>
+              </div>
+              <div class="smp-proc-head-right">
+                <span class="assignee-dot" style="background:${_assigneeColor}"></span>
+                <select class="assignee-select" onchange="setAssignee(${site.id},${proc.id},this.value)">
+                  <option value="okawa" ${_assignee==='okawa'?'selected':''}>大川</option>
+                  <option value="nishiya" ${_assignee==='nishiya'?'selected':''}>西谷</option>
+                  <option value="self" ${_assignee==='self'?'selected':''}>自分</option>
+                </select>
+                ${!_isDefault?'<span class="assignee-changed">変更済</span>':''}
+              </div>
+            </div>
+          </div>`;
           lastProcId=proc.id;
         }
         const isOrdered=(child.ordered===true);
@@ -3442,6 +3557,7 @@ function renderOrderListMode(){
         // クラス：発注済み / 品番未入力で発注不可 / 通常未発注
         let rowCls='smp-child';
         if(isOrdered)rowCls+=' ord-done';
+        else if(child.skipReason)rowCls+=' ord-skipped';
         else if(!hasMaterial)rowCls+=' ord-disabled';
         else rowCls+=' ord-pending';
         // 同品番の在庫があるか確認（未発注かつ品番ありの行のみ）
@@ -3453,10 +3569,29 @@ function renderOrderListMode(){
             const matched=[...direct,...alias];
             if(matched.length){
               const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
-              stockAlertHtml='<div class="ord-stock-alert">📦 在庫あり'+aliasNote+'：'+matched.map(st=>{
-                const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
-                return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}</span>${siteName?`<span class="from">（${esc(siteName)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
-              }).join('')+'</div>';
+              const _totalCount=matched.reduce((a,st)=>a+(st.count||1),0);
+              stockAlertHtml=`<div class="ord-stock-alert">
+                <div class="ord-stock-alert-head">
+                  <div class="ord-stock-alert-icon">📦</div>
+                  <div class="ord-stock-alert-title">在庫があります（${_totalCount}本）${aliasNote}</div>
+                </div>
+                ${matched.map(st=>{
+                  const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
+                  return `<div class="ord-stock-detail">
+                    <div class="code">${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}</div>
+                    ${siteName?`<div class="origin">${esc(siteName)} より</div>`:''}
+                  </div>`;
+                }).join('')}
+                <div class="ord-stock-use-row">
+                  <span class="sul">使う数量</span>
+                  <input class="suq" type="number" id="suq_${child.id}" min="1" max="${_totalCount}" value="${_totalCount}">
+                  <span class="sut">本 / ${_totalCount}本</span>
+                  <button class="ord-stock-use" onclick="ordUseStockQty(${matched[0].id},${child.id})">在庫を使う</button>
+                </div>
+                <div class="ord-stock-skip-row">
+                  <button class="ord-stock-skip-link" onclick="ordShowSkipInput(${child.id})">在庫を使わない場合はこちら →</button>
+                </div>
+              </div>`;
             }
           }
         }
@@ -3475,10 +3610,17 @@ function renderOrderListMode(){
             <button class="smp-btn-size" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'size')">＋ サイズ追加</button>
           </div>
           ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
-          ${stockAlertHtml}
-          <label class="ord-check-wrap">
-            <input type="checkbox" ${isOrdered?'checked':''} ${!hasMaterial&&!isOrdered?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
-            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
+          ${child.skipReason?`<div class="ord-skip-badge">
+            <div class="ord-skip-badge-icon">⚠</div>
+            <div class="ord-skip-badge-body">
+              <div class="ord-skip-badge-lbl">在庫スキップ理由</div>
+              <div class="ord-skip-badge-reason">${esc(child.skipReason)}</div>
+            </div>
+            <button class="ord-skip-badge-edit" onclick="ordEditSkipReason(${site.id},${proc.id},${child.id})">修正</button>
+          </div>`:stockAlertHtml}
+          <label class="ord-check-wrap${(!isOrdered&&stockAlertHtml&&!child.skipReason)?' disabled-by-stock':''}">
+            <input type="checkbox" ${isOrdered?'checked':''} ${(!hasMaterial&&!isOrdered)||(!isOrdered&&stockAlertHtml&&!child.skipReason)?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
+            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'未発注'}</span>
           </label>
         </div>`;
         // extraMaterials（追加品番行）を発注一覧にも表示
@@ -3908,6 +4050,81 @@ function deleteStock(stockId){
 }
 
 // 「在庫を使う」ボタン：該当在庫を削除して発注一覧を再描画
+// 数量指定で在庫を使う
+function ordUseStockQty(stockId, childId){
+  const qtyInput=document.getElementById('suq_'+childId);
+  const usedQty=qtyInput?parseInt(qtyInput.value)||1:1;
+  const stock=stocks.find(s=>s.id===stockId);
+  if(!stock)return;
+  const totalQty=stock.count||1;
+  const remaining=totalQty-usedQty;
+  if(remaining<=0){
+    // 在庫を削除
+    ordUseStock(stockId);
+  } else {
+    // 数量を減らす
+    stock.count=remaining;
+    saveData();
+  }
+  // 発注一覧を再描画
+  renderOrderListMode();
+}
+
+// スキップ理由入力を表示
+function ordShowSkipInput(childId){
+  const el=document.getElementById('ordchild_'+childId);
+  if(!el)return;
+  if(el.querySelector('.ord-skip-reason-wrap'))return;
+  const wrap=document.createElement('div');
+  wrap.className='ord-skip-reason-wrap';
+  wrap.innerHTML=`<label>⚠ 在庫を使わない理由を入力してください</label>
+    <textarea id="skip_ta_${childId}" placeholder="例：サイズが合わない、数量が足りない など"></textarea>
+    <div class="ord-skip-reason-btns">
+      <button class="btn-skip-cancel" onclick="ordCancelSkip(${childId})">キャンセル</button>
+      <button class="btn-skip-confirm" onclick="ordConfirmSkip(${childId})">確定</button>
+    </div>`;
+  const alert=el.querySelector('.ord-stock-alert');
+  if(alert)alert.after(wrap);
+  else el.querySelector('.ord-check-wrap').before(wrap);
+  const ta=document.getElementById('skip_ta_'+childId);
+  if(ta)ta.focus();
+}
+
+function ordCancelSkip(childId){
+  const el=document.getElementById('ordchild_'+childId);
+  if(el)el.querySelector('.ord-skip-reason-wrap')?.remove();
+}
+
+function ordConfirmSkip(childId){
+  const ta=document.getElementById('skip_ta_'+childId);
+  const reason=(ta?ta.value:'').trim();
+  if(!reason){if(ta){ta.style.borderColor='#f00';ta.focus();}return;}
+  // 物件・工程・子項目を特定してskipReasonを保存
+  let found=false;
+  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(c.id===childId){c.skipReason=reason;found=true;}
+  })));
+  if(found){saveData();renderOrderListMode();}
+}
+
+function ordEditSkipReason(siteId, procId, childId){
+  const s=sites.find(x=>x.id===siteId);
+  if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);
+  if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);
+  if(!c)return;
+  const currentReason=c.skipReason||'';
+  delete c.skipReason;
+  saveData();
+  renderOrderListMode();
+  setTimeout(()=>{
+    ordShowSkipInput(childId);
+    const ta=document.getElementById('skip_ta_'+childId);
+    if(ta)ta.value=currentReason;
+  },50);
+}
+
 function ordUseStock(stockId){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const countStr=s.count>1?` × ${s.count}本`:'';
