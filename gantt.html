@@ -131,6 +131,15 @@ header a:hover{color:#185FA5}
 .smp-field-labels .l-size{flex:1 1 0;padding-left:4px}
 .smp-field-labels .l-qty{flex:0 0 68px;text-align:center}
 .smp-field-labels .l-btn{flex:0 0 28px}
+/* クロス合計計算 */
+.calc-result-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:6px 0;font-size:12px;color:#0C447C}
+.calc-result-box .cr-title{font-size:10px;font-weight:700;color:#185FA5;margin-bottom:4px;letter-spacing:0.5px}
+.calc-result-box .cr-total{font-size:16px;font-weight:700;color:#0C447C;margin-bottom:2px}
+.calc-result-box .cr-detail{font-size:10px;color:#5a8ab0;line-height:1.6}
+.calc-input-row{display:flex;gap:6px;align-items:center;margin:6px 0}
+.calc-input-row label{font-size:10px;color:#888;white-space:nowrap}
+.calc-input-row input{height:28px;width:70px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:5px;text-align:center}
+.calc-toggle{font-size:10px;color:#185FA5;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;margin-top:4px}
 .smp-fields input.dirty,.smp-fields textarea.dirty{border-color:#E67E22;background:#fff8f0}
 .smp-empty{padding:30px;text-align:center;color:#888;font-size:13px;background:#fff;border-radius:8px}
 .smp-saving{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.9);background:#1D9E75;color:#fff;font-size:18px;font-weight:500;padding:18px 32px;border-radius:14px;z-index:600;opacity:0;pointer-events:none;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
@@ -493,7 +502,7 @@ const ASSIGNEE_COLORS = {
 const ASSIGNEE_NAMES = {
   okawa: '大川',
   nishiya: '西谷',
-  self: '自分',
+  self: '小沼',
 };
 function getAssignee(procName, siteId, procId) {
   const key = 'assignee_' + siteId + '_' + procId;
@@ -2953,6 +2962,143 @@ function _joinMaterial(num,size,qty){
 }
 
 // materialが入力済みかどうかの判定
+// ============================================================
+// クロス合計計算
+// ============================================================
+// material.size から天井高(cm)を抽出する
+// 例: "2.45m" → 245, "245cm" → 245, "2450mm" → 245, "2.45" → 245
+function _parseHeightCm(sizeStr) {
+  if(!sizeStr) return null;
+  const s = String(sizeStr).trim();
+  const mMatch = s.match(/^(\d+\.?\d*)\s*m$/i);
+  if(mMatch) return Math.round(parseFloat(mMatch[1]) * 100);
+  const cmMatch = s.match(/^(\d+\.?\d*)\s*cm$/i);
+  if(cmMatch) return Math.round(parseFloat(cmMatch[1]));
+  const mmMatch = s.match(/^(\d+\.?\d*)\s*mm$/i);
+  if(mmMatch) return Math.round(parseFloat(mmMatch[1]) / 10);
+  // 単位なし：2.45以下ならmとみなす、それ以上はcmとみなす
+  const numMatch = s.match(/^(\d+\.?\d*)$/);
+  if(numMatch) {
+    const v = parseFloat(numMatch[1]);
+    return v <= 10 ? Math.round(v * 100) : Math.round(v);
+  }
+  return null;
+}
+
+// クロス合計計算：同一品番の複数サイズ・数量からリピートを考慮した合計を計算
+// entries: [{size, qty}] (sizeは天井高cm, qtyは本数)
+// repeatCm: リピート長(cm)、0または未指定ならリピートなし
+// lossCm: ロス(cm)、デフォルト100cm(1m)
+function _calcCrossTotal(entries, repeatCm, lossCm) {
+  lossCm = lossCm !== undefined ? lossCm : 100;
+  let totalCm = 0;
+  const details = [];
+  entries.forEach(({heightCm, qty}) => {
+    if(!heightCm || !qty) return;
+    let useCm;
+    if(repeatCm && repeatCm > 0) {
+      // リピートあり：天井高をリピートで切り上げ
+      useCm = Math.ceil(heightCm / repeatCm) * repeatCm;
+    } else {
+      useCm = heightCm;
+    }
+    const subtotal = useCm * qty;
+    totalCm += subtotal;
+    details.push({heightCm, qty, useCm, subtotal});
+  });
+  const grandTotal = totalCm + lossCm;
+  return {totalCm, grandTotal, details, lossCm};
+}
+
+// 発注一覧で同一品番グループの計算結果HTMLを生成
+function _renderCalcResult(siteId, procId, baseChildId) {
+  const site = sites.find(s => s.id === siteId);
+  if(!site) return '';
+  const proc = site.processes.find(p => p.id === procId);
+  if(!proc) return '';
+  const baseChild = (proc.children||[]).find(c => c.id === baseChildId);
+  if(!baseChild) return '';
+
+  const baseParts = _splitMaterial(baseChild.material);
+
+  // 品番ごとにエントリをグループ化
+  // Map<品番(正規化), {num(表示用), entries:[{heightCm,qty}], extraId(リピートキー用)}>
+  const groups = new Map();
+
+  const _addToGroup = (numRaw, sizeStr, qtyStr, keyId) => {
+    if(!numRaw) return;
+    const isCF = /^cf/i.test(numRaw.trim());
+    if(isCF) return;
+    const normNum = numRaw.trim().toUpperCase();
+    const h = _parseHeightCm(sizeStr);
+    const q = parseInt(qtyStr) || 0;
+    if(!h || !q) return;
+    if(!groups.has(normNum)) {
+      groups.set(normNum, {num: numRaw.trim(), entries: [], keyId});
+    }
+    groups.get(normNum).entries.push({heightCm: h, qty: q});
+  };
+
+  // メイン行
+  _addToGroup(baseParts.num, baseParts.size, baseParts.qty, 'base');
+
+  // extraMaterials：sizeOnly（サイズ追加）は親品番に追加、品番追加は別グループ
+  (baseChild.extraMaterials||[]).forEach(ex => {
+    const ep = _splitMaterial(ex.material);
+    if(ex.sizeOnly) {
+      // サイズ追加：親品番のグループに追加
+      const normBase = baseParts.num ? baseParts.num.trim().toUpperCase() : null;
+      if(normBase && groups.has(normBase)) {
+        const h = _parseHeightCm(ep.size);
+        const q = parseInt(ep.qty) || 0;
+        if(h && q) groups.get(normBase).entries.push({heightCm: h, qty: q});
+      }
+    } else {
+      // 品番追加：別品番として別グループ
+      _addToGroup(ep.num, ep.size, ep.qty, 'ex_'+ex.id);
+    }
+  });
+
+  if(groups.size === 0) return '';
+
+  // 各品番グループのボックスを生成
+  let html = '';
+  groups.forEach((group, normNum) => {
+    if(group.entries.length === 0) return;
+    const repeatKey = 'repeat_' + siteId + '_' + procId + '_' + baseChildId + '_' + normNum;
+    const repeatCm = parseInt(localStorage.getItem(repeatKey)) || 0;
+    const result = _calcCrossTotal(group.entries, repeatCm, 100);
+    const totalM = Math.ceil(result.grandTotal / 100);
+    const detailHtml = result.details.map(d => {
+      const useCmStr = repeatCm && repeatCm > 0
+        ? `⌈${d.heightCm}÷${repeatCm}⌉×${repeatCm}=${d.useCm}cm`
+        : `${d.heightCm}cm`;
+      return `${useCmStr} × ${d.qty}本`;
+    }).join('、');
+    const escapedNum = normNum.replace(/'/g,"\\'");
+    html += `<div class="calc-result-box">
+      <div class="cr-title">📐 ${esc(group.num)}</div>
+      <div class="cr-total">${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span></div>
+      <div class="cr-detail">${detailHtml}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+        <label style="font-size:10px;color:#888">リピート</label>
+        <input type="number" value="${repeatCm||''}" placeholder="なし(cm)" min="0"
+          style="width:70px;height:24px;font-size:11px;border:1px solid #ccc;border-radius:4px;padding:0 5px;text-align:center"
+          onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
+        <span style="font-size:10px;color:#aaa">cm (0=なし)</span>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+function setCalcRepeat(siteId, procId, childId, normNum, value) {
+  const key = 'repeat_' + siteId + '_' + procId + '_' + childId + '_' + normNum;
+  const v = parseInt(value) || 0;
+  if(v > 0) localStorage.setItem(key, v);
+  else localStorage.removeItem(key);
+}
+
 function _hasMaterial(m){
   if(!m)return false;
   if(typeof m==='object')return !!(m.num||m.size||m.qty);
@@ -3536,7 +3682,7 @@ function renderOrderListMode(){
                 <select class="assignee-select" onchange="setAssignee(${site.id},${proc.id},this.value)">
                   <option value="okawa" ${_assignee==='okawa'?'selected':''}>大川</option>
                   <option value="nishiya" ${_assignee==='nishiya'?'selected':''}>西谷</option>
-                  <option value="self" ${_assignee==='self'?'selected':''}>自分</option>
+                  <option value="self" ${_assignee==='self'?'selected':''}>小沼</option>
                 </select>
                 ${!_isDefault?'<span class="assignee-changed">変更済</span>':''}
               </div>
@@ -3595,10 +3741,13 @@ function renderOrderListMode(){
             }
           }
         }
+        // クロス計算結果（発注済みでない場合のみ）
+        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id) : '';
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
           </div>
+          ${_calcHtml}
           <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div></div>
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
