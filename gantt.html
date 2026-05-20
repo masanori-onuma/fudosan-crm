@@ -3816,7 +3816,14 @@ function renderOrderListMode(){
             </div>
           </div>`;
           // サマリーボックス：品番入力済み・未発注の子項目をまとめて表示
-          const _summaryChildren=(proc.children||[]).filter(c=>c.ordered!==true&&_hasMaterial(c.material));
+          // クロス計算ボックスが出る子項目は除外（二重表示を防ぐ）
+          const _summaryChildren=(proc.children||[]).filter(c=>{
+            if(c.ordered===true)return false;
+            if(!_hasMaterial(c.material))return false;
+            // クロス計算が出る場合はスキップ
+            const calcHtml=_renderCalcResult(site.id,proc.id,c.id,proc.name,c.name);
+            return !calcHtml;
+          });
           if(_summaryChildren.length>0){
             html+=_summaryChildren.map(c=>{
               const p=_splitMaterial(c.material||'');
