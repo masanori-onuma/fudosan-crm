@@ -58,6 +58,7 @@ header a:hover{color:#185FA5}
 .smp-proc-badge-pending{background:#fde8e8;color:#A02020}
 .smp-proc-badge-partial{background:#fff3cd;color:#7A5800}
 /* 担当者ドロップダウン */
+.assignee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
 .assignee-banner{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;border:1.5px solid transparent;white-space:nowrap;flex-shrink:0;user-select:none}
 .assignee-banner.ab-self{background:#EBF4FF;border-color:#4A90D9;color:#185FA5}
 .assignee-banner.ab-okawa{background:#E8FAF5;border-color:#1ABC9C;color:#0F6E56}
@@ -67,7 +68,6 @@ header a:hover{color:#185FA5}
 .ab-self .ab-cnt{background:#4A90D9}
 .ab-okawa .ab-cnt{background:#1ABC9C}
 .ab-nishiya .ab-cnt{background:#795548}
-.assignee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
 .assignee-select{height:24px;font-size:10px;border:1px solid #ddd;border-radius:5px;background:#fff;color:#444;padding:0 4px;cursor:pointer}
 .assignee-changed{font-size:9px;color:#E87C00;background:#fff5e6;border-radius:4px;padding:1px 4px}
 /* 子項目左インジケーター */
@@ -148,11 +148,11 @@ header a:hover{color:#185FA5}
 .smp-field-labels .l-qty{flex:0 0 68px;text-align:center}
 .smp-field-labels .l-btn{flex:0 0 28px}
 /* クロス合計計算 */
-.ord-summary-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:4px 8px 2px}
+.ord-summary-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:4px 0 2px}
 .ord-summary-box .osb-child-name{font-size:10px;color:#185FA5;margin-bottom:3px}
-.ord-summary-box .osb-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.ord-summary-box .osb-main span{font-size:15px;font-weight:700;color:#0C447C}
-.ord-summary-box .osb-unit{font-size:11px;font-weight:400;color:#185FA5}
+.ord-summary-box .osb-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ord-summary-box .osb-main span{font-size:16px;font-weight:700;color:#0C447C}
+.ord-summary-box .osb-main .osb-unit{font-size:11px;font-weight:400;color:#185FA5}
 .calc-result-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:6px 0;font-size:12px;color:#0C447C}
 .calc-result-box .cr-title{font-size:10px;font-weight:700;color:#185FA5;margin-bottom:4px;letter-spacing:0.5px}
 .calc-result-box .cr-total{font-size:16px;font-weight:700;color:#0C447C;margin-bottom:2px}
@@ -1911,6 +1911,7 @@ const ASSIGNEE_BANNER_CFG=[
   {key:'nishiya', name:'西谷', cls:'ab-nishiya'},
 ];
 function _countOrderWaiting(assigneeKey){
+  // その担当者が発注担当で、品番入力済み・未発注の子項目がある物件数を数える
   return sites.filter(s=>{
     if(s.archived)return false;
     return s.processes.some(p=>{
@@ -1934,6 +1935,11 @@ function renderAssigneeBanners(){
 }
 function toggleAssigneeBanner(key){
   _assigneeBannerActive=(_assigneeBannerActive===key)?null:key;
+  const smpView=document.getElementById('sumpouView');
+  if(smpView&&smpView.style.display!=='none'&&smpView.innerHTML!==''){
+    renderAssigneeBanners();
+    return;
+  }
   render();
 }
 function _isAssigneeBannerFiltered(site){
@@ -2893,11 +2899,24 @@ function renderSumpouMode(){
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
         if(!orderedChildren.length&&!(proc.extraMaterials&&proc.extraMaterials.length))return;
         const _smpProcColor=proc.color||'#7cb9ff';
+        const _smpAssignee=getAssignee(proc.name,site.id,proc.id);
+        const _smpAssigneeColor=ASSIGNEE_COLORS[_smpAssignee]||'#888';
+        const _smpAssigneeName=ASSIGNEE_NAMES[_smpAssignee]||_smpAssignee;
+        const _smpIsDefault=_smpAssignee===(ASSIGNEE_DEFAULTS[proc.name]||ASSIGNEE_DEFAULT_OTHER);
         html+=`<div class="smp-proc-head">
           <div class="smp-proc-head-inner">
             <div class="smp-proc-head-accent" style="background:${_smpProcColor}"></div>
             <div class="smp-proc-head-body" style="background:${_smpProcColor}22">
               <span class="smp-proc-head-name">${esc(proc.name||'(工程名なし)')}</span>
+            </div>
+            <div class="smp-proc-head-right">
+              <span class="assignee-dot" style="background:${_smpAssigneeColor}"></span>
+              <select class="assignee-select" onchange="setAssignee(${site.id},${proc.id},this.value);renderSumpouMode()">
+                <option value="okawa" ${_smpAssignee==='okawa'?'selected':''}>大川</option>
+                <option value="nishiya" ${_smpAssignee==='nishiya'?'selected':''}>西谷</option>
+                <option value="self" ${_smpAssignee==='self'?'selected':''}>小沼</option>
+              </select>
+              ${!_smpIsDefault?'<span class="assignee-changed">変更済</span>':''}
             </div>
           </div>
         </div>`;
@@ -2951,7 +2970,7 @@ function renderSumpouMode(){
             html+=`<div class="extra-indent${exHasMat?' has-input':''}" id="extra_${ex.id}">
               <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
-                ${isSizeOnly?('<div class="extra-num-fixed">'+esc(exParts.num||_splitMaterial(child.material).num)+'</div>'):('<input class="f-num" placeholder="品番" value="'+esc(exParts.num)+'" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial('+site.id+','+proc.id+','+child.id+','+ex.id+')">')}
+                ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
@@ -3696,6 +3715,7 @@ function renderOrderListMode(){
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
     if(!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined)))return false;
+    // バナーフィルターが有効なら絞り込む
     if(_assigneeBannerActive&&!_isAssigneeBannerFiltered(s))return false;
     return true;
   });
@@ -3803,32 +3823,47 @@ function renderOrderListMode(){
               </div>
             </div>
           </div>`;
-          lastProcId=proc.id;
           // サマリーボックス：品番入力済み・未発注の子項目をまとめて表示
-          const _summaryChildren=(proc.children||[]).filter(c=>c.ordered!==true&&_hasMaterial(c.material));
+          // クロス計算ボックスが出る子項目は除外（二重表示を防ぐ）
+          const _hasCalcBox=(c)=>{
+            const p=_splitMaterial(c.material||'');
+            if(!p.num)return false;
+            const norm=p.num.trim().toUpperCase();
+            if(!/^[A-Z0-9]/.test(norm))return false;
+            if(/^CF/.test(norm))return true; // CF品番はcalc-result-boxが出る
+            if(/クロス/.test(proc.name||'')||/クロス/.test(c.name||''))return true;
+            return false;
+          };
+          const _summaryChildren=(proc.children||[]).filter(c=>{
+            if(c.ordered===true)return false;
+            if(!_hasMaterial(c.material))return false;
+            return !_hasCalcBox(c);
+          });
           if(_summaryChildren.length>0){
-            _summaryChildren.forEach(c=>{
-              const _p=_splitMaterial(c.material||'');
-              const _numTxt=_p.num?`<span>${esc(_p.num)}</span>`:'';
-              const _sizeTxt=_p.size?`<span>${esc(_p.size)}</span>`:'';
-              const _qtyTxt=_p.qty?`<span>${esc(_p.qty)}<span class="osb-unit"></span></span>`:'';
-              html+=`<div class="ord-summary-box">
-                <div class="osb-child-name">${esc(c.name||'')}</div>
-                <div class="osb-main">${_numTxt}${_sizeTxt}${_qtyTxt}</div>
-              </div>`;
-              // extraMaterialsも表示
-              (c.extraMaterials||[]).filter(ex=>ex.ordered!==true&&_hasMaterial(ex.material)).forEach(ex=>{
-                const _ep=_splitMaterial(ex.material||'');
-                const _en=_ep.num?`<span>${esc(_ep.num)}</span>`:'';
-                const _es=_ep.size?`<span>${esc(_ep.size)}</span>`:'';
-                const _eq=_ep.qty?`<span>${esc(_ep.qty)}<span class="osb-unit"></span></span>`:'';
-                html+=`<div class="ord-summary-box" style="margin-top:2px">
-                  <div class="osb-child-name">${esc(c.name||'')}（追加）</div>
-                  <div class="osb-main">${_en}${_es}${_eq}</div>
+            html+=_summaryChildren.map(c=>{
+              const p=_splitMaterial(c.material||'');
+              const numTxt=p.num?`<span>${esc(p.num)}</span>`:'';
+              const sizeTxt=p.size?`<span>${esc(p.size)}</span>`:'';
+              const qtyTxt=p.qty?`<span>${esc(p.qty)}<span class="osb-unit"></span></span>`:'';
+              // extraMaterialsも追記
+              const extraHtml=(c.extraMaterials||[]).filter(ex=>ex.ordered!==true&&_hasMaterial(ex.material)).map(ex=>{
+                const ep=_splitMaterial(ex.material||'');
+                const en=ep.num?`<span>${esc(ep.num)}</span>`:'';
+                const es=ep.size?`<span>${esc(ep.size)}</span>`:'';
+                const eq=ep.qty?`<span>${esc(ep.qty)}<span class="osb-unit"></span></span>`:'';
+                return `<div class="ord-summary-box" style="margin-top:2px">
+                  <div class="osb-child-name">${esc(c.name||'')} (追加品番)</div>
+                  <div class="osb-main">${en}${es}${eq}</div>
                 </div>`;
-              });
-            });
+              }).join('');
+              return `<div class="ord-summary-box">
+                <div class="osb-child-name">${esc(c.name||'')}</div>
+                <div class="osb-main">${numTxt}${sizeTxt}${qtyTxt}</div>
+              </div>${extraHtml}`;
+            }).join('');
           }
+          lastProcId=proc.id;
+        }
         const isOrdered=(child.ordered===true);
         const hasMaterial=_hasMaterial(child.material);
         const parts=_splitMaterial(child.material||'');
@@ -3908,7 +3943,7 @@ function renderOrderListMode(){
           </div>`:stockAlertHtml}
           <label class="ord-check-wrap${(!isOrdered&&stockAlertHtml&&!child.skipReason)?' disabled-by-stock':''}">
             <input type="checkbox" ${isOrdered?'checked':''} ${(!hasMaterial&&!isOrdered)||(!isOrdered&&stockAlertHtml&&!child.skipReason)?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
-            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
+            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'未発注'}</span>
           </label>
         </div>`;
         // extraMaterials（追加品番行）を発注一覧にも表示
@@ -3936,19 +3971,21 @@ function renderOrderListMode(){
               }
             }
           }
-          const _exNumHtml=ex.sizeOnly
-            ?('<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">'+esc(_splitMaterial(child.material).num)+'</div>')
-            :('<input class="f-num" placeholder="品番" value="'+esc(exParts.num)+'" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial('+site.id+','+proc.id+','+child.id+','+ex.id+')" '+(exIsOrdered?'disabled':'')+'>');
-          const _exCheckHtml=ex.sizeOnly?''
-            :('<label class="ord-check-wrap"><input type="checkbox" '+(exIsOrdered?'checked':'')+' '+((!exHasMat&&!exIsOrdered)?'disabled':'')+' onchange="ordToggleExtraOrdered('+site.id+','+proc.id+','+child.id+','+ex.id+',this.checked)"><span class="'+(exIsOrdered?'lbl-done':'lbl-pending')+'">'+(exIsOrdered?'✓ 発注済み':'発注済みにする')+'</span></label>');
-          const _exWarnHtml=(!exHasMat&&!exIsOrdered&&!ex.sizeOnly)?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':'';
-          html+='<div class="'+exRowCls+'" id="extra_'+ex.id+'" style="'+(ex.sizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':'')+'">'
-            +'<div class="name-row"><span class="name" style="color:#888;font-size:11px">'+(ex.sizeOnly?'サイズ追加':'追加品番')+'</span></div>'
-            +'<div class="smp-fields">'+_exNumHtml
-            +'<input class="f-size" placeholder="サイズ" value="'+esc(exParts.size)+'" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial('+site.id+','+proc.id+','+child.id+','+ex.id+')" '+(exIsOrdered?'disabled':'')+'>'  
-            +'<input class="f-qty" placeholder="数量" value="'+esc(exParts.qty)+'" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial('+site.id+','+proc.id+','+child.id+','+ex.id+')" '+(exIsOrdered?'disabled':'')+'>'  
-            +'<button class="smp-del-btn" onclick="smpDelSibling('+site.id+','+proc.id+','+child.id+','+ex.id+',\'order\')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>'
-            +'</div>'+_exWarnHtml+exStockHtml+_exCheckHtml+'</div>';
+          html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="${ex.sizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
+            <div class="name-row"><span class="name" style="color:#888;font-size:11px">${ex.sizeOnly?'サイズ追加':'追加品番'}</span></div>
+            <div class="smp-fields">
+              ${ex.sizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc((child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>`}
+              <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
+              <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
+              <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
+            </div>
+            ${!exHasMat&&!exIsOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+            ${exStockHtml}
+            <label class="ord-check-wrap">
+              <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
+              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'発注済みにする'}</span>
+            </label>
+          </div>`;
         });
       });
 
