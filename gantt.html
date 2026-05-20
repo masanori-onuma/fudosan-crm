@@ -59,15 +59,6 @@ header a:hover{color:#185FA5}
 .smp-proc-badge-partial{background:#fff3cd;color:#7A5800}
 /* 担当者ドロップダウン */
 .assignee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
-.assignee-banner{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;border:1.5px solid transparent;white-space:nowrap;flex-shrink:0;user-select:none}
-.assignee-banner.ab-self{background:#EBF4FF;border-color:#4A90D9;color:#185FA5}
-.assignee-banner.ab-okawa{background:#E8FAF5;border-color:#1ABC9C;color:#0F6E56}
-.assignee-banner.ab-nishiya{background:#EFEBE9;border-color:#795548;color:#5D4037}
-.assignee-banner.ab-active{border-width:2px;font-weight:600}
-.assignee-banner .ab-cnt{font-size:10px;border-radius:8px;padding:0 5px;color:#fff}
-.ab-self .ab-cnt{background:#4A90D9}
-.ab-okawa .ab-cnt{background:#1ABC9C}
-.ab-nishiya .ab-cnt{background:#795548}
 .assignee-select{height:24px;font-size:10px;border:1px solid #ddd;border-radius:5px;background:#fff;color:#444;padding:0 4px;cursor:pointer}
 .assignee-changed{font-size:9px;color:#E87C00;background:#fff5e6;border-radius:4px;padding:1px 4px}
 /* 子項目左インジケーター */
@@ -148,11 +139,6 @@ header a:hover{color:#185FA5}
 .smp-field-labels .l-qty{flex:0 0 68px;text-align:center}
 .smp-field-labels .l-btn{flex:0 0 28px}
 /* クロス合計計算 */
-.ord-summary-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:4px 0 2px}
-.ord-summary-box .osb-child-name{font-size:10px;color:#185FA5;margin-bottom:3px}
-.ord-summary-box .osb-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.ord-summary-box .osb-main span{font-size:16px;font-weight:700;color:#0C447C}
-.ord-summary-box .osb-main .osb-unit{font-size:11px;font-weight:400;color:#185FA5}
 .calc-result-box{background:#e8f4fd;border:1px solid #a8d4f0;border-radius:7px;padding:8px 12px;margin:6px 0;font-size:12px;color:#0C447C}
 .calc-result-box .cr-title{font-size:10px;font-weight:700;color:#185FA5;margin-bottom:4px;letter-spacing:0.5px}
 .calc-result-box .cr-total{font-size:16px;font-weight:700;color:#0C447C;margin-bottom:2px}
@@ -414,7 +400,6 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
       <label style="color:#c0392b">日以内で未発注工程あり</label>
     </span>
   </div>
-  <div id="assigneeBannerRow" style="display:flex;gap:6px;flex-wrap:wrap;padding:4px 0 2px;min-height:0"></div>
   <div class="gantt-outer">
     <div class="gantt-scroll" id="ganttScroll">
       <table id="ganttTable"><thead id="ganttHead"></thead><tbody id="ganttBody"></tbody></table>
@@ -978,12 +963,10 @@ function _renderInner(){
   const frag=document.createDocumentFragment();
   const warnDays=parseInt(document.getElementById('warnDays').value)||3;
   const todayN=toN(new Date());
-  renderAssigneeBanners();
 
   sites.filter(site=>{
     if(fc&&site.client!==fc)return false;
     if(fp&&!site.processes.some(p=>p.person===fp||(p.persons||[]).includes(fp)))return false;
-    if(!_isAssigneeBannerFiltered(site))return false;
     if(fs){
       // 物件名・所在地・子項目の品番(material)・子項目名・工程名を検索対象に
       const parts=[site.name||'',site.addr||''];
@@ -1901,55 +1884,7 @@ function saveDone(pid){
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
 }
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
-function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';const fs=document.getElementById('filterSearch');if(fs)fs.value='';_assigneeBannerActive=null;render();}
-
-// 発注担当バナー
-let _assigneeBannerActive=null;
-const ASSIGNEE_BANNER_CFG=[
-  {key:'self', name:'小沼', cls:'ab-self'},
-  {key:'okawa', name:'大川', cls:'ab-okawa'},
-  {key:'nishiya', name:'西谷', cls:'ab-nishiya'},
-];
-function _countOrderWaiting(assigneeKey){
-  // その担当者が発注担当で、品番入力済み・未発注の子項目がある物件数を数える
-  return sites.filter(s=>{
-    if(s.archived)return false;
-    return s.processes.some(p=>{
-      const a=getAssignee(p.name,s.id,p.id);
-      if(a!==assigneeKey)return false;
-      return (p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material));
-    });
-  }).length;
-}
-function renderAssigneeBanners(){
-  const row=document.getElementById('assigneeBannerRow');
-  if(!row)return;
-  let html='';
-  ASSIGNEE_BANNER_CFG.forEach(cfg=>{
-    const cnt=_countOrderWaiting(cfg.key);
-    if(cnt===0&&_assigneeBannerActive!==cfg.key)return;
-    const isActive=_assigneeBannerActive===cfg.key;
-    html+=`<div class="assignee-banner ${cfg.cls}${isActive?' ab-active':''}" onclick="toggleAssigneeBanner('${cfg.key}')">📋 ${cfg.name} — 発注待ち <span class="ab-cnt">${cnt}</span></div>`;
-  });
-  row.innerHTML=html;
-}
-function toggleAssigneeBanner(key){
-  _assigneeBannerActive=(_assigneeBannerActive===key)?null:key;
-  const smpView=document.getElementById('sumpouView');
-  if(smpView&&smpView.style.display!=='none'&&smpView.innerHTML!==''){
-    renderAssigneeBanners();
-    return;
-  }
-  render();
-}
-function _isAssigneeBannerFiltered(site){
-  if(!_assigneeBannerActive)return true;
-  return site.processes.some(p=>{
-    const a=getAssignee(p.name,site.id,p.id);
-    if(a!==_assigneeBannerActive)return false;
-    return (p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material));
-  });
-}
+function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';const fs=document.getElementById('filterSearch');if(fs)fs.value='';render();}
 
 // モーダル系
 function openKoukiModal(siteId){
@@ -2899,24 +2834,11 @@ function renderSumpouMode(){
         const orderedChildren=(proc.children||[]).filter(c=>c.ordered!==undefined&&c.id!=null);
         if(!orderedChildren.length&&!(proc.extraMaterials&&proc.extraMaterials.length))return;
         const _smpProcColor=proc.color||'#7cb9ff';
-        const _smpAssignee=getAssignee(proc.name,site.id,proc.id);
-        const _smpAssigneeColor=ASSIGNEE_COLORS[_smpAssignee]||'#888';
-        const _smpAssigneeName=ASSIGNEE_NAMES[_smpAssignee]||_smpAssignee;
-        const _smpIsDefault=_smpAssignee===(ASSIGNEE_DEFAULTS[proc.name]||ASSIGNEE_DEFAULT_OTHER);
         html+=`<div class="smp-proc-head">
           <div class="smp-proc-head-inner">
             <div class="smp-proc-head-accent" style="background:${_smpProcColor}"></div>
             <div class="smp-proc-head-body" style="background:${_smpProcColor}22">
               <span class="smp-proc-head-name">${esc(proc.name||'(工程名なし)')}</span>
-            </div>
-            <div class="smp-proc-head-right">
-              <span class="assignee-dot" style="background:${_smpAssigneeColor}"></span>
-              <select class="assignee-select" onchange="setAssignee(${site.id},${proc.id},this.value);renderSumpouMode()">
-                <option value="okawa" ${_smpAssignee==='okawa'?'selected':''}>大川</option>
-                <option value="nishiya" ${_smpAssignee==='nishiya'?'selected':''}>西谷</option>
-                <option value="self" ${_smpAssignee==='self'?'selected':''}>小沼</option>
-              </select>
-              ${!_smpIsDefault?'<span class="assignee-changed">変更済</span>':''}
             </div>
           </div>
         </div>`;
@@ -3715,7 +3637,6 @@ function renderOrderListMode(){
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
     if(!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined)))return false;
-    // バナーフィルターが有効なら絞り込む
     if(_assigneeBannerActive&&!_isAssigneeBannerFiltered(s))return false;
     return true;
   });
@@ -3823,45 +3744,6 @@ function renderOrderListMode(){
               </div>
             </div>
           </div>`;
-          // サマリーボックス：品番入力済み・未発注の子項目をまとめて表示
-          // クロス計算ボックスが出る子項目は除外（二重表示を防ぐ）
-          const _hasCalcBox=(c)=>{
-            const p=_splitMaterial(c.material||'');
-            if(!p.num)return false;
-            const norm=p.num.trim().toUpperCase();
-            if(!/^[A-Z0-9]/.test(norm))return false;
-            if(/^CF/.test(norm))return true; // CF品番はcalc-result-boxが出る
-            if(/クロス/.test(proc.name||'')||/クロス/.test(c.name||''))return true;
-            return false;
-          };
-          const _summaryChildren=(proc.children||[]).filter(c=>{
-            if(c.ordered===true)return false;
-            if(!_hasMaterial(c.material))return false;
-            return !_hasCalcBox(c);
-          });
-          if(_summaryChildren.length>0){
-            html+=_summaryChildren.map(c=>{
-              const p=_splitMaterial(c.material||'');
-              const numTxt=p.num?`<span>${esc(p.num)}</span>`:'';
-              const sizeTxt=p.size?`<span>${esc(p.size)}</span>`:'';
-              const qtyTxt=p.qty?`<span>${esc(p.qty)}<span class="osb-unit"></span></span>`:'';
-              // extraMaterialsも追記
-              const extraHtml=(c.extraMaterials||[]).filter(ex=>ex.ordered!==true&&_hasMaterial(ex.material)).map(ex=>{
-                const ep=_splitMaterial(ex.material||'');
-                const en=ep.num?`<span>${esc(ep.num)}</span>`:'';
-                const es=ep.size?`<span>${esc(ep.size)}</span>`:'';
-                const eq=ep.qty?`<span>${esc(ep.qty)}<span class="osb-unit"></span></span>`:'';
-                return `<div class="ord-summary-box" style="margin-top:2px">
-                  <div class="osb-child-name">${esc(c.name||'')} (追加品番)</div>
-                  <div class="osb-main">${en}${es}${eq}</div>
-                </div>`;
-              }).join('');
-              return `<div class="ord-summary-box">
-                <div class="osb-child-name">${esc(c.name||'')}</div>
-                <div class="osb-main">${numTxt}${sizeTxt}${qtyTxt}</div>
-              </div>${extraHtml}`;
-            }).join('');
-          }
           lastProcId=proc.id;
         }
         const isOrdered=(child.ordered===true);
