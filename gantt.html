@@ -3979,12 +3979,12 @@ function renderOrderListMode(){
               <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
               <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
             </div>
-            ${!exHasMat&&!exIsOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+            ${!exHasMat&&!exIsOrdered&&!ex.sizeOnly?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
             ${exStockHtml}
-            <label class="ord-check-wrap">
+            ${ex.sizeOnly?'':(`<label class="ord-check-wrap">
               <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
-              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'発注済みにする'}</span>
-            </label>
+              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'未発注'}</span>
+            </label>`)}
           </div>`;
         });
       });
