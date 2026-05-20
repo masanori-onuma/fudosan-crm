@@ -2970,7 +2970,7 @@ function renderSumpouMode(){
             html+=`<div class="extra-indent${exHasMat?' has-input':''}" id="extra_${ex.id}">
               <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
-                ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||_splitMaterial(child.material).num)}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
@@ -3974,7 +3974,7 @@ function renderOrderListMode(){
           html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="${ex.sizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
             <div class="name-row"><span class="name" style="color:#888;font-size:11px">${ex.sizeOnly?'サイズ追加':'追加品番'}</span></div>
             <div class="smp-fields">
-              ${ex.sizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc((child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>`}
+              ${ex.sizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(_splitMaterial(child.material).num)}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>`}
               <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
               <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
               <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
