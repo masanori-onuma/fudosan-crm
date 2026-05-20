@@ -1935,6 +1935,11 @@ function renderAssigneeBanners(){
 }
 function toggleAssigneeBanner(key){
   _assigneeBannerActive=(_assigneeBannerActive===key)?null:key;
+  const smpView=document.getElementById('sumpouView');
+  if(smpView&&smpView.style.display!=='none'&&smpView.innerHTML!==''){
+    renderAssigneeBanners();
+    return;
+  }
   render();
 }
 function _isAssigneeBannerFiltered(site){
@@ -3709,7 +3714,10 @@ function renderOrderListMode(){
   // 発注管理対象の子項目があり、アーカイブされていない物件のみ
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
-    return s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
+    if(!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined)))return false;
+    // バナーフィルターが有効なら絞り込む
+    if(_assigneeBannerActive&&!_isAssigneeBannerFiltered(s))return false;
+    return true;
   });
   if(focusId){
     targetSites=targetSites.filter(s=>s.id===focusId);
