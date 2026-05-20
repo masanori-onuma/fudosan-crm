@@ -3879,7 +3879,7 @@ function renderOrderListMode(){
           </div>`:stockAlertHtml}
           <label class="ord-check-wrap${(!isOrdered&&stockAlertHtml&&!child.skipReason)?' disabled-by-stock':''}">
             <input type="checkbox" ${isOrdered?'checked':''} ${(!hasMaterial&&!isOrdered)||(!isOrdered&&stockAlertHtml&&!child.skipReason)?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
-            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'未発注'}</span>
+            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
           </label>
         </div>`;
         // extraMaterials（追加品番行）を発注一覧にも表示
