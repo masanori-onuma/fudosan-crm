@@ -277,6 +277,10 @@ tr.proc-warn .col-info{border-left:3px solid #E24B4A!important}
 .sort-handle-site{font-size:16px;color:#7aabcf;cursor:grab;flex-shrink:0;padding:4px 5px;user-select:none;line-height:1;border-radius:3px;transition:background 0.12s}
 .sort-handle-site:hover{color:#185FA5;background:#e8f0fa}
 .sort-handle-site:active{cursor:grabbing}
+.site-chk{width:15px;height:15px;cursor:pointer;flex-shrink:0;margin-right:2px;accent-color:#1D9E75}
+.bulk-archive-btn{height:26px;padding:0 10px;font-size:11px;border-radius:6px;background:#E1F5EE;color:#0F6E56;border:1px solid #5DCAA5;cursor:pointer;display:none}
+.bulk-archive-btn.visible{display:inline-flex;align-items:center;gap:4px}
+.bulk-archive-btn:disabled{opacity:0.4;cursor:not-allowed}
 tr.row-proc.sort-dragging td{background:#e8f4ff!important;opacity:0.5}
 tr.row-proc.sort-over td{border-top:2px solid #185FA5!important}
 tr.row-site.site-dragging td{background:#c5d9ed!important;opacity:0.5}
@@ -408,6 +412,11 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
     <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
+    <label class="sp-hide" style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;cursor:pointer;margin-left:8px;padding-left:12px;border-left:1px solid #ddd">
+      <input type="checkbox" id="chkAllSites" style="width:14px;height:14px;accent-color:#1D9E75" onchange="toggleAllSiteChk(this.checked)">
+      全選択
+    </label>
+    <button id="bulkArchiveBtn" class="bulk-archive-btn sp-hide" onclick="openBulkArchiveModal()" disabled>📦 まとめてアーカイブ</button>
     <span class="sp-hide" style="margin-left:8px;border-left:1px solid #ddd;padding-left:12px;display:flex;align-items:center;gap:6px">
       <label style="color:#c0392b;font-weight:500">⚠ 完成</label>
       <input type="number" id="warnDays" value="3" min="1" max="30" style="width:48px;height:26px;font-size:12px;border:1px solid #ccc;border-radius:6px;padding:0 6px;text-align:center" onchange="render()">
@@ -1088,6 +1097,7 @@ function _renderInner(){
     const _orderBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_orderBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="${_orderBtnTitle}">📋</button>`:'<span style="width:28px;display:inline-block"></span>';
     const _actionsHtml=`<span class="site-actions">${dropboxBtn}${dropboxBtn2}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
+      <input type="checkbox" class="site-chk sp-hide" data-site-id="${site.id}" onchange="onSiteChkChange()" title="アーカイブ対象として選択">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
       <span class="toggle" onclick="toggleSite(${site.id})">${site.collapsed?'▶':'▼'}</span>
       <span class="site-name" onclick="toggleSite(${site.id})">${esc(site.name)}</span>
@@ -2408,6 +2418,87 @@ let _activeSitesBackup=null; // アーカイブモード中の現役sites退避
 let _archiveMonthsBack=6;    // アーカイブ表示期間（ヶ月）
 let _archiveSearch='';       // アーカイブ検索クエリ
 
+// ============================================================
+// 一括アーカイブ
+// ============================================================
+function onSiteChkChange(){
+  const checked=document.querySelectorAll('.site-chk:checked');
+  const btn=document.getElementById('bulkArchiveBtn');
+  const allChk=document.getElementById('chkAllSites');
+  const all=document.querySelectorAll('.site-chk');
+  if(btn){
+    if(checked.length>0){btn.classList.add('visible');btn.disabled=false;btn.textContent='📦 まとめてアーカイブ ('+checked.length+'件)';}
+    else{btn.classList.remove('visible');btn.disabled=true;}
+  }
+  if(allChk){
+    allChk.indeterminate=checked.length>0&&checked.length<all.length;
+    allChk.checked=all.length>0&&checked.length===all.length;
+  }
+}
+function toggleAllSiteChk(checked){
+  document.querySelectorAll('.site-chk').forEach(el=>el.checked=checked);
+  onSiteChkChange();
+}
+function openBulkArchiveModal(){
+  const checked=Array.from(document.querySelectorAll('.site-chk:checked'));
+  if(!checked.length)return;
+  const ids=checked.map(el=>parseInt(el.dataset.siteId));
+  const selected=sites.filter(s=>ids.includes(s.id));
+  const incomplete=selected.filter(s=>{
+    const procs=s.processes||[];
+    return procs.length===0||!procs.every(p=>p.done);
+  });
+  let warnHtml='';
+  if(incomplete.length){
+    warnHtml=`<div style="background:#FCEBEB;border:1px solid #E24B4A;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#A32D2D">
+      <div style="font-weight:500;margin-bottom:4px">⚠ 未完了工程がある物件が${incomplete.length}件あります</div>
+      ${incomplete.map(s=>{
+        const notDone=(s.processes||[]).filter(p=>!p.done).length;
+        return `<div style="padding:1px 0">・${s.name}${notDone>0?' ('+notDone+'工程未完了)':' (工程未登録)'}</div>`;
+      }).join('')}
+    </div>`;
+  }
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay"><div class="modal" style="width:420px">
+    <h3>📦 まとめてアーカイブ</h3>
+    <p style="font-size:12px;color:#555;margin-bottom:10px">${selected.length}件の物件をアーカイブします。</p>
+    ${warnHtml}
+    <div style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:6px 10px;margin-bottom:12px;font-size:12px">
+      ${selected.map(s=>{
+        const allDone=(s.processes||[]).length>0&&(s.processes||[]).every(p=>p.done);
+        return `<div style="padding:3px 0;display:flex;align-items:center;gap:6px">
+          ${allDone?'<span style="color:#1D9E75;font-size:10px">✓</span>':'<span style="color:#E74C3C;font-size:10px">⚠</span>'}
+          <span>${s.name}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn" style="background:#E1F5EE;color:#0F6E56;border-color:#5DCAA5" onclick="executeBulkArchive([${ids.join(',')}])">アーカイブする</button>
+    </div></div></div>`;
+}
+async function executeBulkArchive(ids){
+  closeModal();
+  showSyncStatus('アーカイブ中…');
+  let successCount=0;
+  for(const id of ids){
+    const r=await gasArchiveSite(id,'manual');
+    if(r.ok){
+      sites=sites.filter(x=>x.id!==id);
+      successCount++;
+    }
+  }
+  _lastSaved=JSON.stringify(sites);
+  localStorage.setItem('gantt_sites',_lastSaved);
+  _archivedCache=null;
+  // チェックボックスとボタンをリセット
+  const btn=document.getElementById('bulkArchiveBtn');
+  if(btn){btn.classList.remove('visible');btn.disabled=true;btn.textContent='📦 まとめてアーカイブ';}
+  const allChk=document.getElementById('chkAllSites');
+  if(allChk){allChk.checked=false;allChk.indeterminate=false;}
+  showSyncStatus('✓ '+successCount+'件アーカイブしました',3000);
+  render();
+}
 async function archiveSite(id){
   if(_viewMode==='archived'){alert('アーカイブ閲覧中は操作できません');return;}
   const s=sites.find(x=>x.id===id);if(!s)return;
