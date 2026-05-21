@@ -2975,6 +2975,9 @@ function renderSumpouMode(){
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
               </div>
+              ${isSizeOnly?'':`<div class="smp-two-btns" style="margin-top:4px">
+                <button class="smp-btn-size" onclick="smpAddSiblingFromExtra(${site.id},${proc.id},${child.id},${ex.id})">＋ サイズ追加</button>
+              </div>`}
             </div>`;
           });
         });
@@ -3515,6 +3518,28 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
 }
 
 // extraMaterialを削除
+function smpAddSiblingFromExtra(siteId,procId,childId,baseExtraId){
+  // 追加品番行からさらにサイズ追加する（その品番を引き継ぐ）
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  const baseEx=(c.extraMaterials||[]).find(x=>x.id===baseExtraId);if(!baseEx)return;
+  if(!c.extraMaterials)c.extraMaterials=[];
+  const inheritNum=_splitMaterial(baseEx.material).num||'';
+  const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:true};
+  c.extraMaterials.push(newExtra);
+  saveData();
+  _sumpouFilter.mode='all';
+  renderSumpouMode();
+  setTimeout(()=>{
+    const row=document.getElementById('extra_'+newExtra.id);
+    if(row){
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+      const inp=row.querySelector('.f-size');
+      if(inp)inp.focus();
+    }
+  },50);
+}
 function smpDelSibling(siteId,procId,childId,extraId,mode){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
