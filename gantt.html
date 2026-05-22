@@ -947,6 +947,7 @@ function render(){
   if(!_renderRetried){
     // 複数フレーム待ってから列幅を確認（フォント・レイアウト確定を待つ）
     const _checkAndRetry=(attempt)=>{
+      if(barDrag&&barDrag.active)return; // ドラッグ中はリトライしない
       const th=document.querySelector('th.day-col');
       if(!th){if(attempt<5)requestAnimationFrame(()=>_checkAndRetry(attempt+1));return;}
       const actualW=th.getBoundingClientRect().width;
