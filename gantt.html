@@ -604,6 +604,17 @@ function normalizeSites(raw){
   const cids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).map(c=>c.id).filter(id=>id!=null&&!isNaN(id))));if(cids.length)nextCid=Math.max(nextCid,...cids)+1;
   const eids=raw.flatMap(s=>s.processes.flatMap(p=>(p.children||[]).flatMap(c=>(c.extraMaterials||[]).map(e=>e.id).filter(id=>id!=null&&!isNaN(id))))); if(eids.length)nextCid=Math.max(nextCid,...eids)+1;
   const peids=raw.flatMap(s=>s.processes.flatMap(p=>(p.extraMaterials||[]).map(e=>e.id).filter(id=>id!=null&&!isNaN(id)))); if(peids.length)nextCid=Math.max(nextCid,...peids)+1;
+  // 子項目が全て完了済みなら親工程も完了に自動補正
+  raw.forEach(s=>s.processes.forEach(p=>{
+    if(p.done)return; // すでに完了済みならスキップ
+    const orderedChildren=(p.children||[]).filter(c=>c.ordered!==undefined);
+    if(orderedChildren.length>0&&orderedChildren.every(c=>c.done)){
+      p.done=true;
+      // 最後に完了した子のdoneDate、なければ今日
+      const lastDate=orderedChildren.map(c=>c.doneDate||'').sort().pop()||fmt(new Date());
+      p.doneDate=lastDate;
+    }
+  }));
   return raw;
 }
 async function loadData(){
