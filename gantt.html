@@ -1870,9 +1870,18 @@ function saveChildDone(procId,childId){
     if(c){
       if(!canCompleteChild(c))return;
       c.done=true;c.doneDate=date;
-      // 全子項目が完了したら親工程も完了（期間は変えない）
+      // 全子項目が完了したら親工程も完了、バー終端も更新
       if(p.children.every(x=>x.done)){
         p.done=true;p.doneDate=date;
+        if(date){
+          if(p.periods&&p.periods.length>0){
+            const last=p.periods[p.periods.length-1];
+            last.endD=date;
+            if(last.startD&&last.startD>date)last.startD=date;
+          }else{
+            p.periods=[{startD:date,endD:date}];
+          }
+        }
       }
     }
     break;
@@ -1916,6 +1925,18 @@ function saveDone(pid){
   const date=document.getElementById('done_date').value;
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
     p.done=true;p.doneDate=date;
+    if(date){
+      if(p.periods&&p.periods.length>0){
+        // 最終期間の終端を完了日に更新
+        const last=p.periods[p.periods.length-1];
+        last.endD=date;
+        // 完了日が開始日より前なら開始日も完了日に合わせる
+        if(last.startD&&last.startD>date)last.startD=date;
+      }else{
+        // 期間未設定なら完了日で1日バーを生成
+        p.periods=[{startD:date,endD:date}];
+      }
+    }
     break;
   }
   saveData();closeModal();
