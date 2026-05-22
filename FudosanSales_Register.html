@@ -957,9 +957,12 @@ async function registerProperty() {
     showToast('✅ 登録しました', 'success');
     btn.textContent = '✅ 登録済み';
 
-    // 謄本リンクを表示
+    // 謄本リンクを表示（既存があれば削除してから追加）
     if (tohonUrl) {
+      const existing = document.getElementById('tohonLink');
+      if (existing) existing.remove();
       const linkDiv = document.createElement('div');
+      linkDiv.id = 'tohonLink';
       linkDiv.style.cssText = 'margin-top:10px;text-align:center;';
       linkDiv.innerHTML = `<a href="${tohonUrl}" target="_blank" style="color:#185fa5;font-size:13px;font-weight:600;text-decoration:none;">📄 保存した謄本を確認する</a>`;
       btn.parentNode.insertBefore(linkDiv, btn.nextSibling);
