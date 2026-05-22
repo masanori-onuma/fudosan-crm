@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FudosanSales｜謄本登録</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  color: #2d3748;
+}
+
+.header {
+  background: #1a3a5c;
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header h1 { font-size: 18px; font-weight: 600; flex: 1; }
+.header-sub { font-size: 12px; opacity: 0.7; }
+.btn-settings {
+  background: rgba(255,255,255,0.15);
+  border: none; color: white;
+  border-radius: 6px; padding: 7px 14px;
+  font-size: 13px; cursor: pointer;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 52px);
+}
+
+/* 左カラム：アップロード＋フォーム */
+.left-col {
+  background: white;
+  border-right: 1px solid #e2e8f0;
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(100vh - 52px);
+}
+
+/* 右カラム：分析結果 */
+.right-col {
+  background: #f8faff;
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(100vh - 52px);
+}
+
+/* ドラッグ&ドロップエリア */
+.drop-zone {
+  border: 2.5px dashed #c7d2fe;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8faff;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: #1a3a5c;
+  background: #eef2ff;
+}
+.drop-zone.dragover { transform: scale(1.01); }
+.drop-icon { font-size: 48px; margin-bottom: 12px; }
+.drop-title { font-size: 16px; font-weight: 600; color: #1a3a5c; margin-bottom: 6px; }
+.drop-sub { font-size: 13px; color: #a0aec0; }
+.drop-sub span { color: #7C3AED; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* 解析中 */
+.analyzing {
+  display: none;
+  text-align: center;
+  padding: 32px;
+  background: #f8faff;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #c7d2fe;
+}
+.analyzing-icon { font-size: 36px; margin-bottom: 12px; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.analyzing-title { font-size: 15px; font-weight: 600; color: #7C3AED; margin-bottom: 4px; }
+.analyzing-sub { font-size: 12px; color: #a0aec0; }
+
+/* フォーム */
+.form-section { display: none; }
+.form-section.show { display: block; }
+.result-header {
+  display: flex; align-items: center; gap: 10px;
+  background: #f0fff4; border: 1px solid #9ae6b4;
+  border-radius: 8px; padding: 10px 14px;
+  margin-bottom: 16px; font-size: 13px; color: #276749; font-weight: 600;
+}
+.inheritance-note {
+  font-size: 11px; color: #4a5568; font-weight: 400;
+  margin-top: 3px; line-height: 1.5;
+}
+.field-group { margin-bottom: 14px; }
+.field-label {
+  font-size: 11px; font-weight: 700; color: #718096;
+  letter-spacing: 0.05em; margin-bottom: 5px; text-transform: uppercase;
+}
+.field-input {
+  width: 100%; border: 1px solid #e2e8f0;
+  border-radius: 6px; padding: 9px 12px;
+  font-size: 14px; font-family: inherit;
+  transition: border-color 0.15s;
+}
+.field-input:focus { outline: none; border-color: #1a3a5c; }
+select.field-input { background: white; }
+textarea.field-input { min-height: 72px; resize: vertical; }
+
+.form-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-cancel {
+  flex: 1; border: none; background: #e2e8f0; color: #4a5568;
+  border-radius: 8px; padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-register {
+  flex: 2; border: none; background: #1a3a5c; color: white;
+  border-radius: 8px; padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-register:hover { background: #2a527a; }
+.btn-register:disabled { background: #a0aec0; cursor: not-allowed; }
+
+.error-box {
+  display: none; background: #fff5f5; border: 1px solid #fed7d7;
+  border-radius: 8px; padding: 12px; color: #e53e3e; font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* 右カラム：分析カード */
+.analysis-placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%;
+  color: #a0aec0; text-align: center; gap: 12px;
+}
+.analysis-placeholder .icon { font-size: 48px; }
+.analysis-placeholder p { font-size: 14px; }
+
+.analysis-content { display: none; }
+.analysis-content.show { display: block; }
+
+.section-title {
+  font-size: 12px; font-weight: 700; color: #718096;
+  letter-spacing: 0.06em; margin-bottom: 10px; text-transform: uppercase;
+}
+
+.priority-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.analysis-card {
+  background: white; border: 1px solid #e2e8f0;
+  border-radius: 10px; padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.analysis-card.accent {
+  background: #e6f1fb; border-color: #b5d4f4;
+  border-left: 4px solid #185fa5;
+  border-radius: 0 10px 10px 0;
+}
+.analysis-card.green {
+  background: #f0fff4; border-color: #9ae6b4;
+}
+.card-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  margin-bottom: 7px;
+}
+.card-label.blue { color: #185fa5; }
+.card-label.green { color: #276749; }
+.card-label.gray { color: #718096; }
+.card-text { font-size: 13px; color: #2d3748; line-height: 1.7; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px; padding: 3px 10px;
+  background: #edf2f7; color: #4a5568;
+  border-radius: 6px; border: 1px solid #e2e8f0;
+}
+
+.caution-box {
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 12px; color: #854f0b; margin-bottom: 10px;
+}
+
+/* スケジュール */
+.sched-row {
+  display: flex; align-items: center; gap: 12px;
+  background: white; border: 1px solid #e2e8f0;
+  border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.sched-row:hover { border-color: #b5d4f4; }
+.sched-row.primary { background: #e6f1fb; border-color: #b5d4f4; }
+.sched-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.sched-num.p { background: #1a3a5c; color: white; }
+.sched-num.s { background: #e2e8f0; color: #718096; }
+.sched-info { flex: 1; }
+.sched-title { font-size: 13px; font-weight: 600; color: #2d3748; }
+.sched-note { font-size: 11px; color: #718096; margin-top: 2px; }
+.sched-date {
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  text-align: right;
+}
+.sched-date.p { color: #1a3a5c; }
+.sched-date.s { color: #4a5568; }
+.sched-date-sub { font-size: 10px; color: #a0aec0; }
+
+/* DM文例 */
+.dm-toggle {
+  width: 100%; background: #f0f4ff; border: 1px solid #c7d2fe;
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: #1a3a5c;
+  cursor: pointer; text-align: left; margin-bottom: 8px;
+}
+.dm-toggle:hover { background: #e6ecff; }
+.dm-body {
+  display: none; background: white; border: 1px solid #c7d2fe;
+  border-radius: 0 0 10px 10px; padding: 14px 16px;
+  margin-top: -8px; margin-bottom: 8px;
+}
+.dm-text {
+  font-size: 13px; color: #2d3748; line-height: 1.8;
+  white-space: pre-wrap; background: #f8faff;
+  padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+.btn-copy {
+  width: 100%; background: #1a3a5c; color: white;
+  border: none; border-radius: 8px; padding: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-copy:hover { background: #2a527a; }
+
+/* 確定ボタン */
+.btn-confirm {
+  width: 100%; background: #2f855a; color: white;
+  border: none; border-radius: 10px; padding: 14px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  margin-top: 4px; margin-bottom: 8px;
+}
+.btn-confirm:hover { background: #276749; }
+.btn-skip {
+  width: 100%; background: none; border: none;
+  color: #a0aec0; font-size: 13px; padding: 8px; cursor: pointer;
+}
+
+/* 設定モーダル */
+.config-overlay {
+  position: fixed; top:0;left:0;right:0;bottom:0;
+  background: rgba(0,0,0,0.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 500;
+}
+.config-overlay.show { display: flex; }
+.config-box {
+  background: white; border-radius: 12px;
+  padding: 24px; width: 420px;
+}
+.config-box h3 { margin-bottom: 16px; color: #1a3a5c; font-size: 16px; }
+.config-box label { display: block; font-size: 12px; color: #4a5568; margin: 10px 0 4px; }
+.config-box input, .config-box select {
+  width: 100%; border: 1px solid #e2e8f0;
+  border-radius: 6px; padding: 9px 12px; font-size: 14px;
+}
+.config-btns { display: flex; gap: 8px; margin-top: 16px; }
+.config-btns button {
+  flex: 1; border: none; border-radius: 8px;
+  padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
+/* トースト */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: #2d3748; color: white;
+  padding: 12px 24px; border-radius: 8px;
+  font-size: 14px; z-index: 1000;
+  animation: toastIn 0.3s ease;
+}
+.toast.success { background: #2f855a; }
+.toast.error { background: #c53030; }
+@keyframes toastIn { from{opacity:0;transform:translate(-50%,8px)} to{opacity:1;transform:translate(-50%,0)} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>📋</div>
+  <h1>FudosanSales｜謄本登録</h1>
+  <span class="header-sub">PCから謄本PDFをドラッグ&ドロップして登録</span>
+  <button class="btn-settings" onclick="openConfig()">⚙ 設定</button>
+</div>
+
+<div class="layout">
+
+  <!-- 左カラム -->
+  <div class="left-col">
+
+    <!-- ドロップゾーン -->
+    <div class="drop-zone" id="dropZone"
+      ondragover="handleDragOver(event)"
+      ondragleave="handleDragLeave(event)"
+      ondrop="handleDrop(event)"
+      onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">📄</div>
+      <div class="drop-title">謄本PDFをここにドロップ</div>
+      <div class="drop-sub">または<span onclick="event.stopPropagation();document.getElementById('fileInput').click()">クリックしてファイルを選択</span></div>
+      <div style="font-size:11px;color:#c0c8d8;margin-top:8px;">登記事項証明書（全部事項）</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf" style="display:none" onchange="startAnalysis(this.files[0])">
+
+    <!-- 解析中 -->
+    <div class="analyzing" id="analyzingBox">
+      <div class="analyzing-icon">🔍</div>
+      <div class="analyzing-title">謄本を深く読み込んでいます…</div>
+      <div class="analyzing-sub">権利変遷・所有者状況・アプローチ戦略まで一括分析中</div>
+    </div>
+
+    <!-- エラー -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- フォーム -->
+    <div class="form-section" id="formSection">
+      <div class="result-header">
+        <span>✅</span>
+        <div>
+          <div>解析完了 — 内容を確認してください</div>
+          <div class="inheritance-note" id="inheritanceNote"></div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">物件住所</div>
+        <input type="text" class="field-input" id="tr_address">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field-group">
+          <div class="field-label">地目</div>
+          <input type="text" class="field-input" id="tr_chimoku">
+        </div>
+        <div class="field-group">
+          <div class="field-label">地積（㎡）</div>
+          <input type="text" class="field-input" id="tr_menseki" placeholder="例：146.61">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field-group">
+          <div class="field-label">所有者氏名</div>
+          <input type="text" class="field-input" id="tr_owner_name">
+        </div>
+        <div class="field-group">
+          <div class="field-label">県内/県外</div>
+          <select class="field-input" id="tr_is_local">
+            <option value="">未判定</option>
+            <option value="県内">県内</option>
+            <option value="県外">県外</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">所有者住所</div>
+        <input type="text" class="field-input" id="tr_owner_address">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field-group">
+          <div class="field-label">登記受付日</div>
+          <input type="date" class="field-input" id="tr_registration_date">
+        </div>
+        <div class="field-group">
+          <div class="field-label">登記原因</div>
+          <input type="text" class="field-input" id="tr_registration_reason">
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">メモ</div>
+        <textarea class="field-input" id="tr_memo"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="resetAll()">🔄 別のPDFを読み込む</button>
+        <button class="btn-register" id="registerBtn" onclick="registerProperty()">📋 登録する</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 右カラム：分析結果 -->
+  <div class="right-col">
+
+    <div class="analysis-placeholder" id="analysisPlaceholder">
+      <div class="icon">🤖</div>
+      <p>謄本PDFをドロップすると<br>ここにアプローチ分析が表示されます</p>
+    </div>
+
+    <div class="analysis-content" id="analysisContent">
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="font-size:20px;">🤖</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#1a3a5c;">Claudeのアプローチ分析</div>
+          <div style="font-size:11px;color:#a0aec0;">謄本全体を読み込んで生成</div>
+        </div>
+        <div id="analysisPriority" style="margin-left:auto;"></div>
+      </div>
+
+      <!-- 状況仮説 -->
+      <div class="analysis-card accent" id="cardHypothesis" style="display:none;">
+        <div class="card-label blue">この所有者の状況仮説</div>
+        <div class="card-text" id="textHypothesis"></div>
+      </div>
+
+      <!-- 売らない理由 -->
+      <div class="analysis-card" id="cardReasons" style="display:none;">
+        <div class="card-label gray">売らない・放置している理由の仮説</div>
+        <div class="tags" id="tagsReasons"></div>
+      </div>
+
+      <!-- フック -->
+      <div class="analysis-card green" id="cardHook" style="display:none;">
+        <div class="card-label green" id="hookLabel">🚪 玄関先のフック</div>
+        <div class="card-text" id="textHook" style="font-style:italic;color:#276749;"></div>
+      </div>
+
+      <!-- 注意点 -->
+      <div class="caution-box" id="cautionBox" style="display:none;"></div>
+
+      <!-- 住居表示（マップ用） -->
+      <div style="margin-top:12px;">
+        <div style="font-size:12px;font-weight:600;color:#4a5568;margin-bottom:6px;">🗺️ 住居表示（Googleマップ用・任意）</div>
+        <input type="text" id="tr_map_address" placeholder="例：春日部市大沼4丁目60-2（地番と異なる場合に入力）"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:13px;color:#2d3748;font-family:inherit;">
+        <div style="font-size:11px;color:#a0aec0;margin-top:4px;">入力がない場合は地番でマップ検索します</div>
+      </div>
+      <div id="scheduleSection" style="display:none;">
+        <div class="section-title" style="margin-top:8px;">推奨スケジュール</div>
+        <div style="font-size:11px;color:#a0aec0;margin-bottom:8px;">日付をクリックして変更できます</div>
+        <div id="scheduleRows"></div>
+      </div>
+
+      <!-- DM文例（県外のみ） -->
+      <div id="dmSection" style="display:none;">
+        <button class="dm-toggle" onclick="toggleDm()">
+          <span>✉️</span>
+          <span>おすすめDM文例を見る</span>
+          <span id="dmArrow" style="margin-left:auto;">▼</span>
+        </button>
+        <div class="dm-body" id="dmBody">
+          <div class="dm-text" id="dmText"></div>
+          <button class="btn-copy" onclick="copyDm()">📋 DM文例をコピー</button>
+        </div>
+      </div>
+
+      <!-- アクション確定 -->
+      <div id="actionSection" style="display:none;margin-top:16px;">
+        <div class="section-title">登録後のアクション</div>
+        <button class="btn-confirm" id="confirmBtn" onclick="confirmAction()">
+          📅 最初のアクション日を設定して完了
+        </button>
+        <button class="btn-skip" onclick="skipAction()">スキップして閉じる</button>
+      </div>
+
+      <!-- Claudeチャット -->
+      <div id="registerChatSection" style="display:none;margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px;">
+        <div style="font-size:13px;font-weight:700;color:#1a3a5c;margin-bottom:8px;">💬 Claudeに確認する</div>
+        <div id="registerChatMessages" style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;min-height:80px;max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
+          <div style="font-size:12px;color:#718096;background:white;border:0.5px solid #e2e8f0;border-radius:6px;padding:8px 10px;align-self:flex-start;max-width:90%;">分析完了しました。優先度の根拠や対応方針など、登録前に気になることがあれば確認してください。</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;" id="registerChatSuggestions">
+          <button onclick="sendRegisterChat('優先度の判断理由を教えて')" style="font-size:11px;padding:4px 9px;border:0.5px solid #e2e8f0;border-radius:6px;background:white;color:#4a5568;cursor:pointer;">優先度の理由は？</button>
+          <button onclick="sendRegisterChat('遠方だった場合の優先度は？')" style="font-size:11px;padding:4px 9px;border:0.5px solid #e2e8f0;border-radius:6px;background:white;color:#4a5568;cursor:pointer;">遠方なら優先度は？</button>
+          <button onclick="sendRegisterChat('DM文面のポイントを教えて')" style="font-size:11px;padding:4px 9px;border:0.5px solid #e2e8f0;border-radius:6px;background:white;color:#4a5568;cursor:pointer;">DM文面のポイントは？</button>
+          <button onclick="sendRegisterChat('アプローチで注意することは？')" style="font-size:11px;padding:4px 9px;border:0.5px solid #e2e8f0;border-radius:6px;background:white;color:#4a5568;cursor:pointer;">注意点は？</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <textarea id="registerChatInput" rows="2" placeholder="登録前に確認したいことを入力…"
+            style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:none;color:#2d3748;"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRegisterChat();}"></textarea>
+          <button onclick="sendRegisterChat()" style="background:#1a3a5c;color:white;border:none;border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;">送信</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="config-overlay" id="configOverlay" onclick="if(event.target===this)closeConfig()">
+  <div class="config-box">
+    <h3>設定</h3>
+    <label>FudosanSales GAS URL</label>
+    <input type="text" id="configGasUrl" placeholder="https://script.google.com/macros/s/.../exec">
+    <label>担当者</label>
+    <select id="configUser">
+      <option value="正範">正範</option>
+      <option value="由美子">由美子</option>
+    </select>
+    <div class="config-btns">
+      <button onclick="closeConfig()" style="background:#e2e8f0;color:#4a5568;">キャンセル</button>
+      <button onclick="saveConfig()" style="background:#1a3a5c;color:white;">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL_KEY = 'sales_gas_url';
+const USER_KEY = 'sales_user';
+
+const SAITAMA_KW = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市','八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市','吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市','本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市','行田市','秩父市'];
+
+let analysisData = null;
+let registeredPropertyData = null;
+let scheduleData = [];
+let dmText = '';
+let nextActionDate = '';
+let nextActionNote = '';
+
+// ─── ドラッグ&ドロップ ────────────────────────────────
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('dragover');
+}
+function handleDragLeave(e) {
+  document.getElementById('dropZone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    startAnalysis(file);
+  } else {
+    showToast('PDFファイルをドロップしてください', 'error');
+  }
+}
+
+// ─── PDF → 画像変換 ──────────────────────────────────
+
+async function pdfToImages(file) {
+  // PDF.jsを使ってPDFを高解像度PNGに変換
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const images = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const scale = 2.5; // 高解像度（謄本の細かい文字を読むため）
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    images.push(base64);
+  }
+
+  return images;
+}
+
+// ─── 解析開始 ────────────────────────────────────────
+
+let currentPdfFile = null; // 謄本PDFを登録時に保存するために保持
+
+async function startAnalysis(file) {
+  if (!file) return;
+  currentPdfFile = file; // PDFを保持
+
+  const gasUrl = localStorage.getItem(GAS_URL_KEY);
+  if (!gasUrl) {
+    openConfig();
+    showToast('GAS URLを設定してください', 'error');
+    return;
+  }
+
+  document.getElementById('dropZone').style.display = 'none';
+  document.getElementById('analyzingBox').style.display = 'block';
+  document.getElementById('analyzingBox').innerHTML = `
+    <div class="analyzing-icon">🔍</div>
+    <div class="analyzing-title">謄本を画像に変換中…</div>
+    <div class="analyzing-sub">高解像度で読み込んでいます</div>
+  `;
+  document.getElementById('formSection').classList.remove('show');
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('analysisPlaceholder').style.display = 'none';
+  document.getElementById('analysisContent').classList.remove('show');
+
+  try {
+    // PDF → 高解像度PNG画像に変換（ブラウザ側）
+    const images = await pdfToImages(file);
+
+    document.getElementById('analyzingBox').innerHTML = `
+      <div class="analyzing-icon">🤖</div>
+      <div class="analyzing-title">Claudeが謄本を深く読み込んでいます…</div>
+      <div class="analyzing-sub">権利変遷・所有者情報・アプローチ戦略まで一括分析中（${images.length}ページ）</div>
+    `;
+
+    // GAS経由でClaudeに画像として送信（CORSなし）
+    const response = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'analyzeTohon',
+        base64: images,        // PNG画像の配列をそのまま送る
+        mime_type: 'image/png'
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.analysis) throw new Error('解析結果が空でした');
+
+    analysisData = data.analysis;
+    fillForm(analysisData);
+    renderAnalysis(analysisData);
+
+    document.getElementById('analyzingBox').style.display = 'none';
+    document.getElementById('formSection').classList.add('show');
+    document.getElementById('analysisContent').classList.add('show');
+    document.getElementById('registerChatSection').style.display = 'block';
+    registerChatHistory = []; // チャット履歴リセット
+
+  } catch(e) {
+    document.getElementById('analyzingBox').style.display = 'none';
+    document.getElementById('dropZone').style.display = 'block';
+    document.getElementById('analysisPlaceholder').style.display = 'flex';
+    const err = document.getElementById('errorBox');
+    err.style.display = 'block';
+    err.textContent = '解析失敗：' + e.message;
+  }
+}
+
+// ─── フォーム自動入力 ────────────────────────────────
+
+function fillForm(d) {
+  document.getElementById('tr_address').value = d.address || '';
+  document.getElementById('tr_chimoku').value = d.chimoku || '';
+  document.getElementById('tr_menseki').value = d.menseki || '';
+  document.getElementById('tr_owner_name').value = d.owner_name || '';
+  document.getElementById('tr_owner_address').value = d.owner_address || '';
+  document.getElementById('tr_registration_date').value = d.registration_date || '';
+  document.getElementById('tr_registration_reason').value = d.registration_reason || '';
+
+  const memoLines = [
+    d.chimoku ? `[地目] ${d.chimoku}` : '',
+    d.menseki ? `[地積] ${d.menseki}㎡` : '',
+    d.has_mortgage && d.mortgage_detail ? `[抵当権] ${d.mortgage_detail}` : '',
+    d.special_notes || '',
+    d.memo || ''
+  ].filter(Boolean);
+  document.getElementById('tr_memo').value = memoLines.join('\n');
+
+  const ownerAddr = d.owner_address || '';
+  const isLocal = SAITAMA_KW.some(k => ownerAddr.includes(k)) ? '県内' : (ownerAddr ? '県外' : '');
+  if (isLocal) document.getElementById('tr_is_local').value = isLocal;
+
+  if (d.inheritance_chain) {
+    document.getElementById('inheritanceNote').textContent =
+      `📋 ${d.inheritance_chain}${d.has_mortgage ? '　⚠️ 抵当権あり' : ''}${d.special_notes ? `　📝 ${d.special_notes}` : ''}`;
+  }
+}
+
+// ─── 分析カード表示 ──────────────────────────────────
+
+function renderAnalysis(d) {
+  // 優先度
+  const colors = {
+    '高': { bg: '#fff5f5', border: '#f09595', color: '#a32d2d', icon: '🔴' },
+    '中': { bg: '#faeeda', border: '#fac775', color: '#854f0b', icon: '🟡' },
+    '低': { bg: '#eaf3de', border: '#c0dd97', color: '#3b6d11', icon: '🟢' }
+  };
+  const c = colors[d.priority] || colors['中'];
+  const priEl = document.getElementById('analysisPriority');
+  priEl.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;background:${c.bg};border:1.5px solid ${c.border};color:${c.color};`;
+  priEl.innerHTML = `${c.icon} 優先度：${d.priority} <span style="font-weight:400;font-size:11px;">${esc(d.priority_reason)}</span>`;
+
+  // 状況仮説
+  if (d.situation_hypothesis) {
+    document.getElementById('textHypothesis').textContent = d.situation_hypothesis;
+    document.getElementById('cardHypothesis').style.display = 'block';
+  }
+
+  // 売らない理由
+  if (d.why_not_selling && d.why_not_selling.length) {
+    document.getElementById('tagsReasons').innerHTML = d.why_not_selling.map(r =>
+      `<span class="tag">${esc(r)}</span>`
+    ).join('');
+    document.getElementById('cardReasons').style.display = 'block';
+  }
+
+  // フック
+  if (d.hook) {
+    const ownerAddr = document.getElementById('tr_owner_address').value;
+    const isLocal = SAITAMA_KW.some(k => ownerAddr.includes(k));
+    document.getElementById('hookLabel').textContent = isLocal ? '🚪 玄関先のフック' : '✉️ DMの切り口';
+    document.getElementById('textHook').textContent = `"${d.hook}"`;
+    document.getElementById('cardHook').style.display = 'block';
+  }
+
+  // 注意点
+  if (d.caution) {
+    const box = document.getElementById('cautionBox');
+    box.textContent = `⚠️ ${d.caution}`;
+    box.style.display = 'block';
+  }
+
+  // スケジュール
+  if (d.schedule && d.schedule.length) {
+    const today = new Date();
+    scheduleData = d.schedule.map(s => {
+      const dt = new Date(today);
+      dt.setDate(dt.getDate() + (s.offset_days || 0));
+      return { ...s, date: dt.toISOString().slice(0, 10) };
+    });
+    nextActionDate = scheduleData[0]?.date || '';
+    nextActionNote = scheduleData[0]?.label || '';
+
+    const rows = document.getElementById('scheduleRows');
+    rows.innerHTML = '';
+    scheduleData.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.className = `sched-row ${i === 0 ? 'primary' : ''}`;
+      row.innerHTML = `
+        <div class="sched-num ${i === 0 ? 'p' : 's'}">${s.step}</div>
+        <div class="sched-info">
+          <div class="sched-title">${esc(s.label)}</div>
+          <div class="sched-note">${esc(s.note)}</div>
+        </div>
+        <div>
+          <div class="sched-date ${i === 0 ? 'p' : 's'}" id="schedDate_${i}">${s.date}</div>
+          <div class="sched-date-sub">📅 クリックで変更</div>
+        </div>
+      `;
+      row.onclick = () => pickDate(i);
+      rows.appendChild(row);
+    });
+    document.getElementById('scheduleSection').style.display = 'block';
+    document.getElementById('actionSection').style.display = 'block';
+    document.getElementById('confirmBtn').textContent = `📅 最初のアクション日を設定して完了（${nextActionDate}）`;
+  }
+
+  // DM文例
+  dmText = d.dm_template || '';
+  if (dmText) {
+    const ownerName = document.getElementById('tr_owner_name').value;
+    document.getElementById('dmText').textContent = dmText.replace('○○様', `${ownerName}様`);
+    document.getElementById('dmSection').style.display = 'block';
+  }
+}
+
+// ─── 日付ピッカー（input[type=date]をオーバーレイで） ──────
+
+function pickDate(index) {
+  const current = scheduleData[index]?.date || new Date().toISOString().slice(0, 10);
+  const input = document.createElement('input');
+  input.type = 'date';
+  input.value = current;
+  input.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(input);
+  input.focus();
+  input.showPicker?.();
+  input.onchange = () => {
+    if (input.value) {
+      scheduleData[index].date = input.value;
+      document.getElementById(`schedDate_${index}`).textContent = input.value;
+      if (index === 0) {
+        nextActionDate = input.value;
+        document.getElementById('confirmBtn').textContent = `📅 最初のアクション日を設定して完了（${input.value}）`;
+      }
+    }
+    input.remove();
+  };
+  input.onblur = () => setTimeout(() => input.remove(), 300);
+}
+
+// ─── DM文例 ──────────────────────────────────────────
+
+function toggleDm() {
+  const body = document.getElementById('dmBody');
+  const arrow = document.getElementById('dmArrow');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  arrow.textContent = open ? '▼' : '▲';
+}
+
+function copyDm() {
+  navigator.clipboard.writeText(dmText.replace('○○様', `${document.getElementById('tr_owner_name').value}様`))
+    .then(() => showToast('📋 DM文例をコピーしました', 'success'))
+    .catch(() => showToast('コピー失敗', 'error'));
+}
+
+// ─── 登録画面チャット ────────────────────────────────────
+
+let registerChatHistory = [];
+
+async function sendRegisterChat(preset) {
+  const gasUrl = localStorage.getItem(GAS_URL_KEY);
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+
+  const input = document.getElementById('registerChatInput');
+  const text = preset || input.value.trim();
+  if (!text) return;
+
+  if (!preset) input.value = '';
+
+  const messages = document.getElementById('registerChatMessages');
+
+  // ユーザーメッセージ表示
+  const userDiv = document.createElement('div');
+  userDiv.style.cssText = 'font-size:12px;background:#1a3a5c;color:white;border-radius:6px 6px 2px 6px;padding:8px 10px;align-self:flex-end;max-width:90%;';
+  userDiv.textContent = text;
+  messages.appendChild(userDiv);
+
+  // ローディング
+  const loadingDiv = document.createElement('div');
+  loadingDiv.style.cssText = 'font-size:12px;color:#a0aec0;background:white;border:0.5px solid #e2e8f0;border-radius:2px 6px 6px 6px;padding:8px 10px;align-self:flex-start;max-width:90%;';
+  loadingDiv.textContent = '考え中…';
+  messages.appendChild(loadingDiv);
+  messages.scrollTop = messages.scrollHeight;
+
+  // 物件情報をコンテキストとして付加
+  const contextText = analysisData ? `
+【現在の分析物件】
+住所：${document.getElementById('tr_address')?.value || ''}
+所有者：${document.getElementById('tr_owner_name')?.value || ''}
+所有者住所：${document.getElementById('tr_owner_address')?.value || ''}
+県内/県外：${document.getElementById('tr_is_local')?.value || ''}
+登記原因：${document.getElementById('tr_registration_reason')?.value || ''}
+優先度：${analysisData.priority || ''}
+優先度の根拠：${analysisData.priority_reason || ''}
+状況仮説：${analysisData.situation_hypothesis || ''}
+フック：${analysisData.hook || ''}
+注意点：${analysisData.caution || ''}
+
+質問：${text}` : text;
+
+  registerChatHistory.push({ role: 'user', content: contextText });
+
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'registerChat',
+        history: registerChatHistory
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const reply = data.reply || '応答がありませんでした';
+    registerChatHistory.push({ role: 'assistant', content: reply });
+
+    loadingDiv.style.cssText = 'font-size:12px;background:white;border:0.5px solid #e2e8f0;border-radius:2px 6px 6px 6px;padding:8px 10px;align-self:flex-start;max-width:90%;color:#2d3748;line-height:1.6;white-space:pre-wrap;';
+    loadingDiv.textContent = reply;
+
+  } catch(e) {
+    loadingDiv.style.color = '#c53030';
+    loadingDiv.textContent = 'エラー：' + e.message;
+  }
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function registerProperty() {
+  const gasUrl = localStorage.getItem(GAS_URL_KEY);
+  if (!gasUrl) { openConfig(); return; }
+
+  const btn = document.getElementById('registerBtn');
+  btn.disabled = true;
+  btn.textContent = '登録中…';
+
+  const chimoku = document.getElementById('tr_chimoku').value;
+  const property = {
+    address: document.getElementById('tr_address').value,
+    owner_name: document.getElementById('tr_owner_name').value,
+    owner_address: document.getElementById('tr_owner_address').value,
+    is_local: document.getElementById('tr_is_local').value,
+    registration_date: document.getElementById('tr_registration_date').value,
+    registration_reason: document.getElementById('tr_registration_reason').value,
+    stage: '謄本取得済',
+    tohon_obtained: new Date().toISOString().slice(0, 10),
+    memo: document.getElementById('tr_memo').value,
+    next_action_date: '',
+    next_action_note: nextActionNote || '所有者情報確認済み。アプローチ方針を決定する。',
+    priority: analysisData?.priority || '',
+    situation_hypothesis: analysisData?.situation_hypothesis || '',
+    hook: analysisData?.hook || '',
+    caution: analysisData?.caution || '',
+    map_address: document.getElementById('tr_map_address')?.value?.trim() || ''
+  };
+
+  try {
+    // ① 物件を登録してIDを取得
+    const addRes = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'add', property })
+    });
+    const addData = await addRes.json();
+    if (addData.error) throw new Error(addData.error);
+
+    const propertyId = addData.id;
+
+    // ② 謄本PDFをDriveに保存
+    let tohonUrl = '';
+    if (currentPdfFile && propertyId) {
+      btn.textContent = '謄本を保存中…';
+      const pdfBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(currentPdfFile);
+      });
+      const tohonRes = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveTohon', base64: pdfBase64, property_id: propertyId })
+      });
+      const tohonData = await tohonRes.json();
+      if (tohonData.success && tohonData.url) {
+        tohonUrl = tohonData.url;
+        // ③ tohon_urlをスプレッドシートに保存
+        await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'update', id: propertyId, updates: { tohon_url: tohonUrl }, source: 'auto', user: '正範' })
+        });
+      }
+    }
+
+    registeredPropertyData = { ...property, id: propertyId, tohon_url: tohonUrl };
+    showToast('✅ 登録しました', 'success');
+    btn.textContent = '✅ 登録済み';
+
+    // 謄本リンクを表示
+    if (tohonUrl) {
+      const linkDiv = document.createElement('div');
+      linkDiv.style.cssText = 'margin-top:10px;text-align:center;';
+      linkDiv.innerHTML = `<a href="${tohonUrl}" target="_blank" style="color:#185fa5;font-size:13px;font-weight:600;text-decoration:none;">📄 保存した謄本を確認する</a>`;
+      btn.parentNode.insertBefore(linkDiv, btn.nextSibling);
+    }
+
+  } catch(e) {
+    showToast('登録失敗：' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '📋 登録する';
+  }
+}
+
+// ─── アクション確定 ─────────────────────────────────────
+
+async function confirmAction() {
+  const gasUrl = localStorage.getItem(GAS_URL_KEY);
+  if (!gasUrl || !nextActionDate || !registeredPropertyData) {
+    showToast('先に「登録する」を押してください', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(gasUrl + '?action=list');
+    const all = await res.json();
+    const props = Array.isArray(all) ? all : (all.properties || []);
+    const target = props.find(p => p.address === registeredPropertyData.address);
+    if (target) {
+      await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          action: 'update',
+          id: target.id,
+          updates: { next_action_date: nextActionDate, next_action_note: nextActionNote },
+          source: 'claude',
+          user: localStorage.getItem(USER_KEY) || '正範'
+        })
+      });
+      showToast('✅ アクション日を設定しました', 'success');
+    }
+  } catch(e) {
+    showToast('設定失敗：' + e.message, 'error');
+  }
+  setTimeout(resetAll, 1500);
+}
+
+function skipAction() { resetAll(); }
+
+// ─── リセット ────────────────────────────────────────
+
+function resetAll() {
+  analysisData = null;
+  registeredPropertyData = null;
+  scheduleData = [];
+  dmText = '';
+  nextActionDate = '';
+  nextActionNote = '';
+
+  document.getElementById('dropZone').style.display = 'block';
+  document.getElementById('analyzingBox').style.display = 'none';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('formSection').classList.remove('show');
+  document.getElementById('analysisContent').classList.remove('show');
+  document.getElementById('analysisPlaceholder').style.display = 'flex';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('registerBtn').disabled = false;
+  document.getElementById('registerBtn').textContent = '📋 登録する';
+
+  // カードをリセット
+  ['cardHypothesis','cardReasons','cardHook','cautionBox','scheduleSection','dmSection','actionSection'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('dmBody').style.display = 'none';
+  document.getElementById('dmArrow').textContent = '▼';
+  document.getElementById('scheduleRows').innerHTML = '';
+  document.getElementById('analysisPriority').innerHTML = '';
+  document.getElementById('inheritanceNote').textContent = '';
+}
+
+// ─── 設定 ────────────────────────────────────────────
+
+function openConfig() {
+  document.getElementById('configGasUrl').value = localStorage.getItem(GAS_URL_KEY) || '';
+  document.getElementById('configUser').value = localStorage.getItem(USER_KEY) || '正範';
+  document.getElementById('configOverlay').classList.add('show');
+}
+function closeConfig() {
+  document.getElementById('configOverlay').classList.remove('show');
+}
+function saveConfig() {
+  const url = document.getElementById('configGasUrl').value.trim();
+  const user = document.getElementById('configUser').value;
+  if (url) localStorage.setItem(GAS_URL_KEY, url);
+  localStorage.setItem(USER_KEY, user);
+  closeConfig();
+  showToast('設定を保存しました', 'success');
+}
+
+// ─── ユーティリティ ──────────────────────────────────
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 起動時に設定確認
+window.addEventListener('load', () => {
+  if (!localStorage.getItem(GAS_URL_KEY)) openConfig();
+});
+</script>
+</body>
+</html>
