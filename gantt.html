@@ -2454,7 +2454,10 @@ function openBulkArchiveModal(){
       <div style="font-weight:500;margin-bottom:4px">⚠ 未完了工程がある物件が${incomplete.length}件あります</div>
       ${incomplete.map(s=>{
         const notDone=(s.processes||[]).filter(p=>!p.done).length;
-        return `<div style="padding:1px 0">・${s.name}${notDone>0?' ('+notDone+'工程未完了)':' (工程未登録)'}</div>`;
+        return `<div style="padding:2px 0;display:flex;align-items:center;gap:6px">
+          <a href="#" onclick="event.preventDefault();closeModal();openSiteModal(${s.id})" style="color:#A32D2D;text-decoration:underline;cursor:pointer">・${s.name}</a>
+          <span style="color:#c0392b;font-size:10px">${notDone>0?notDone+'工程未完了':'工程未登録'}</span>
+        </div>`;
       }).join('')}
     </div>`;
   }
