@@ -1677,6 +1677,82 @@ function openMapForProperty() {
   openMapByAddress(addr);
 }
 
+async function checkListingForProperty(propertyId) {
+  const p = allProperties.find(x => x.id === propertyId);
+  if (!p) return;
+  const searchAddr = p.map_address || p.address;
+  if (!searchAddr) return;
+
+  const box = document.getElementById('listingResultBox');
+  if (!box) return;
+
+  box.style.display = 'block';
+  box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.6;background:#f7fafc;border:1.5px solid #bee3f8;color:#2b6cb0;';
+  box.innerHTML = '🔍 確認中…';
+
+  try {
+    const prompt = `以下の不動産物件が現在SUUMO・アットホームに売り出し・賃貸募集として掲載されているか調べてください。
+物件住所：${searchAddr}
+
+調査手順：
+1. SUUMOで「${searchAddr} 売り」を検索
+2. SUUMOで「${searchAddr} 賃貸」を検索
+3. アットホームで「${searchAddr} 売り」を検索
+4. アットホームで「${searchAddr} 賃貸」を検索
+
+結果を以下のJSON形式のみで返してください（他のテキスト不要）：
+{"suumo_sale":true or false,"suumo_rent":true or false,"athome_sale":true or false,"athome_rent":true or false,"detail":"見つかった場合の概要。なければ空文字"}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#fffaf0;border:1.5px solid #f6ad55;color:#7b341e;';
+      box.innerHTML = '⚠️ チェック失敗';
+      return;
+    }
+
+    const data = await res.json();
+    let jsonText = '';
+    for (const block of data.content || []) {
+      if (block.type === 'text') jsonText += block.text;
+    }
+    jsonText = jsonText.replace(/```json|```/g, '').trim();
+
+    let result;
+    try { result = JSON.parse(jsonText); } catch(e) {
+      box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#f0fff4;border:1.5px solid #9ae6b4;color:#276749;';
+      box.innerHTML = '✅ 判定不能（手動確認推奨）';
+      return;
+    }
+
+    const found = result.suumo_sale || result.suumo_rent || result.athome_sale || result.athome_rent;
+    if (found) {
+      const items = [];
+      if (result.suumo_sale) items.push('SUUMO売り');
+      if (result.suumo_rent) items.push('SUUMO賃貸');
+      if (result.athome_sale) items.push('アットホーム売り');
+      if (result.athome_rent) items.push('アットホーム賃貸');
+      box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#fff5f5;border:1.5px solid #fc8181;color:#742a2a;';
+      box.innerHTML = `⚠️ <strong>掲載中</strong>：${items.join('・')}${result.detail ? '<br>' + result.detail : ''}`;
+    } else {
+      box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#f0fff4;border:1.5px solid #9ae6b4;color:#276749;';
+      box.innerHTML = '✅ <strong>掲載なし</strong>';
+    }
+  } catch(e) {
+    box.style.cssText = 'display:block;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#fffaf0;border:1.5px solid #f6ad55;color:#7b341e;';
+    box.innerHTML = '⚠️ エラーが発生しました';
+  }
+}
+
 // ─── ③ DM送付管理 ────────────────────────────────
 
 function buildDmHistory(p) {
@@ -2049,6 +2125,8 @@ function openDetail(id) {
         🗺️ Googleマップで場所を確認
       </button>
       ${p.tohon_url ? `<a href="${escHtml(p.tohon_url)}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:#ebf8ff;border:1.5px solid #90cdf4;color:#2b6cb0;border-radius:8px;padding:11px;font-size:14px;font-weight:600;text-decoration:none;box-sizing:border-box;margin-top:8px;">📄 謄本を見る</a>` : ''}
+      <button onclick="checkListingForProperty('${escHtml(p.id)}')" style="width:100%;background:#faf5ff;border:1.5px solid #d6bcfa;color:#553c9a;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;">🔍 売り出し確認</button>
+      <div id="listingResultBox" style="display:none;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.6;"></div>
     </div>
     </div>
 
