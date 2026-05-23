@@ -1096,9 +1096,9 @@ function _renderInner(){
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
-    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&!_hasMaterial(c.material)));
+    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasMaterial(ex.material))));
     // 📋：品番入力済みの未発注がある？（発注待ち）
-    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material)));
+    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material))));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
@@ -1216,7 +1216,7 @@ function _renderInner(){
       const barColor=proc.color||'#7cb9ff';
       const topPx=TOP_PAD+KOUKI_BAR_H+MID_GAP+lane*(LANE_H+LANE_GAP);
       // 未発注判定：発注管理する子項目で、まだ発注されていないものがあるか
-      const _unordered=(proc.children||[]).some(c=>c.ordered===false);
+      const _unordered=(proc.children||[]).some(c=>c.ordered===false||(c.extraMaterials||[]).some(ex=>ex.ordered===false));
       // 工期超過判定（proc単位で判定済みのヘルパーを使用）
       const _overdue=_isProcOverdue(proc);
       // ボーダー色：未発注(赤)＞工期超過(オレンジ)＞通常(黄/グレー) の優先順
@@ -1356,7 +1356,7 @@ function _renderInner(){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
-          const _procUnordered=(proc.children||[]).some(c=>c.ordered===false);
+          const _procUnordered=(proc.children||[]).some(c=>c.ordered===false||(c.extraMaterials||[]).some(ex=>ex.ordered===false));
           const _procOverdue=_isProcOverdue(proc);
           const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW,_procUnordered,_procOverdue);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
@@ -1960,7 +1960,7 @@ function _countOrderWaiting(assigneeKey){
     return s.processes.some(p=>{
       const a=getAssignee(p.name,s.id,p.id);
       if(a!==assigneeKey)return false;
-      return (p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material));
+      return (p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material)));
     });
   }).length;
 }
@@ -1990,7 +1990,7 @@ function _isAssigneeBannerFiltered(site){
   return site.processes.some(p=>{
     const a=getAssignee(p.name,site.id,p.id);
     if(a!==_assigneeBannerActive)return false;
-    return (p.children||[]).some(c=>c.ordered===false&&_hasMaterial(c.material));
+    return (p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material)));
   });
 }
 
@@ -3893,6 +3893,7 @@ function renderOrderListMode(){
     if(s.archived)return;
     s.processes.forEach(p=>(p.children||[]).forEach(c=>{
       if(c.ordered===false)totalPending++;
+      (c.extraMaterials||[]).forEach(ex=>{if(ex.ordered===false)totalPending++;});
     }));
   });
 
