@@ -4134,10 +4134,10 @@ function renderOrderListMode(){
             </div>
             ${!exHasMat&&!exIsOrdered&&!ex.sizeOnly?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
             ${exStockHtml}
-            ${ex.sizeOnly?'':(`<label class="ord-check-wrap">
+            <label class="ord-check-wrap">
               <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
               <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'未発注'}</span>
-            </label>`)}
+            </label>
           </div>`;
         });
       });
