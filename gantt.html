@@ -963,6 +963,7 @@ function render(){
   }
 }
 function _renderInner(){
+  if(barDrag&&barDrag.active)return; // ドラッグ中は再描画しない
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
