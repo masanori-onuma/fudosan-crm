@@ -931,6 +931,59 @@ function makeBar(col,spanCount,label,isDone,isShort,dayW,isUnordered,isOverdue){
   return bar;
 }
 
+// ドラッグ中専用：バーのwidthとleftだけ更新（DOMを再構築しない）
+function _renderBarDragOnly(){
+  if(!barDrag.active)return;
+  const days=getDays();
+  const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:DAY_W;}return DAY_W;})();
+
+  const getSiteProc=()=>{
+    const site=sites.find(x=>x.id===barDrag.siteId);
+    const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
+    return {site,proc};
+  };
+
+  if(barDrag.isKouki){
+    const site=sites.find(x=>x.id===barDrag.siteId);
+    if(!site||!site.koukiStart||!site.koukiEnd)return;
+    const ksN=toN(parseD(site.koukiStart));
+    const keN=toN(parseD(site.koukiEnd));
+    const si=days.findIndex(d=>toN(d)===ksN);
+    const ei=days.findIndex(d=>toN(d)===keN);
+    const asi=si>=0?si:(toN(days[0])>ksN?0:-1);
+    const aei=ei>=0?ei:(toN(days[days.length-1])<keN?days.length-1:-1);
+    if(asi<0||aei<0)return;
+    const bar=document.querySelector('[data-barclass="kouki"]');
+    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+  }else if(barDrag.isChild){
+    const site=sites.find(x=>x.id===barDrag.siteId);
+    const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
+    const child=proc&&proc.children.find(x=>x.id===barDrag.childId);
+    if(!child||!child.periods)return;
+    const period=child.periods[barDrag.periodIdx];
+    if(!period||!period.startD||!period.endD)return;
+    const si=days.findIndex(d=>toN(d)===toN(parseD(period.startD)));
+    const ei=days.findIndex(d=>toN(d)===toN(parseD(period.endD)));
+    const asi=si>=0?si:(toN(days[0])>toN(parseD(period.startD))?0:-1);
+    const aei=ei>=0?ei:(toN(days[days.length-1])<toN(parseD(period.endD))?days.length-1:-1);
+    if(asi<0||aei<0)return;
+    const bar=document.querySelector(`[data-child-id="${barDrag.childId}"][data-period-idx="${barDrag.periodIdx}"]`);
+    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+  }else{
+    const {site,proc}=getSiteProc();
+    if(!proc)return;
+    const period=proc.periods[barDrag.periodIdx];
+    if(!period||!period.startD||!period.endD)return;
+    const si=days.findIndex(d=>toN(d)===toN(parseD(period.startD)));
+    const ei=days.findIndex(d=>toN(d)===toN(parseD(period.endD)));
+    const asi=si>=0?si:(toN(days[0])>toN(parseD(period.startD))?0:-1);
+    const aei=ei>=0?ei:(toN(days[days.length-1])<toN(parseD(period.endD))?days.length-1:-1);
+    if(asi<0||aei<0)return;
+    const bar=document.querySelector(`[data-proc-id="${barDrag.procId}"]`);
+    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+  }
+}
+
 let _lastUsedDayW=null;   // 直近のrenderで使った_dayW
 let _renderRetried=false; // 無限ループ防止用：この描画サイクルで既にリトライ済みか
 function render(){
@@ -963,7 +1016,6 @@ function render(){
   }
 }
 function _renderInner(){
-  if(barDrag&&barDrag.active)return; // ドラッグ中は再描画しない
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
   const fp=document.getElementById('filterPerson').value;
@@ -1709,7 +1761,8 @@ document.addEventListener('mousemove',function(e){
       period.endD=fmt(days[nei]);
     }
   }
-  render();
+  // ドラッグ中はバーのwidth/leftだけ更新（フル再描画しない）
+  _renderBarDragOnly();
 });
 
 document.addEventListener('mouseup',function(e){
