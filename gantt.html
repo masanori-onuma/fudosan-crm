@@ -862,7 +862,7 @@ function rebuildSelects(){
 let _koukiLongPress=null,_koukiLPX=0,_koukiLPY=0;
 let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
-let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
+let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false,_lastDi:null,_rafPending:false};
 let _isTouching=false;
 let _savedScrollLeft=undefined;
 
@@ -936,11 +936,17 @@ function _renderBarDragOnly(){
   if(!barDrag.active)return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:DAY_W;}return DAY_W;})();
-
-  const getSiteProc=()=>{
-    const site=sites.find(x=>x.id===barDrag.siteId);
-    const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
-    return {site,proc};
+  // origStartに対応するdiを基準にleftを計算する
+  const _origSiForLeft=(origStartStr)=>{
+    const n=toN(parseD(origStartStr));
+    const i=days.findIndex(d=>toN(d)===n);
+    return i>=0?i:(toN(days[0])>n?0:0);
+  };
+  const _applyBar=(bar,asi,aei,origStart)=>{
+    if(!bar)return;
+    const baseSi=_origSiForLeft(origStart);
+    bar.style.left=(asi-baseSi)*_dayW+'px';
+    bar.style.width=((aei-asi+1)*_dayW)+'px';
   };
 
   if(barDrag.isKouki){
@@ -954,7 +960,7 @@ function _renderBarDragOnly(){
     const aei=ei>=0?ei:(toN(days[days.length-1])<keN?days.length-1:-1);
     if(asi<0||aei<0)return;
     const bar=document.querySelector('[data-barclass="kouki"]');
-    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+    _applyBar(bar,asi,aei,barDrag.origStart);
   }else if(barDrag.isChild){
     const site=sites.find(x=>x.id===barDrag.siteId);
     const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
@@ -968,9 +974,10 @@ function _renderBarDragOnly(){
     const aei=ei>=0?ei:(toN(days[days.length-1])<toN(parseD(period.endD))?days.length-1:-1);
     if(asi<0||aei<0)return;
     const bar=document.querySelector(`[data-child-id="${barDrag.childId}"][data-period-idx="${barDrag.periodIdx}"]`);
-    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+    _applyBar(bar,asi,aei,barDrag.origStart);
   }else{
-    const {site,proc}=getSiteProc();
+    const site=sites.find(x=>x.id===barDrag.siteId);
+    const proc=site&&site.processes.find(x=>x.id===barDrag.procId);
     if(!proc)return;
     const period=proc.periods[barDrag.periodIdx];
     if(!period||!period.startD||!period.endD)return;
@@ -980,7 +987,7 @@ function _renderBarDragOnly(){
     const aei=ei>=0?ei:(toN(days[days.length-1])<toN(parseD(period.endD))?days.length-1:-1);
     if(asi<0||aei<0)return;
     const bar=document.querySelector(`[data-proc-id="${barDrag.procId}"]`);
-    if(bar){bar.style.width=((aei-asi+1)*_dayW)+'px';}
+    _applyBar(bar,asi,aei,barDrag.origStart);
   }
 }
 
@@ -1704,23 +1711,23 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  // マウスX座標からdiを直接計算（elementFromPointはバー上でnullになるため使わない）
-  let di=null;
-  {
+  // マウスX座標からdiを直接計算
+  // ドラッグ開始時に一度だけgsLeft/infoWをキャッシュして安定させる
+  if(!barDrag._gsLeft){
     const _gs=document.getElementById('ganttScroll');
-    const _infoCol=document.querySelector('td.col-info,th.col-info');
+    const _infoCol=document.querySelector('th.col-info')||document.querySelector('td.col-info');
     if(_gs&&_infoCol){
-      const _gsRect=_gs.getBoundingClientRect();
-      const _infoW=_infoCol.getBoundingClientRect().width;
-      const _xInTable=e.clientX-_gsRect.left+_gs.scrollLeft-_infoW;
-      const _diRaw=Math.floor(_xInTable/_dayW);
-      if(_diRaw>=0&&_diRaw<days.length){
-        di=_diRaw;
-        barDrag._lastDi=di;
-      }
+      barDrag._gsLeft=_gs.getBoundingClientRect().left;
+      barDrag._infoW=_infoCol.getBoundingClientRect().width;
+      barDrag._gs=_gs;
     }
   }
-  // 計算できなかった場合は前回値で継続
+  let di=null;
+  if(barDrag._gs&&barDrag._gsLeft!=null&&barDrag._infoW!=null){
+    const _xInTable=e.clientX-barDrag._gsLeft+barDrag._gs.scrollLeft-barDrag._infoW;
+    const _diRaw=Math.floor(_xInTable/_dayW);
+    if(_diRaw>=0&&_diRaw<days.length){di=_diRaw;barDrag._lastDi=di;}
+  }
   if(di===null&&typeof barDrag._lastDi==='number'&&!isNaN(barDrag._lastDi))di=barDrag._lastDi;
   if(di===null)return;
 
@@ -1796,7 +1803,7 @@ document.addEventListener('mousemove',function(e){
       period.endD=fmt(days[nei]);
     }
   }
-  // ドラッグ中はバーのwidth/leftだけ更新（フル再描画しない）
+  // ドラッグ中はバーのwidth/leftだけ更新（DOMを再構築しない）
   _renderBarDragOnly();
 });
 
@@ -1811,6 +1818,10 @@ document.addEventListener('mouseup',function(e){
     barDrag.active=false;
     barDrag.isNew=false;
     barDrag._lastDi=null;
+    barDrag._rafPending=false;
+    barDrag._gsLeft=null;
+    barDrag._infoW=null;
+    barDrag._gs=null;
     render();
     saveData();
   }
