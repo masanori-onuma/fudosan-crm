@@ -633,26 +633,37 @@ async function loadData(){
     }
     return;
   }
+  // まずlocalStorageから即時表示
   try{const d=localStorage.getItem('gantt_sites');if(d){sites=normalizeSites(JSON.parse(d));_lastSaved=d;render();setTimeout(scrollToToday,300);}}catch(e){console.warn('localStorage読込エラー、クリアします:',e.message);localStorage.removeItem('gantt_sites');}
   showSyncStatus('読み込み中…');
-  const v=await gasLoad('gantt_sites');
+  // GASからデータとタイムスタンプを取得
+  const [v, vTs] = await Promise.all([gasLoad('gantt_sites'), gasLoad('gantt_sites_ts')]);
   if(v){
     try{
-      if(v===_lastSaved){showSyncStatus('✓ 同期済み',2000);return;}
-      const parsed=JSON.parse(v);
-      const normed=normalizeSites(parsed);
-      sites=normed;
-      localStorage.setItem('gantt_sites',v);
-      _lastSaved=v;
-      const _gs2=document.getElementById('ganttScroll');
-      const _prevScrollLeft=_gs2?_gs2.scrollLeft:0;
-      const _prevScrollTop=_gs2?_gs2.scrollTop:0;
-      render();
-      if(_gs2){_gs2.scrollLeft=_prevScrollLeft;_gs2.scrollTop=_prevScrollTop;}
-      showSyncStatus('✓ 同期済み',2000);
+      const lsTs=parseInt(localStorage.getItem('gantt_sites_ts')||'0');
+      const gasTs=parseInt(vTs||'0');
+      // タイムスタンプでGASとlocalStorageの新旧を判定
+      // GASの方が新しい（またはlocalStorageにtsがない）場合のみGASで上書き
+      if(gasTs>lsTs){
+        const parsed=JSON.parse(v);
+        const normed=normalizeSites(parsed);
+        sites=normed;
+        localStorage.setItem('gantt_sites',v);
+        localStorage.setItem('gantt_sites_ts',String(gasTs));
+        _lastSaved=v;
+        const _gs2=document.getElementById('ganttScroll');
+        const _prevScrollLeft=_gs2?_gs2.scrollLeft:0;
+        const _prevScrollTop=_gs2?_gs2.scrollTop:0;
+        render();
+        if(_gs2){_gs2.scrollLeft=_prevScrollLeft;_gs2.scrollTop=_prevScrollTop;}
+        showSyncStatus('✓ 同期済み',2000);
+      }else{
+        // localStorageの方が新しい→そのまま使用（GASに再保存して同期）
+        if(_lastSaved&&gasTs<lsTs){gasSave('gantt_sites',sites);gasSave('gantt_sites_ts',lsTs);}
+        showSyncStatus('✓ 同期済み',2000);
+      }
     }catch(e){
       console.error('loadData error:',e.message);
-      console.error('stack:',e.stack);
       showSyncStatus('読込エラー:'+e.message.slice(0,30),5000);
     }
   }
@@ -691,6 +702,9 @@ function saveData(){
     if(_undoStack.length>20)_undoStack.shift();
     const el=document.getElementById('undoBtn');if(el)el.disabled=false;
   }
+  // タイムスタンプ付きで保存（読み込み時に新旧判定に使う）
+  const _saveTs=Date.now();
+  localStorage.setItem('gantt_sites_ts',String(_saveTs));
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);
   // シリアライズ: 既に保存中ならフラグを立てて、現在の保存完了後にもう一度保存する
@@ -703,7 +717,7 @@ function _runSave(){
   _lastSaveAttemptAt=Date.now();
   showSyncStatus('保存中…');
   const snapshot=_lastSaved; // この時点での内容を覚えておく
-  gasSave('gantt_sites',sites).then(ok=>{
+  gasSave('gantt_sites_ts',_saveTs);gasSave('gantt_sites',sites).then(ok=>{
     _savingNow=false;
     if(ok){
       _lastSaveOkAt=Date.now();
@@ -2602,6 +2616,9 @@ async function executeBulkArchive(ids){
       successCount++;
     }
   }
+  // タイムスタンプ付きで保存（読み込み時に新旧判定に使う）
+  const _saveTs=Date.now();
+  localStorage.setItem('gantt_sites_ts',String(_saveTs));
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);
   _archivedCache=null;
@@ -2641,6 +2658,9 @@ async function archiveSite(id){
   // ローカルのsitesからも削除
   sites=sites.filter(x=>x.id!==id);
   // _lastSavedを更新してGAS側と整合
+  // タイムスタンプ付きで保存（読み込み時に新旧判定に使う）
+  const _saveTs=Date.now();
+  localStorage.setItem('gantt_sites_ts',String(_saveTs));
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);
   // キャッシュは無効化（次回閲覧時に再取得）
