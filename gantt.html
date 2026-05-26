@@ -1172,6 +1172,7 @@ function _renderInner(){
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key" onclick="(window._isSP&&openKeyModal(${site.id}))" style="cursor:pointer">🔑 ${esc(site.keyLocation)}</div>`:''}
       ${site.parking?`<div class="site-sub site-park">🚗 ${esc(site.parking)}</div>`:''}
+      ${site.nyukyoDate?`<div class="site-sub" style="color:#1D6A3A;font-weight:600">🏠 入居 ${fmtD(site.nyukyoDate)}</div>`:''}
       ${_isSP?_actionsHtml:''}
       </div>`;
     siteRow.appendChild(siteTd);
@@ -1247,6 +1248,27 @@ function _renderInner(){
           bar.querySelector('[data-handle="right"]').onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
             barDrag={active:true,type:'right',isKouki:true,siteId:site.id,procId:null,periodIdx:null,origStart:ks,origEnd:ke,startMouseDi:null};};
           sc.appendChild(bar);
+
+          // 入居日フラグ描画
+          if(site.nyukyoDate){
+            const nyN=toN(parseD(site.nyukyoDate));
+            const nyIdx=days.findIndex(d=>toN(d)===nyN);
+            const anyIdx=nyIdx>=0?nyIdx:(toN(days[days.length-1])<nyN?days.length-1:(toN(days[0])>nyN?0:-1));
+            if(anyIdx>=0){
+              const nySc=siteDayCells[anyIdx];
+              if(nySc){
+                nySc.style.position='relative';nySc.style.overflow='visible';
+                const flagOffsetPx=(anyIdx===nyIdx)?0:( toN(days[0])>nyN?0:(_dayW-1) );
+                const flag=document.createElement('div');
+                flag.style.cssText=`position:absolute;left:${flagOffsetPx}px;top:2px;bottom:2px;width:2px;background:#1D9E75;border-radius:1px;z-index:10;pointer-events:none;`;
+                const flabel=document.createElement('div');
+                flabel.style.cssText=`position:absolute;left:${flagOffsetPx+4}px;top:2px;font-size:9px;font-weight:700;color:#0F6E56;white-space:nowrap;z-index:10;pointer-events:none;line-height:1.2;`;
+                flabel.textContent='入居 '+fmtD(site.nyukyoDate);
+                nySc.appendChild(flag);
+                nySc.appendChild(flabel);
+              }
+            }
+          }
         }
       }
     }
@@ -2121,6 +2143,7 @@ function openSiteModal(id){
       <div class="field"><label>着工日</label><input type="date" id="s_kouki_start" value="${s.koukiStart||''}"></div>
       <div class="field"><label>完成日</label><input type="date" id="s_kouki_end" value="${s.koukiEnd||''}"></div>
     </div>
+    <div class="field"><label>🏠 入居日</label><input type="date" id="s_nyukyo_date" value="${s.nyukyoDate||''}" style="width:100%;max-width:200px"></div>
     <div class="field"><label>🔑 鍵所在</label><input id="s_key" placeholder="管理会社・ポスト・現地など" value="${esc(s.keyLocation||'')}"></div>
     <div class="field"><label>🚗 駐車場</label><input id="s_parking" placeholder="敷地内◯番・近隣コインP など" value="${esc(s.parking||'')}"></div>
     <div class="field"><label>📁 Dropbox 見積① URL</label><input id="s_dropbox" placeholder="https://www.dropbox.com/..." value="${esc(s.dropboxUrl||'')}"></div>
@@ -2490,8 +2513,9 @@ function saveSite(id){
   const parking=document.getElementById('s_parking').value.trim();
   const koukiStart=document.getElementById('s_kouki_start').value;
   const koukiEnd=document.getElementById('s_kouki_end').value;
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,koukiStart,koukiEnd});}
+  const nyukyoDate=document.getElementById('s_nyukyo_date').value;
+  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,nyukyoDate,processes:[]});
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,koukiStart,koukiEnd,nyukyoDate});}
   saveData();closeModal();
 }
 function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
