@@ -1704,17 +1704,23 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  // マウス位置からdi計算（elementFromPointで高速化）
+  // マウスX座標からdiを直接計算（elementFromPointはバー上でnullになるため使わない）
   let di=null;
-  const _hitEl=document.elementFromPoint(e.clientX,e.clientY);
-  const _hitCell=_hitEl?(_hitEl.closest('td.day-cell')||(_hitEl.classList&&_hitEl.classList.contains('day-cell')?_hitEl:null)):null;
-  if(_hitCell){
-    if(!(_hitCell.dataset.ischild&&!barDrag.isChild)){
-      di=parseInt(_hitCell.dataset.di);
-      barDrag._lastDi=di;
+  {
+    const _gs=document.getElementById('ganttScroll');
+    const _infoCol=document.querySelector('td.col-info,th.col-info');
+    if(_gs&&_infoCol){
+      const _gsRect=_gs.getBoundingClientRect();
+      const _infoW=_infoCol.getBoundingClientRect().width;
+      const _xInTable=e.clientX-_gsRect.left+_gs.scrollLeft-_infoW;
+      const _diRaw=Math.floor(_xInTable/_dayW);
+      if(_diRaw>=0&&_diRaw<days.length){
+        di=_diRaw;
+        barDrag._lastDi=di;
+      }
     }
   }
-  // バー上でelementFromPointがday-cellを取れなかった場合は前回値で継続
+  // 計算できなかった場合は前回値で継続
   if(di===null&&typeof barDrag._lastDi==='number'&&!isNaN(barDrag._lastDi))di=barDrag._lastDi;
   if(di===null)return;
 
