@@ -1707,12 +1707,15 @@ document.addEventListener('mousemove',function(e){
   // マウス位置からdi計算（elementFromPointで高速化）
   let di=null;
   const _hitEl=document.elementFromPoint(e.clientX,e.clientY);
-  const _hitCell=_hitEl?_hitEl.closest('td.day-cell'):null;
+  const _hitCell=_hitEl?(_hitEl.closest('td.day-cell')||(_hitEl.classList&&_hitEl.classList.contains('day-cell')?_hitEl:null)):null;
   if(_hitCell){
     if(!(_hitCell.dataset.ischild&&!barDrag.isChild)){
       di=parseInt(_hitCell.dataset.di);
+      barDrag._lastDi=di;
     }
   }
+  // バー上でelementFromPointがday-cellを取れなかった場合は前回値で継続
+  if(di===null&&barDrag._lastDi!=null)di=barDrag._lastDi;
   if(di===null)return;
 
   if(barDrag.isKouki){
@@ -1728,10 +1731,12 @@ document.addEventListener('mousemove',function(e){
       const nei=Math.max(0,Math.min(days.length-1,origEi+delta));
       site.koukiStart=fmt(days[nsi]);site.koukiEnd=fmt(days[nei]);
     }else if(barDrag.type==='left'){
-      const nsi=Math.max(0,Math.min(origEi,di));
+      const nsi=Math.max(0,Math.min(origEi>=0?origEi:days.length-1,di));
       site.koukiStart=fmt(days[nsi]);
     }else{
-      const nei=Math.max(Math.max(0,origSi),Math.min(days.length-1,di));
+      // origSiがビュー外(-1)でもorigSNで下限を判定する
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       site.koukiEnd=fmt(days[nei]);
     }
   }else if(barDrag.isChild){
@@ -1752,10 +1757,11 @@ document.addEventListener('mousemove',function(e){
       const nei=Math.max(0,Math.min(days.length-1,origEi+delta));
       period.startD=fmt(days[nsi]);period.endD=fmt(days[nei]);
     }else if(barDrag.type==='left'){
-      const nsi=Math.max(0,Math.min(origEi,di));
+      const nsi=Math.max(0,Math.min(origEi>=0?origEi:days.length-1,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
     // 子バー変更→親バーを自動拡張
@@ -1776,10 +1782,11 @@ document.addEventListener('mousemove',function(e){
       const nei=Math.max(0,Math.min(days.length-1,origEi+delta));
       period.startD=fmt(days[nsi]);period.endD=fmt(days[nei]);
     }else if(barDrag.type==='left'){
-      const nsi=Math.max(0,Math.min(origEi,di));
+      const nsi=Math.max(0,Math.min(origEi>=0?origEi:days.length-1,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
   }
