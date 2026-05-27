@@ -1120,7 +1120,7 @@ function _renderInner(){
     }
     return true;
   }).forEach(site=>{
-    const procs=site.processes.filter(p=>fp?(p.person===fp||(p.persons||[]).includes(fp)):true);
+    const procs=site.processes.filter(p=>fp.size>0?(fp.has(p.person)||((p.persons||[]).some(pn=>fp.has(pn)))):true);
     const nd=procs.filter(p=>!p.periods||!p.periods.length).length;
     const mapUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(site.addr);
     const hasUnset=site.processes.some(p=>!p.periods||!p.periods.length);
