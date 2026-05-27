@@ -909,6 +909,25 @@ let _koukiLongPress=null,_koukiLPX=0,_koukiLPY=0;
 let _procLongPress=null;
 document.addEventListener('mouseup',()=>{if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}});
 let barDrag={active:false,type:'move',procId:null,periodIdx:null,siteId:null,startMouseDi:null,origStart:null,origEnd:null,isKouki:false,isNew:false};
+// ドラッグ開始時に一度だけ座標キャッシュを取得（毎フレームBCRを呼ぶと不安定）
+function _initBarDragCache(){
+  const gs=document.getElementById('ganttScroll');
+  const infoCol=document.querySelector('th.col-info')||document.querySelector('td.col-info');
+  if(gs&&infoCol){
+    barDrag._gsLeft=gs.getBoundingClientRect().left;
+    barDrag._infoW=infoCol.getBoundingClientRect().width;
+    barDrag._gs=gs;
+  }
+}
+function _getDiFromMouseX(clientX,days,dayW){
+  if(!barDrag._gs||barDrag._gsLeft==null||barDrag._infoW==null)return null;
+  const x=clientX-barDrag._gsLeft+barDrag._gs.scrollLeft-barDrag._infoW;
+  const di=Math.floor(x/dayW);
+  if(di>=0&&di<days.length)return di;
+  // ビュー外でも端にクランプして返す（nullより確実）
+  if(di<0)return 0;
+  return days.length-1;
+}
 let _isTouching=false;
 let _savedScrollLeft=undefined;
 
@@ -1244,7 +1263,7 @@ function _renderInner(){
           const s2=sites.find(x=>x.id===sid);
           if(s2){s2.koukiStart=fmt(d);s2.koukiEnd=fmt(d);}
           barDrag={active:true,type:'right',isKouki:true,siteId:sid,procId:null,periodIdx:null,
-            origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};
+            origStart:fmt(d),origEnd:fmt(d),startMouseDi:null};_initBarDragCache();
           render();
         },150);
       };
@@ -1287,12 +1306,12 @@ function _renderInner(){
             e.preventDefault();e.stopPropagation();
             barDrag={active:true,type:'move',isKouki:true,siteId:site.id,procId:null,periodIdx:null,
               startMouseDi:asi+Math.floor((e.clientX-sc.getBoundingClientRect().left)/_dayW),
-              origStart:ks,origEnd:ke};
+              origStart:ks,origEnd:ke};_initBarDragCache();
           };
           bar.querySelector('[data-handle="left"]').onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
-            barDrag={active:true,type:'left',isKouki:true,siteId:site.id,procId:null,periodIdx:null,origStart:ks,origEnd:ke,startMouseDi:null};};
+            barDrag={active:true,type:'left',isKouki:true,siteId:site.id,procId:null,periodIdx:null,origStart:ks,origEnd:ke,startMouseDi:null};_initBarDragCache();};
           bar.querySelector('[data-handle="right"]').onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
-            barDrag={active:true,type:'right',isKouki:true,siteId:site.id,procId:null,periodIdx:null,origStart:ks,origEnd:ke,startMouseDi:null};};
+            barDrag={active:true,type:'right',isKouki:true,siteId:site.id,procId:null,periodIdx:null,origStart:ks,origEnd:ke,startMouseDi:null};_initBarDragCache();};
           sc.appendChild(bar);
 
           // 入居日フラグ描画
@@ -1488,15 +1507,15 @@ function _renderInner(){
             const cellRect=sc.getBoundingClientRect();
             barDrag={active:true,type:'move',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,
               startMouseDi:asi+Math.floor((e.clientX-cellRect.left)/_dayW),
-              origStart:period.startD,origEnd:period.endD};
+              origStart:period.startD,origEnd:period.endD};_initBarDragCache();
           };
           bar.querySelector('[data-handle="left"]').onmousedown=(e)=>{
             e.preventDefault();e.stopPropagation();
-            barDrag={active:true,type:'left',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};
+            barDrag={active:true,type:'left',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};_initBarDragCache();
           };
           bar.querySelector('[data-handle="right"]').onmousedown=(e)=>{
             e.preventDefault();e.stopPropagation();
-            barDrag={active:true,type:'right',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};
+            barDrag={active:true,type:'right',isKouki:false,siteId:site.id,procId:proc.id,periodIdx:pi,origStart:period.startD,origEnd:period.endD,startMouseDi:null};_initBarDragCache();
           };
           // PCホバーで子項目ツールチップ
           if(children.length>0){
@@ -1538,7 +1557,7 @@ function _renderInner(){
               proc2.periods.push({startD:fmt(d),endD:fmt(d)});
               barDrag={active:true,type:'right',isKouki:false,isNew:true,
                 siteId:sid,procId:pid,periodIdx:proc2.periods.length-1,
-                startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
+                startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};_initBarDragCache();
               render();
             },200);
           };
@@ -1649,16 +1668,16 @@ function _renderInner(){
                   barDrag={active:true,type:'move',isKouki:false,isChild:true,
                     siteId:site.id,procId:proc.id,childId:child.id,periodIdx:pi,
                     startMouseDi:asi+Math.floor((e.clientX-sc.getBoundingClientRect().left)/_dayW),
-                    origStart:period.startD,origEnd:period.endD};
+                    origStart:period.startD,origEnd:period.endD};_initBarDragCache();
                 };
                 lh.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
                   barDrag={active:true,type:'left',isKouki:false,isChild:true,
                     siteId:site.id,procId:proc.id,childId:child.id,periodIdx:pi,
-                    origStart:period.startD,origEnd:period.endD,startMouseDi:null};};
+                    origStart:period.startD,origEnd:period.endD,startMouseDi:null};_initBarDragCache();};
                 rh.onmousedown=(e)=>{e.preventDefault();e.stopPropagation();
                   barDrag={active:true,type:'right',isKouki:false,isChild:true,
                     siteId:site.id,procId:proc.id,childId:child.id,periodIdx:pi,
-                    origStart:period.startD,origEnd:period.endD,startMouseDi:null};};
+                    origStart:period.startD,origEnd:period.endD,startMouseDi:null};_initBarDragCache();};
               }else{
                 const clbl=document.createElement('span');
                 clbl.style.cssText='font-size:9px;font-weight:500;color:#fff;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;pointer-events:none;text-shadow:0 1px 1px rgba(0,0,0,0.3)';
@@ -1698,7 +1717,7 @@ function _renderInner(){
                     _expandProcPeriods(p2);
                     barDrag={active:true,type:'right',isKouki:false,isChild:true,isNew:true,
                       siteId:sid,procId:pid,childId:cid,periodIdx:newPeriodIdx,
-                      startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};
+                      startMouseDi:di,origStart:fmt(d),origEnd:fmt(d)};_initBarDragCache();
                     render();
                   },300);
                   return false;
@@ -1750,15 +1769,8 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  // マウス位置からdi計算（elementFromPointで高速化）
-  let di=null;
-  const _hitEl=document.elementFromPoint(e.clientX,e.clientY);
-  const _hitCell=_hitEl?_hitEl.closest('td.day-cell'):null;
-  if(_hitCell){
-    if(!(_hitCell.dataset.ischild&&!barDrag.isChild)){
-      di=parseInt(_hitCell.dataset.di);
-    }
-  }
+  // X座標からdiを直接計算（elementFromPointはバー上でnullになるため使わない）
+  const di=_getDiFromMouseX(e.clientX,days,_dayW);
   if(di===null)return;
 
   if(barDrag.isKouki){
@@ -1777,7 +1789,9 @@ document.addEventListener('mousemove',function(e){
       const nsi=Math.max(0,Math.min(origEi,di));
       site.koukiStart=fmt(days[nsi]);
     }else{
-      const nei=Math.max(Math.max(0,origSi),Math.min(days.length-1,di));
+      // origSiがビュー外(-1)でもorigSNで下限を保証
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       site.koukiEnd=fmt(days[nei]);
     }
   }else if(barDrag.isChild){
@@ -1801,7 +1815,8 @@ document.addEventListener('mousemove',function(e){
       const nsi=Math.max(0,Math.min(origEi,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
     // 子バー変更→親バーを自動拡張
@@ -1825,7 +1840,8 @@ document.addEventListener('mousemove',function(e){
       const nsi=Math.max(0,Math.min(origEi,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const minDi=days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(minDi>=0?minDi:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
   }
@@ -1844,6 +1860,9 @@ document.addEventListener('mouseup',function(e){
     barDrag.active=false;
     barDrag.isNew=false;
     barDrag._lastDi=null;
+    barDrag._gsLeft=null;
+    barDrag._infoW=null;
+    barDrag._gs=null;
     render();
     saveData();
   }
@@ -4982,7 +5001,7 @@ document.addEventListener('touchstart',function(e){
     _lpt=setTimeout(()=>{if(!_tmv)showDonePopup(sid,pid,e.touches[0].clientX,e.touches[0].clientY);},200);
   }
   const procTd=e.target.closest('td.day-cell[data-proc]');
-  if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};return;}
+  if(procTd){barDrag={active:true,type:'move',isKouki:false,siteId:parseInt(procTd.dataset.site),procId:parseInt(procTd.dataset.proc),periodIdx:0,startMouseDi:parseInt(procTd.dataset.di),origStart:'',origEnd:''};_initBarDragCache();return;}
 },{passive:true});
 document.addEventListener('touchmove',function(){_tmv=true;if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
 document.addEventListener('touchend',function(e){
