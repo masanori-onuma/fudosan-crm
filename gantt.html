@@ -1750,14 +1750,18 @@ document.addEventListener('mousemove',function(e){
   if(barDrag.type==='move'&&(barDrag.startMouseDi===null||isNaN(barDrag.startMouseDi)))return;
   const days=getDays();
   const _dayW=(()=>{const th=document.querySelector('th.day-col');if(th){const w=th.getBoundingClientRect().width;return w>0?w:(_isSP?24:DAY_W);}return _isSP?24:DAY_W;})();
-  // マウス位置からdi計算（elementFromPointで高速化）
+  // X座標からdiを直接計算（バー上でelementFromPointがnullになる問題を回避）
   let di=null;
-  const _hitEl=document.elementFromPoint(e.clientX,e.clientY);
-  const _hitCell=_hitEl?_hitEl.closest('td.day-cell'):null;
-  if(_hitCell){
-    if(!(_hitCell.dataset.ischild&&!barDrag.isChild)){
-      di=parseInt(_hitCell.dataset.di);
-    }
+  const _gs=document.getElementById('ganttScroll');
+  const _ic=document.querySelector('th.col-info');
+  if(_gs&&_ic){
+    const _gsl=_gs.getBoundingClientRect().left;
+    const _icw=_ic.offsetWidth;
+    const _xi=e.clientX-_gsl+_gs.scrollLeft-_icw;
+    const _di=Math.floor(_xi/_dayW);
+    if(_di>=0&&_di<days.length)di=_di;
+    else if(_di<0)di=0;
+    else di=days.length-1;
   }
   if(di===null)return;
 
@@ -1778,7 +1782,8 @@ document.addEventListener('mousemove',function(e){
       site.koukiStart=fmt(days[nsi]);
     }else{
       // origSiがビュー外(-1)でもorigSNで下限を保証
-      const nei=Math.max(Math.max(0,origSi),Math.min(days.length-1,di));
+      const _minR=origSi>=0?origSi:days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(_minR>=0?_minR:0,Math.min(days.length-1,di));
       site.koukiEnd=fmt(days[nei]);
     }
   }else if(barDrag.isChild){
@@ -1802,7 +1807,8 @@ document.addEventListener('mousemove',function(e){
       const nsi=Math.max(0,Math.min(origEi,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const _minR=origSi>=0?origSi:days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(_minR>=0?_minR:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
     // 子バー変更→親バーを自動拡張
@@ -1826,12 +1832,13 @@ document.addEventListener('mousemove',function(e){
       const nsi=Math.max(0,Math.min(origEi,di));
       period.startD=fmt(days[nsi]);
     }else{
-      const nei=Math.max(origSi,Math.min(days.length-1,di));
+      const _minR=origSi>=0?origSi:days.findIndex(d=>toN(d)>=origSN);
+      const nei=Math.max(_minR>=0?_minR:0,Math.min(days.length-1,di));
       period.endD=fmt(days[nei]);
     }
   }
-  // ドラッグ中はバーのwidth/leftだけ更新（DOMを再構築しない）
-  _renderBarDragOnly();
+  // ドラッグ中はrAFで間引いてrender（_renderBarDragOnlyはleft更新不可のため廃止）
+  if(!barDrag._raf){barDrag._raf=requestAnimationFrame(()=>{barDrag._raf=null;if(barDrag.active)render();});}
 });
 
 document.addEventListener('mouseup',function(e){
@@ -1845,6 +1852,7 @@ document.addEventListener('mouseup',function(e){
     barDrag.active=false;
     barDrag.isNew=false;
     barDrag._lastDi=null;
+    if(barDrag._raf){cancelAnimationFrame(barDrag._raf);barDrag._raf=null;}
     render();
     saveData();
   }
