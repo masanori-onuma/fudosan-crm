@@ -2112,6 +2112,10 @@ function openDetail(id) {
       <div class="field-label">メモ</div>
       <textarea class="field-input" id="f_memo">${escHtml(p.memo)}</textarea>
     </div>
+    <div class="field-group">
+      <div class="field-label">住居表示（マップ用）</div>
+      <input type="text" class="field-input" id="f_map_address" value="${escHtml(p.map_address)}" placeholder="例：春日部市大沼4丁目60-2（地番と異なる場合）">
+    </div>
     <div class="modal-actions">
       <button class="btn-close" onclick="closeDetail()">閉じる</button>
       <button class="btn-update" onclick="saveDetail()">💾 保存</button>
@@ -2270,7 +2274,8 @@ async function saveDetail() {
     response_pattern: document.getElementById('f_response_pattern').value,
     next_action_date: document.getElementById('f_next_action_date').value,
     next_action_note: document.getElementById('f_next_action_note').value,
-    memo: document.getElementById('f_memo').value
+    memo: document.getElementById('f_memo').value,
+    map_address: document.getElementById('f_map_address').value
   };
   
   const newStage = document.getElementById('f_stage').value;
