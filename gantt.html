@@ -1552,7 +1552,10 @@ function _renderInner(){
         frag.appendChild(procRow);
 
         // 子項目行
-        if(!proc.childCollapsed&&children.length>0){
+        // 寸法入力で自動生成されたダミー子項目（工程名と同名・area空・periods無し）のみの場合は非表示
+        const _visibleChildren=children.filter(c=>!(c.name===proc.name&&(c.area||'')==''&&(!c.periods||c.periods.length===0)&&!_hasMaterial(c.material)));
+        if(!proc.childCollapsed&&_visibleChildren.length>0){
+          const children=_visibleChildren;
           children.forEach((child,_childIdx)=>{
             const _isLastChild=(_childIdx===children.length-1);
             const childRow=document.createElement('tr');
