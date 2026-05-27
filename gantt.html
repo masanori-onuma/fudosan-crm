@@ -748,7 +748,7 @@ function _runSave(){
   _lastSaveAttemptAt=Date.now();
   showSyncStatus('保存中…');
   const snapshot=_lastSaved; // この時点での内容を覚えておく
-  gasSave('gantt_sites_ts',_saveTs);gasSave('gantt_sites',sites).then(ok=>{
+  gasSave('gantt_sites_ts',parseInt(localStorage.getItem('gantt_sites_ts')||'0'));gasSave('gantt_sites',sites).then(ok=>{
     _savingNow=false;
     if(ok){
       _lastSaveOkAt=Date.now();
