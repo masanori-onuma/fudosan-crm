@@ -58,6 +58,22 @@ header a:hover{color:#185FA5}
 .smp-proc-badge-pending{background:#fde8e8;color:#A02020}
 .smp-proc-badge-partial{background:#fff3cd;color:#7A5800}
 /* 担当者ドロップダウン */
+.person-filter-wrap{position:relative;display:inline-flex;align-items:center}
+.person-filter-btn{height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#333;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;min-width:80px}
+.person-filter-btn .pf-count{background:#3949ab;color:#fff;border-radius:8px;font-size:10px;padding:0 5px;font-weight:600}
+.person-filter-panel{display:none;position:fixed;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:9000;min-width:180px;padding:4px 0;max-height:320px;overflow-y:auto}
+.person-filter-panel.open{display:block}
+.pf-item{display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:12px;cursor:pointer;color:#333;user-select:none}
+.pf-item:hover{background:#f5f5f5}
+.pf-item input[type=checkbox]{width:13px;height:13px;accent-color:#3949ab;cursor:pointer;flex-shrink:0}
+.pf-item.checked{color:#3949ab;font-weight:500}
+.pf-divider{border:none;border-top:1px solid #eee;margin:3px 0}
+.pf-clear{font-size:11px;color:#999;padding:4px 12px;cursor:pointer}
+.pf-clear:hover{color:#E74C3C}
+.pf-tags{display:flex;flex-wrap:wrap;gap:4px;margin-left:4px}
+.pf-tag{background:#E8EAF6;color:#3949ab;font-size:11px;padding:2px 7px;border-radius:8px;display:flex;align-items:center;gap:3px;cursor:default}
+.pf-tag-x{cursor:pointer;opacity:0.6;font-size:12px;line-height:1}
+.pf-tag-x:hover{opacity:1}
 .assignee-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
 .assignee-banner{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;border:1.5px solid transparent;white-space:nowrap;flex-shrink:0;user-select:none}
 .assignee-banner.ab-self{background:#EBF4FF;border-color:#4A90D9;color:#185FA5}
@@ -410,7 +426,22 @@ tr.row-child td.day-cell:not(.wk-cell):not(.tod-cell){
   <div class="filter-bar">
     <input id="filterSearch" placeholder="🔍 物件名・所在地・品番で検索" oninput="render()" style="height:26px;padding:0 8px;font-size:12px;border:1px solid #ccc;border-radius:6px;min-width:160px">
     <label>元受</label><select id="filterClient" onchange="render()"><option value="">すべて</option></select>
-    <label>担当者</label><select id="filterPerson" onchange="render()"><option value="">すべて</option></select>
+    <label>担当者</label>
+    <div class="person-filter-wrap" id="personFilterWrap">
+      <button class="person-filter-btn" id="personFilterBtn" onclick="togglePersonPanel(event)">
+        <span id="personFilterLabel">すべて</span>
+        <span class="pf-count" id="personFilterCount" style="display:none"></span>
+        <span style="font-size:10px;margin-left:2px">▼</span>
+      </button>
+      <div class="person-filter-panel" id="personFilterPanel">
+        <div class="pf-item" id="pfAll" onclick="pfToggleAll(event)"><input type="checkbox" id="pfChkAll" checked><span>すべて</span></div>
+        <hr class="pf-divider">
+        <div id="pfList"></div>
+        <hr class="pf-divider">
+        <div class="pf-clear" onclick="pfClear()">クリア</div>
+      </div>
+    </div>
+    <div class="pf-tags" id="pfTags"></div>
     <button class="btn btn-sm" onclick="clearFilters()">リセット</button>
     <label class="sp-hide" style="display:flex;align-items:center;gap:4px;font-size:11px;color:#555;cursor:pointer;margin-left:8px;padding-left:12px;border-left:1px solid #ddd">
       <input type="checkbox" id="chkAllSites" style="width:14px;height:14px;accent-color:#1D9E75" onchange="toggleAllSiteChk(this.checked)">
@@ -853,8 +884,8 @@ function getDays(){
 }
 
 function rebuildSelects(){
-  const fc=document.getElementById('filterClient'),fp=document.getElementById('filterPerson');
-  const cv=fc.value,pv=fp.value;
+  const fc=document.getElementById('filterClient');
+  const cv=fc.value;
   // マスター順を優先し、マスターにない実データの値は末尾に追加する
   const mergeByMaster=(masterList,actualSet)=>{
     const seen=new Set();
@@ -868,8 +899,9 @@ function rebuildSelects(){
   const clientList=mergeByMaster(masters.clients,clientActual);
   const personList=mergeByMaster(masters.persons,personActual);
   fc.innerHTML='<option value="">すべて</option>'+clientList.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
-  fp.innerHTML='<option value="">すべて</option>'+personList.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('');
-  fc.value=cv;fp.value=pv;
+  fc.value=cv;
+  // 担当者はマルチセレクト
+  _pfUpdateList(personList);
 }
 
 // ドラッグ状態
@@ -1032,7 +1064,7 @@ function render(){
 function _renderInner(){
   rebuildSelects();
   const fc=document.getElementById('filterClient').value;
-  const fp=document.getElementById('filterPerson').value;
+  const fp=window._pfSelected||new Set();
   const fsEl=document.getElementById('filterSearch');
   // 検索語は全半角スペース除去＋小文字化（対象側も同じ正規化をして比較）
   const fs=fsEl?fsEl.value.trim().toLowerCase().replace(/[\s　]+/g,''):'';
@@ -1070,7 +1102,7 @@ function _renderInner(){
 
   sites.filter(site=>{
     if(fc&&site.client!==fc)return false;
-    if(fp&&!site.processes.some(p=>p.person===fp||(p.persons||[]).includes(fp)))return false;
+    if(fp.size>0&&!site.processes.some(p=>fp.has(p.person)||((p.persons||[]).some(pn=>fp.has(pn)))))return false;
     if(!_isAssigneeBannerFiltered(site))return false;
     if(fs){
       // 物件名・所在地・子項目の品番(material)・子項目名・工程名を検索対象に
@@ -2034,7 +2066,43 @@ function saveDone(pid){
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
 }
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
-function clearFilters(){document.getElementById('filterClient').value='';document.getElementById('filterPerson').value='';const fs=document.getElementById('filterSearch');if(fs)fs.value='';_assigneeBannerActive=null;render();}
+// 担当者マルチセレクト
+window._pfSelected=new Set();
+window._pfAllPersons=[];
+function _pfUpdateList(persons){
+  window._pfAllPersons=persons;
+  const list=document.getElementById('pfList');
+  if(!list)return;
+  list.innerHTML=persons.map(p=>`<div class="pf-item${_pfSelected.has(p)?' checked':''}" onclick="pfToggle(event,'${p.replace(/'/g,"\\'")}')"><input type="checkbox" ${_pfSelected.has(p)?'checked':''} onclick="pfToggle(event,'${p.replace(/'/g,"\\'")}')"><span>${esc(p)}</span></div>`).join('');
+  _pfRender();
+}
+function pfToggle(e,name){e.stopPropagation();if(_pfSelected.has(name))_pfSelected.delete(name);else _pfSelected.add(name);_pfUpdateList(window._pfAllPersons);render();}
+function pfToggleAll(e){e.stopPropagation();if(_pfSelected.size===0)window._pfAllPersons.forEach(p=>_pfSelected.add(p));else _pfSelected.clear();_pfUpdateList(window._pfAllPersons);render();}
+function pfClear(){_pfSelected.clear();_pfUpdateList(window._pfAllPersons);render();}
+function pfRemove(name){_pfSelected.delete(name);_pfUpdateList(window._pfAllPersons);render();}
+function _pfRender(){
+  const count=_pfSelected.size;
+  const btn=document.getElementById('personFilterLabel');
+  const badge=document.getElementById('personFilterCount');
+  const tags=document.getElementById('pfTags');
+  const allChk=document.getElementById('pfChkAll');
+  if(!btn)return;
+  if(count===0){btn.textContent='すべて';badge.style.display='none';}
+  else{const arr=[..._pfSelected];btn.textContent=arr.slice(0,1).join('、')+(arr.length>1?'…':'');badge.textContent=count;badge.style.display='inline';}
+  if(allChk)allChk.checked=count===0;
+  if(tags)tags.innerHTML=[..._pfSelected].map(p=>`<span class="pf-tag">${esc(p)}<span class="pf-tag-x" onclick="pfRemove('${p.replace(/'/g,"\\'")}')">×</span></span>`).join('');
+  const items=document.querySelectorAll('#pfList .pf-item');
+  items.forEach(item=>{const chk=item.querySelector('input[type=checkbox]');const name=item.querySelector('span').textContent;const on=_pfSelected.has(name);if(chk)chk.checked=on;item.classList.toggle('checked',on);});
+}
+function togglePersonPanel(e){
+  e.stopPropagation();
+  const panel=document.getElementById('personFilterPanel');if(!panel)return;
+  const isOpen=panel.classList.contains('open');
+  panel.classList.toggle('open',!isOpen);
+  if(!isOpen){const btn=document.getElementById('personFilterBtn');const rect=btn.getBoundingClientRect();panel.style.top=(rect.bottom+4)+'px';panel.style.left=rect.left+'px';}
+}
+document.addEventListener('click',function(e){if(!e.target.closest('#personFilterWrap')&&!e.target.closest('#personFilterPanel')){const panel=document.getElementById('personFilterPanel');if(panel)panel.classList.remove('open');}});
+function clearFilters(){document.getElementById('filterClient').value='';pfClear();const fs=document.getElementById('filterSearch');if(fs)fs.value='';_assigneeBannerActive=null;render();}
 
 // 発注担当バナー
 let _assigneeBannerActive=null;
