@@ -2994,6 +2994,7 @@ function saveProc(siteId,procId){
     const trk=row.querySelector('.new-child-track-order');
     if(nm&&nm.value.trim()){
       const child={id:nextCid++,name:nm.value.trim(),area:ar?ar.value.trim():'',note:nt?nt.value.trim():''};
+      if(nm.value.trim()==='クロス貼替') child.material='SP2516';
       if(trk&&trk.checked)child.ordered=false; // 発注管理ONなら未発注からスタート
       newChildren.push(child);
     }
@@ -3863,6 +3864,12 @@ function smpManualSave(){
     el.dispatchEvent(new Event('change',{bubbles:true}));
     el.classList.remove('dirty');
   });
+  // クロス貼替で品番空のときSP2516を自動セット
+  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
+      c.material='SP2516';
+    }
+  })));
   // 少し待ってから保存（onchange内の非同期処理を待つ）
   setTimeout(()=>{
     saveData();
@@ -4123,6 +4130,14 @@ function closeOrderListMode(){
 function _ordKoukiBadge(site){return _smpKoukiBadge(site);}
 
 function renderOrderListMode(){
+  // クロス貼替で品番空のときSP2516を自動セット
+  let _defaultFilled=false;
+  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
+      c.material='SP2516';_defaultFilled=true;
+    }
+  })));
+  if(_defaultFilled)saveData();
   const v=document.getElementById('sumpouView');
   const tab=_orderFilter.tab||'list';
   const focusId=_orderFilter.focusSiteId;
