@@ -3453,20 +3453,19 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
   // Map<品番(正規化), {num:表示用, isCF:bool, items:[{size,qty,heightCm}]}>
   const groups = new Map();
 
-  const _addToGroup = (numRaw, sizeStr, qtyStr, sizeOnly) => {
+  const _addToGroup = (numRaw, sizeStr, qtyStr, sizeOnly, isExtra=false) => {
     if(!numRaw) return;
     const normNum = numRaw.trim().toUpperCase();
     // CF：表示あり・計算なし
     const isCF = /^CF/.test(normNum);
-    // クロス工程かどうかは工程名で判断
-    const isCross = !isCF && (/クロス/.test(procName||'')||/クロス/.test(childName||''));
+    // クロス工程かどうかは工程名で判断（追加品番はクロス計算しない）
+    const isCross = !isCF && !isExtra && (/クロス/.test(procName||'')||/クロス/.test(childName||''));
     // 日本語等のメモ書きはスキップ（英数字始まりのみボックス表示）
     if(!/^[A-Z0-9]/.test(normNum)) return;
     const size = (sizeStr||'').trim();
     const qty = (qtyStr||'').trim();
     const heightCm = _parseHeightCm(size);
     if(!groups.has(normNum)) {
-      // CF以外でクロス系でもない品番はボックス非表示
       groups.set(normNum, {num: numRaw.trim(), isCF, isCross, items: []});
     }
     if(size || qty) {
@@ -3489,8 +3488,8 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
         });
       }
     } else {
-      // 品番追加：別グループ
-      _addToGroup(ep.num, ep.size, ep.qty, false);
+      // 品番追加：別グループ（クロス計算なし）
+      _addToGroup(ep.num, ep.size, ep.qty, false, true);
     }
   });
 
