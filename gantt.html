@@ -3505,7 +3505,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
         stockHtml=`<div style="border-top:1px solid #bbdefb;margin-top:7px;padding-top:7px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <div style="font-size:11px;color:#888">📦 ${stockDesc}${aliasNote}</div>
-            <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
+            <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
           </div>
           <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
         </div>`;
@@ -3847,6 +3847,24 @@ function smpToast(msg,isError){
   t.classList.add('show');
   clearTimeout(window._smpSaveT);
   window._smpSaveT=setTimeout(()=>t.classList.remove('show'),isError?2400:1500);
+}
+
+// アプリ内確認ダイアログ（confirm()の代替）
+function smpConfirm(msg, onOk){
+  const existing=document.getElementById('smpConfirmDlg');
+  if(existing)existing.remove();
+  const dlg=document.createElement('div');
+  dlg.id='smpConfirmDlg';
+  dlg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  dlg.innerHTML=`<div style="background:#fff;border-radius:12px;padding:20px 18px;max-width:300px;width:90%;box-shadow:0 4px 20px rgba(0,0,0,0.2)">
+    <div style="font-size:13px;color:#333;margin-bottom:16px;line-height:1.6">${msg}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('smpConfirmDlg').remove()" style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:#fff;font-size:13px;cursor:pointer">キャンセル</button>
+      <button id="smpConfirmOk" style="padding:8px 16px;border:none;border-radius:6px;background:#1976d2;color:#fff;font-size:13px;font-weight:500;cursor:pointer">OK</button>
+    </div>
+  </div>`;
+  document.body.appendChild(dlg);
+  document.getElementById('smpConfirmOk').onclick=()=>{dlg.remove();onOk();};
 }
 
 // 子項目にextraMaterial（追加品番行）を追加（工程には影響しない）
@@ -4862,31 +4880,62 @@ function ordEditSkipReason(siteId, procId, childId){
   },50);
 }
 
-function ordUseStock(stockId){
+function ordUseStock(stockId, type, childId, exId){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
-  const countStr=s.count>1?` × ${s.count}本`:'';
-  if(!confirm(`「${s.code} ${s.qty}${countStr}」の在庫を1本使いますか？`))return;
-  // 使用物件を特定
+  const totalCount=s.count||1;
+  const countStr=totalCount>1?` × ${totalCount}本`:'';
+  // 数量選択UIを展開
+  const containerId=(type==='ex')?'extra_'+exId:'ordchild_'+childId;
+  const container=document.getElementById(containerId);
+  if(!container)return;
+  // 既存の数量選択UIがあれば除去
+  const existing=container.querySelector('.stock-use-picker');
+  if(existing){existing.remove();return;}
+  const picker=document.createElement('div');
+  picker.className='stock-use-picker';
+  picker.style.cssText='background:#fffde7;border:1px solid #ffe082;border-radius:6px;padding:8px 10px;margin-top:6px';
+  picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${esc(s.qty||'')}${countStr}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:#7A5800">使う数量</span>
+      <input type="number" min="1" max="${totalCount}" value="1" style="width:52px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
+      <span style="font-size:11px;color:#aaa">本 / ${totalCount}本</span>
+      <button onclick="ordUseStockConfirm(${stockId},'${type||'ch'}',${childId},${exId||0})" style="background:#f9a825;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer">使う</button>
+      <button onclick="this.closest('.stock-use-picker').remove()" style="background:none;border:1px solid #ccc;border-radius:4px;font-size:11px;padding:5px 8px;cursor:pointer;color:#666">キャンセル</button>
+    </div>`;
+  container.appendChild(picker);
+}
+
+function ordUseStockConfirm(stockId, type, childId, exId){
+  const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  const inp=document.getElementById('suq_picker_'+stockId);
+  const useCount=Math.min(parseInt(inp?inp.value:1)||1, s.count||1);
+  // 使用情報をchild/extraに保存
+  let targetObj=null;
+  sites.forEach(si=>si.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(type==='ex'){
+      (c.extraMaterials||[]).forEach(ex=>{if(c.id===childId&&ex.id===exId){targetObj=ex;}});
+    } else {
+      if(c.id===childId)targetObj=c;
+    }
+  })));
+  if(targetObj){
+    targetObj.usedStockId=stockId;
+    targetObj.usedStockCount=useCount;
+  }
+  // 在庫を減らす
   const focusSiteId=_orderFilter.focusSiteId;
   const focusSite=focusSiteId?sites.find(x=>x.id===focusSiteId):null;
-  // GASに履歴送信
-  const logEntry={
-    id: Date.now(),
-    site_name: focusSite?focusSite.name:'',
-    code: s.code||'',
-    qty: s.qty||'',
-    count: 1,
-    used_at: new Date().toISOString()
-  };
+  const logEntry={id:Date.now(),site_name:focusSite?focusSite.name:'',code:s.code||'',qty:s.qty||'',count:useCount,used_at:new Date().toISOString()};
   fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_stock_log',log:JSON.stringify(logEntry)})}).catch(()=>{});
-  if(s.count>1){
-    s.count--;
+  if((s.count||1)>useCount){
+    s.count=(s.count||1)-useCount;
     smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
   }else{
     stocks=stocks.filter(x=>x.id!==stockId);
     smpToast('✓ 在庫を使いました（在庫なし）');
   }
   saveStocks();
+  saveData();
   renderOrderListMode();
 }
 
@@ -4940,9 +4989,23 @@ function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
     renderOrderListMode();
     return;
   }
+  // チェックを外したとき在庫を戻す
+  if(!checked&&ex.usedStockId){
+    const st=stocks.find(x=>x.id===ex.usedStockId);
+    const returnCount=ex.usedStockCount||1;
+    if(st){st.count=(st.count||1)+returnCount;}
+    else{
+      const parts=_splitMaterial(ex.material||'');
+      stocks.push({id:ex.usedStockId,code:parts.num||'',qty:parts.size||'',count:returnCount});
+    }
+    delete ex.usedStockId;
+    delete ex.usedStockCount;
+    saveStocks();
+    smpToast('✓ 在庫を戻しました');
+  }
   ex.ordered=checked?true:false;
   saveData();
-  smpToast(checked?'✓ 発注済みにしました':'✓ 未発注に戻しました');
+  if(checked)smpToast('✓ 発注済みにしました');
   renderOrderListMode();
   setTimeout(()=>render(),10);
 }
@@ -4957,14 +5020,24 @@ function ordToggleOrdered(siteId,procId,childId,checked){
     renderOrderListMode();
     return;
   }
+  // チェックを外したとき在庫を戻す
+  if(!checked&&c.usedStockId){
+    const st=stocks.find(x=>x.id===c.usedStockId);
+    const returnCount=c.usedStockCount||1;
+    if(st){st.count=(st.count||1)+returnCount;}
+    else{
+      const parts=_splitMaterial(c.material||'');
+      stocks.push({id:c.usedStockId,code:parts.num||'',qty:parts.size||'',count:returnCount});
+    }
+    delete c.usedStockId;
+    delete c.usedStockCount;
+    saveStocks();
+    smpToast('✓ 在庫を戻しました');
+  }
   c.ordered=checked?true:false;
   saveData();
-  smpToast(checked?'✓ 発注済みにしました':'✓ 未発注に戻しました');
-  // 「未発注のみ」モードでチェック入れた場合は消える、解除した場合は復帰
-  // どちらの場合も再描画が必要
+  if(checked)smpToast('✓ 発注済みにしました');
   renderOrderListMode();
-  // メイン画面のボタン色更新のため（発注一覧モードを閉じた後に反映させるため）
-  // 少し遅延してrender()を実行（発注一覧モードの再描画後に実行）
   setTimeout(()=>render(),10);
 }
 
