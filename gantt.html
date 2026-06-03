@@ -4039,7 +4039,7 @@ function smpDelProcExtra(siteId,procId,extraId){
 // ============================================================
 // 発注一覧モード（発注対象を一覧表示し発注済みチェック）
 // ============================================================
-let _orderFilter={search:'',mode:'pending',focusSiteId:null,tab:'list'}; // tab: 'list' | 'stock'
+let _orderFilter={search:'',mode:'pending',focusSiteId:null,tab:'list'}; // tab: 'list' | 'stock' | 'log'
 
 function openOrderListMode(jumpToSiteId){
   document.getElementById('sumpouView').style.display='';
@@ -4087,11 +4087,19 @@ function renderOrderListMode(){
     <div class="ord-tabs">
       <button class="ord-tab${tab==='list'?' active':''}" onclick="ordSwitchTab('list')">発注一覧</button>
       <button class="ord-tab${tab==='stock'?' active':''}" onclick="ordSwitchTab('stock')">📦 在庫 (${stocks.length})</button>
+      <button class="ord-tab${tab==='log'?' active':''}" onclick="ordSwitchTab('log')">📋 使用履歴</button>
     </div>`;
 
   // === stockタブの場合 ===
   if(tab==='stock'){
     v.innerHTML=tabHead+_renderStockTabBody()+`</div></div><div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+    return;
+  }
+
+  // === logタブの場合 ===
+  if(tab==='log'){
+    v.innerHTML=tabHead+`<div id="stockLogBody" style="padding:8px 12px"><div style="color:#aaa;font-size:12px;padding:20px 0;text-align:center">読み込み中...</div></div></div></div><div id="smpSaving" class="smp-saving">✓ 保存しました</div>`;
+    _loadAndRenderStockLog();
     return;
   }
 
@@ -4377,6 +4385,45 @@ function ordSwitchTab(t){
 }
 
 // 在庫タブの中身
+async function _loadAndRenderStockLog(){
+  const el=document.getElementById('stockLogBody');
+  if(!el)return;
+  try{
+    const r=await fetch(GAS_URL+'?action=load_stock_log');
+    const j=await r.json();
+    if(!j.ok||!j.logs||j.logs.length===0){
+      el.innerHTML='<div style="color:#aaa;font-size:12px;padding:20px 0;text-align:center">使用履歴がありません</div>';
+      return;
+    }
+    // 検索フィルタ
+    const sq=(_stockFilter.search||'').trim().toLowerCase();
+    const logs=sq?j.logs.filter(l=>(l.code||'').toLowerCase().includes(sq)):j.logs;
+    let html=`<input placeholder="品番で絞り込み" value="${esc(sq)}" oninput="_filterStockLog(this.value)" style="width:100%;box-sizing:border-box;border:0.5px solid #ccc;border-radius:4px;padding:6px 8px;font-size:12px;margin-bottom:8px">`;
+    logs.forEach(l=>{
+      const d=l.used_at?new Date(l.used_at):null;
+      const dateStr=d?`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`:'';
+      const spec=[l.code,l.qty,l.count>1?l.count+'本':null].filter(Boolean).join(' ');
+      html+=`<div style="border:0.5px solid #e0e0e0;border-radius:6px;padding:9px 12px;background:#fff;margin-bottom:5px">
+        <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:3px">${esc(l.site_name||'（物件不明）')}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:500;color:#1565c0;font-family:monospace">${esc(l.code||'')}</span>
+          <span style="font-size:12px;color:#666">${esc(l.qty||'')}${l.count>1?' × '+l.count+'本':''}</span>
+          <span style="font-size:11px;color:#aaa;margin-left:auto">${dateStr}</span>
+        </div>
+      </div>`;
+    });
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<div style="color:#e00;font-size:12px;padding:20px 0;text-align:center">読み込みエラー</div>';
+  }
+}
+
+let _stockLogSearch='';
+function _filterStockLog(val){
+  _stockLogSearch=val;
+  _loadAndRenderStockLog();
+}
+
 function _renderStockTabBody(){
   const focusId=_orderFilter.focusSiteId;
   const focusSite=focusId?sites.find(s=>s.id===focusId):null;
@@ -4819,6 +4866,19 @@ function ordUseStock(stockId){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const countStr=s.count>1?` × ${s.count}本`:'';
   if(!confirm(`「${s.code} ${s.qty}${countStr}」の在庫を1本使いますか？`))return;
+  // 使用物件を特定
+  const focusSiteId=_orderFilter.focusSiteId;
+  const focusSite=focusSiteId?sites.find(x=>x.id===focusSiteId):null;
+  // GASに履歴送信
+  const logEntry={
+    id: Date.now(),
+    site_name: focusSite?focusSite.name:'',
+    code: s.code||'',
+    qty: s.qty||'',
+    count: 1,
+    used_at: new Date().toISOString()
+  };
+  fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_stock_log',log:JSON.stringify(logEntry)})}).catch(()=>{});
   if(s.count>1){
     s.count--;
     smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
