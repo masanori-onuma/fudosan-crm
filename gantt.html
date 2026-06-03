@@ -2454,7 +2454,14 @@ function updatePeriod(procId,idx,key,val){
   saveData();
 }
 function delPeriod(procId,idx){
-  for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.splice(idx,1);break;}
+  for(const s of sites)for(const p of s.processes)if(p.id===procId){
+    p.periods.splice(idx,1);
+    // 親periodが全て消えたら子のperiodsもクリア
+    if(p.periods.length===0){
+      (p.children||[]).forEach(c=>{c.periods=[];});
+    }
+    break;
+  }
   saveData();
   // モーダルを再描画
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
