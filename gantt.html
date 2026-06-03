@@ -3002,7 +3002,12 @@ function saveProc(siteId,procId){
   }else{
     const p=site.processes.find(x=>x.id===procId);
     if(p){
-      Object.assign(p,{name,person,persons,area,color});
+      const periods=[];
+      document.querySelectorAll('#periodList > div').forEach(row=>{
+        const inputs=row.querySelectorAll('input[type=date]');
+        if(inputs.length>=2)periods.push({startD:inputs[0].value,endD:inputs[1].value});
+      });
+      Object.assign(p,{name,person,persons,area,color,periods});
       if(newChildren.length>0)p.children=[...p.children,...newChildren];
     }
   }
