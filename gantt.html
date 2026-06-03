@@ -3488,7 +3488,6 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
   const _boxFooter = (normNum) => {
     if(!orderCtx) return '';
     const {child, extraMaterials} = orderCtx;
-    // childのメイン品番かextraの品番かを特定
     const childNum = _splitMaterial(child.material||'').num.trim().toUpperCase();
     let isOrdered, checkOnchange, stockMatchCode, skipChildId, isExtra=false, exId;
     if(childNum === normNum) {
@@ -3504,7 +3503,15 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
       checkOnchange = `ordToggleExtraOrdered(${siteId},${procId},${child.id},${ex.id},this.checked)`;
       stockMatchCode = normNum;
     }
-    if(isOrdered) return '';
+    // 発注済みの場合はチェック済み状態で表示（外せるように）
+    if(isOrdered) {
+      return `<div style="margin-top:7px;border-top:1px solid #bbdefb;padding-top:7px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#1565c0;cursor:pointer">
+          <input type="checkbox" checked onchange="${checkOnchange}" style="accent-color:#1976d2">
+          <span style="font-weight:500">✓ 発注済み</span>
+        </label>
+      </div>`;
+    }
     // 在庫マッチ
     const codeNorm = stockMatchCode.toLowerCase().replace(/[\s　\-]+/g,'');
     let stockHtml='', hasStock=false;
@@ -3515,7 +3522,6 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
         hasStock=true;
         const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
         const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
-        const skipChildKey = isExtra ? `ex.${exId}` : `ch.${child.id}`;
         const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId})` : `ordShowSkipInput('ch',${child.id})`;
         stockHtml=`<div style="border-top:1px solid #bbdefb;margin-top:7px;padding-top:7px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -3529,7 +3535,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
     // 発注チェック（在庫あり＋スキップ理由なしはdisabled）
     const skipReason = isExtra ? ((extraMaterials||[]).find(e=>e.id===exId)||{}).skipReason : child.skipReason;
     const disabled = hasStock && !skipReason ? 'disabled' : '';
-    const checkHtml=`<div style="margin-top:7px;${hasStock&&!stockHtml?'':''}">
+    const checkHtml=`<div style="margin-top:7px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:${disabled?'#bbb':'#1565c0'};cursor:${disabled?'not-allowed':'pointer'}">
         <input type="checkbox" ${disabled} onchange="${checkOnchange}" style="accent-color:#1976d2">
         <span>発注済みにする</span>
@@ -4328,7 +4334,7 @@ function renderOrderListMode(){
           }
         }
         // クロス計算結果（発注済みでない場合のみ）
-        const _calcHtml = !isOrdered ? _renderCalcResult(site.id, proc.id, child.id, proc.name, child.name, {child, extraMaterials: child.extraMaterials||[]}) : '';
+        const _calcHtml = _renderCalcResult(site.id, proc.id, child.id, proc.name, child.name, {child, extraMaterials: child.extraMaterials||[]});
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
