@@ -4220,7 +4220,7 @@ function renderOrderListMode(){
             const matched=[...direct,...alias];
             if(matched.length){
               const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
-              const stockDesc=matched.map(st=>`${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}`).join('、');
+              const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
               stockSimpleHtml=`<div class="ord-stock-alert" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px">
                 <div style="font-size:12px;color:#7A5800">📦 在庫あり：${stockDesc}${aliasNote}</div>
                 <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id})">在庫を使う</button>
@@ -4269,19 +4269,20 @@ function renderOrderListMode(){
           if(exIsOrdered)exRowCls+=' ord-done';
           else if(!exHasMat)exRowCls+=' ord-disabled';
           else exRowCls+=' ord-pending';
-          // 在庫チェック
+          // 在庫チェック（sizeOnly行はスキップ）
           let exStockHtml='';
-          if(!exIsOrdered&&exHasMat){
+          if(!exIsOrdered&&exHasMat&&!ex.sizeOnly){
             const codeNorm=exParts.num.toLowerCase().replace(/[\s　\-]+/g,'');
             if(codeNorm){
               const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
               const matched=[...direct,...alias];
               if(matched.length){
                 const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
-                exStockHtml='<div class="ord-stock-alert">📦 在庫あり'+aliasNote+'：'+matched.map(st=>{
-                  const sn=st.siteId?(()=>{const sx=sites.find(x=>x.id===st.siteId);return sx?sx.name:'';})():'';
-                  return `<div class="ord-stock-item"><span class="qty">${esc(st.qty||'')}</span>${sn?`<span class="from">（${esc(sn)}）</span>`:''}<button class="ord-stock-use" onclick="ordUseStock(${st.id})">在庫を使う</button></div>`;
-                }).join('')+'</div>';
+                const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
+                exStockHtml=`<div class="ord-stock-alert" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px">
+                  <div style="font-size:12px;color:#7A5800">📦 在庫あり：${stockDesc}${aliasNote}</div>
+                  <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id})">在庫を使う</button>
+                </div>`;
               }
             }
           }
@@ -4295,10 +4296,10 @@ function renderOrderListMode(){
             </div>
             ${!exHasMat&&!exIsOrdered&&!ex.sizeOnly?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
             ${exStockHtml}
-            <label class="ord-check-wrap">
+            ${ex.sizeOnly?'':(`<label class="ord-check-wrap">
               <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
               <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'発注済みにする'}</span>
-            </label>
+            </label>`)}
           </div>`;
         });
       });
