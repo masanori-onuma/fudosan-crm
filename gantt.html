@@ -3572,6 +3572,8 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
         ${_boxFooter(normNum)}
       </div>`;
     } else if(group.isCross) {
+      const repeatKey = 'repeat_' + siteId + '_' + procId + '_' + baseChildId + '_' + normNum;
+      const repeatCm = parseInt(localStorage.getItem(repeatKey)) || 0;
       const entries = group.items.filter(it => it.heightCm && parseInt(it.qty));
       if(entries.length === 0) {
         // サイズが高さとして解釈できない場合はCF同様に一覧表示
