@@ -580,6 +580,7 @@ function setAssignee(siteId, procId, value) {
 const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
+async function gasSaveSite(site){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_site',site:JSON.stringify(site)})});const j=await r.json();return j.ok;}catch(e){return false;}}
 async function gasArchiveSite(siteId,by){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'archive_site',site_id:String(siteId),archived_by:by||'manual'})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
 async function gasUnarchiveSite(siteId){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'unarchive_site',site_id:String(siteId)})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
 async function gasLoadArchived(){try{const r=await fetch(GAS_URL+'?action=load_archived');const j=await r.json();if(!j.ok)return null;return j.value?JSON.parse(j.value):[];}catch(e){return null;}}
@@ -689,8 +690,7 @@ async function loadData(){
         if(_gs2){_gs2.scrollLeft=_prevScrollLeft;_gs2.scrollTop=_prevScrollTop;}
         showSyncStatus('✓ 同期済み',2000);
       }else{
-        // localStorageの方が新しい→そのまま使用（GASに再保存して同期）
-        if(_lastSaved&&gasTs<lsTs){gasSave('gantt_sites',sites);gasSave('gantt_sites_ts',lsTs);}
+        // localStorageの方が新しい→そのまま使用（GASへの上書きはしない）
         showSyncStatus('✓ 同期済み',2000);
       }
     }catch(e){
@@ -722,9 +722,10 @@ let _lastSaved=null;
 // 保存シリアライズ用の状態
 let _savingNow=false;       // GAS送信中かどうか
 let _pendingSave=false;     // 送信中に新しい保存要求が来たか
+let _pendingSaveId=null;    // 差分保存用：次に保存するsiteId（nullなら全件）
 let _lastSaveOkAt=0;        // 最後に保存成功した時刻（ポーリング抑制用）
 let _lastSaveAttemptAt=0;   // 最後に保存試行した時刻
-function saveData(){
+function saveData(siteId){
   // アーカイブ閲覧モード中は保存しない（重要: sitesがアーカイブデータなのでGASに書き込むと大惨事）
   if(_viewMode==='archived'){console.warn('saveData: archived mode, skip');return;}
   // 保存前の状態をundoスタックに積む
@@ -739,7 +740,15 @@ function saveData(){
   _lastSaved=JSON.stringify(sites);
   localStorage.setItem('gantt_sites',_lastSaved);
   // シリアライズ: 既に保存中ならフラグを立てて、現在の保存完了後にもう一度保存する
-  if(_savingNow){_pendingSave=true;showSyncStatus('保存待機中…',2000);return;}
+  if(_savingNow){
+    _pendingSave=true;
+    // siteIdなし（全件）が来たら全件優先、同じsiteIdなら上書きOK
+    if(!siteId)_pendingSaveId=null;
+    else if(_pendingSaveId!==null&&_pendingSaveId!==siteId)_pendingSaveId=null; // 複数物件→全件
+    else _pendingSaveId=siteId;
+    showSyncStatus('保存待機中…',2000);return;
+  }
+  _pendingSaveId=siteId||null;
   _runSave();
 }
 function _runSave(){
@@ -747,8 +756,17 @@ function _runSave(){
   _pendingSave=false;
   _lastSaveAttemptAt=Date.now();
   showSyncStatus('保存中…');
-  const snapshot=_lastSaved; // この時点での内容を覚えておく
-  gasSave('gantt_sites_ts',parseInt(localStorage.getItem('gantt_sites_ts')||'0'));gasSave('gantt_sites',sites).then(ok=>{
+  const snapshot=_lastSaved;
+  const siteId=_pendingSaveId; _pendingSaveId=null;
+  // 差分保存：siteIdがあれば1物件だけ、なければ全件
+  let savePromise;
+  if(siteId){
+    const site=sites.find(x=>x.id===siteId);
+    savePromise=site?gasSaveSite(site):gasSave('gantt_sites',sites);
+  }else{
+    savePromise=gasSave('gantt_sites',sites);
+  }
+  savePromise.then(ok=>{
     _savingNow=false;
     if(ok){
       _lastSaveOkAt=Date.now();
@@ -758,7 +776,6 @@ function _runSave(){
       showSyncStatus('保存失敗',3000);
       showSaveErrorBanner();
     }
-    // 保存中に新しい変更があったら続けて保存
     if(_pendingSave && _lastSaved!==snapshot){
       _runSave();
     }
@@ -2033,12 +2050,10 @@ function collapseAll(){sites.forEach(s=>s.collapsed=true);saveData();render();}
 function toggleDone(pid){
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
     if(!p.done){
-      // 完了にする→完了日モーダルを出す
       openDoneModal(pid);
     }else{
-      // 未完了に戻す→確認なしで戻す
       p.done=false;p.doneDate='';
-      saveData();
+      saveData(s.id);
       const pp=document.getElementById('donePopup');if(pp)pp.remove();
       render();
     }
@@ -2074,7 +2089,7 @@ function saveDone(pid){
     }
     break;
   }
-  saveData();closeModal();
+  {const _ds=sites.find(si=>si.processes.some(pi=>pi.id===pid));saveData(_ds?_ds.id:undefined);}closeModal();
   const pp=document.getElementById('donePopup');if(pp)pp.remove();
 }
 function applyRange(){const s=document.getElementById('startDate').value,e=document.getElementById('endDate').value;if(s&&e){viewStart=parseD(s);viewEnd=parseD(e);render();}}
@@ -2180,8 +2195,8 @@ function openKoukiModal(siteId){
       <button class="btn btn-primary" onclick="saveKouki(${siteId})">保存</button>
     </div></div></div>`;
 }
-function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();saveData();render();}
-function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';saveData();closeModal();}
+function saveKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart=document.getElementById('k_start').value;s.koukiEnd=document.getElementById('k_end').value;closeModal();saveData(id);render();}
+function clearKouki(id){const s=sites.find(x=>x.id===id);if(!s)return;s.koukiStart='';s.koukiEnd='';saveData(id);closeModal();}
 
 // 鍵所在のみ編集する軽量モーダル（スマホからの素早い入力用）
 function openKeyModal(siteId){
@@ -2994,11 +3009,11 @@ function saveProc(siteId,procId){
   if(!persons.length){
     if(!confirm('担当者が未入力です。このまま保存しますか？'))return;
   }
-  saveData();closeModal();
+  saveData(siteId);closeModal();
 }
 function delProc(siteId,procId){
   const site=sites.find(x=>x.id===siteId);if(!site)return;
-  site.processes=site.processes.filter(x=>x.id!==procId);saveData();closeModal();
+  site.processes=site.processes.filter(x=>x.id!==procId);saveData(siteId);closeModal();
 }
 
 // マスター
@@ -3670,7 +3685,7 @@ function smpUpdateMaterial(siteId,procId,childId){
   if(_u)c.materialBy=_u;
   const _d=new Date();
   c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
-  saveData();
+  saveData(siteId);
   // 入力済みタグの更新（行クラスとタグ表示）だけ再描画
   if(row){
     if(_hasMaterial(newMat)){
@@ -4972,7 +4987,7 @@ function ordUpdateMaterial(siteId,procId,childId){
   if(_u)c.materialBy=_u;
   const _d=new Date();
   c.materialAt=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
-  saveData();
+  saveData(siteId);
   smpToast('✓ 保存しました');
   renderOrderListMode();
   setTimeout(()=>render(),10);
@@ -5006,6 +5021,7 @@ function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
   ex.ordered=checked?true:false;
   saveData();
   if(checked)smpToast('✓ 発注済みにしました');
+  saveData(siteId);
   renderOrderListMode();
   setTimeout(()=>render(),10);
 }
@@ -5037,6 +5053,7 @@ function ordToggleOrdered(siteId,procId,childId,checked){
   c.ordered=checked?true:false;
   saveData();
   if(checked)smpToast('✓ 発注済みにしました');
+  saveData(siteId);
   renderOrderListMode();
   setTimeout(()=>render(),10);
 }
