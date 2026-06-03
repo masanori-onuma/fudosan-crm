@@ -4090,6 +4090,7 @@ function smpDelProcExtra(siteId,procId,extraId){
 // 発注一覧モード（発注対象を一覧表示し発注済みチェック）
 // ============================================================
 let _orderFilter={search:'',mode:'pending',focusSiteId:null,tab:'list'}; // tab: 'list' | 'stock' | 'log'
+let _stockFilter={search:''};
 
 function openOrderListMode(jumpToSiteId){
   document.getElementById('sumpouView').style.display='';
@@ -4542,7 +4543,6 @@ function _renderStockTabBody(){
   return html;
 }
 
-let _stockFilter={search:''};
 function onStockSearch(v){
   _stockFilter.search=v;
   clearTimeout(window._stockSearchT);
