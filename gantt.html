@@ -4212,7 +4212,7 @@ function renderOrderListMode(){
         else if(!hasMaterial)rowCls+=' ord-disabled';
         else rowCls+=' ord-pending';
         // 同品番の在庫があるか確認（未発注かつ品番ありの行のみ）
-        let stockAlertHtml='';
+        let stockSimpleHtml='';
         if(!isOrdered&&hasMaterial){
           const codeNorm=parts.num.toLowerCase().replace(/[\s　\-]+/g,'');
           if(codeNorm){
@@ -4220,28 +4220,10 @@ function renderOrderListMode(){
             const matched=[...direct,...alias];
             if(matched.length){
               const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
-              const _totalCount=matched.reduce((a,st)=>a+(st.count||1),0);
-              stockAlertHtml=`<div class="ord-stock-alert">
-                <div class="ord-stock-alert-head">
-                  <div class="ord-stock-alert-icon">📦</div>
-                  <div class="ord-stock-alert-title">在庫があります（${_totalCount}本）${aliasNote}</div>
-                </div>
-                ${matched.map(st=>{
-                  const siteName=st.siteId?(()=>{const s=sites.find(x=>x.id===st.siteId);return s?s.name:'';})():'';
-                  return `<div class="ord-stock-detail">
-                    <div class="code">${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}</div>
-                    ${siteName?`<div class="origin">${esc(siteName)} より</div>`:''}
-                  </div>`;
-                }).join('')}
-                <div class="ord-stock-use-row">
-                  <span class="sul">使う数量</span>
-                  <input class="suq" type="number" id="suq_${child.id}" min="1" max="${_totalCount}" value="${_totalCount}">
-                  <span class="sut">本 / ${_totalCount}本</span>
-                  <button class="ord-stock-use" onclick="ordUseStockQty(${matched[0].id},${child.id})">在庫を使う</button>
-                </div>
-                <div class="ord-stock-skip-row">
-                  <button class="ord-stock-skip-link" onclick="ordShowSkipInput(${child.id})">在庫を使わない場合はこちら →</button>
-                </div>
+              const stockDesc=matched.map(st=>`${esc(st.qty||'')}${st.count>1?' × '+st.count+'本':''}`).join('、');
+              stockSimpleHtml=`<div class="ord-stock-alert" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px">
+                <div style="font-size:12px;color:#7A5800">📦 在庫あり：${stockDesc}${aliasNote}</div>
+                <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id})">在庫を使う</button>
               </div>`;
             }
           }
@@ -4253,6 +4235,7 @@ function renderOrderListMode(){
             <span class="name">${esc(child.name||'')}</span>
           </div>
           ${_calcHtml}
+          ${stockSimpleHtml}
           <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div></div>
           <div class="smp-fields">
             <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
@@ -4271,10 +4254,10 @@ function renderOrderListMode(){
               <div class="ord-skip-badge-reason">${esc(child.skipReason)}</div>
             </div>
             <button class="ord-skip-badge-edit" onclick="ordEditSkipReason(${site.id},${proc.id},${child.id})">修正</button>
-          </div>`:stockAlertHtml}
-          <label class="ord-check-wrap${(!isOrdered&&stockAlertHtml&&!child.skipReason)?' disabled-by-stock':''}">
-            <input type="checkbox" ${isOrdered?'checked':''} ${(!hasMaterial&&!isOrdered)||(!isOrdered&&stockAlertHtml&&!child.skipReason)?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
-            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'未発注'}</span>
+          </div>`:''}
+          <label class="ord-check-wrap">
+            <input type="checkbox" ${isOrdered?'checked':''} ${!hasMaterial&&!isOrdered?'disabled':''} onchange="ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)">
+            <span class="${isOrdered?'lbl-done':'lbl-pending'}">${isOrdered?'✓ 発注済み':'発注済みにする'}</span>
           </label>
         </div>`;
         // extraMaterials（追加品番行）を発注一覧にも表示
@@ -4314,7 +4297,7 @@ function renderOrderListMode(){
             ${exStockHtml}
             <label class="ord-check-wrap">
               <input type="checkbox" ${exIsOrdered?'checked':''} ${!exHasMat&&!exIsOrdered?'disabled':''} onchange="ordToggleExtraOrdered(${site.id},${proc.id},${child.id},${ex.id},this.checked)">
-              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'未発注'}</span>
+              <span class="${exIsOrdered?'lbl-done':'lbl-pending'}">${exIsOrdered?'✓ 発注済み':'発注済みにする'}</span>
             </label>
           </div>`;
         });
