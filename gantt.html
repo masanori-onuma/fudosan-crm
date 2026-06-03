@@ -1752,7 +1752,7 @@ function _renderInner(){
   setTimeout(_initColResize,0);
   // render後にcol-info列幅を再適用（renderでDOMが再構築されるため）
   requestAnimationFrame(()=>{
-    if(barDrag&&barDrag.active)return; // ドラッグ中はスキップ（揺れ防止）
+    if(barDrag&&(barDrag.active||barDrag._justReleased||barDrag._justPressed))return; // ドラッグ中・直前後はスキップ（揺れ防止）
     const saved=localStorage.getItem('colInfoW');
     if(saved){
       const w=Math.max(120,Math.min(600,parseInt(saved)));
@@ -1767,6 +1767,11 @@ function _renderInner(){
 document.addEventListener('mousemove',function(e){
   if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
   if(!barDrag.active)return;
+  // ドラッグ開始直後フラグ
+  if(!barDrag._justPressed){
+    barDrag._justPressed=true;
+    setTimeout(()=>{barDrag._justPressed=false;},100);
+  }
   // ドラッグ中は横スクロールをロック
   const _gsLock=document.getElementById('ganttScroll');
   if(_gsLock&&_gsLock.style.overflowX!=='hidden'){
@@ -1879,6 +1884,8 @@ document.addEventListener('mouseup',function(e){
     barDrag.active=false;
     barDrag.isNew=false;
     barDrag._lastDi=null;
+    barDrag._justReleased=true;
+    setTimeout(()=>{barDrag._justReleased=false;},100);
     if(barDrag._raf){cancelAnimationFrame(barDrag._raf);barDrag._raf=null;}
     // 横スクロールロック解除
     const _gsUnlock=document.getElementById('ganttScroll');
