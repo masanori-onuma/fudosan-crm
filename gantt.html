@@ -1266,7 +1266,19 @@ function _renderInner(){
     const clientStr=site.client?'　'+esc(site.client):'';
     const _hasOrderedChildren=site.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined));
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
-    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasMaterial(ex.material))||((c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&!_splitMaterial(ex.material||'').num))));
+    const _isSumpouDone=(m)=>{
+      if(!m)return false;
+      const p=_splitMaterial(m);
+      if(!p.num)return false;
+      // SP2516は品番だけでOK（持ち歩き品）
+      if(p.num.toUpperCase().replace(/[\s\-]+/g,'')==='SP2516')return true;
+      // それ以外はサイズも必要
+      return !!p.size;
+    };
+    const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>
+      (c.ordered===false&&!_isSumpouDone(c.material))||
+      (c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&(ex.ordered===false&&!_isSumpouDone(ex.material))||(!ex.sizeOnly&&!_splitMaterial(ex.material||'').num))
+    ));
     // 📋：品番入力済みの未発注がある？（発注待ち）
     const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!c.skipReason&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&ex.ordered===false&&!ex.skipReason&&_hasMaterial(ex.material))));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
