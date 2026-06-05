@@ -178,7 +178,7 @@ header a:hover{color:#185FA5}
 .ord-box-left{flex:1;min-width:0}
 .ord-box-code{font-size:14px;font-weight:700;color:#1565c0;margin-bottom:2px}
 .ord-box-qty{font-size:18px;font-weight:700;color:#1565c0;line-height:1.2}
-.ord-box-detail{font-size:11px;color:#1976d2;margin-top:2px}
+.ord-box-detail{font-size:14px;font-weight:700;color:#1976d2;margin-top:2px}
 .ord-box-warn{font-size:11px;color:#d32f2f;font-weight:500;margin-top:3px}
 .ord-box-check{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
 .ord-box-check label{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;color:#1565c0}
@@ -1268,7 +1268,7 @@ function _renderInner(){
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
     const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasMaterial(ex.material))));
     // 📋：品番入力済みの未発注がある？（発注待ち）
-    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!c.skipReason&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!ex.skipReason&&_hasMaterial(ex.material))));
+    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!c.skipReason&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&ex.ordered===false&&!ex.skipReason&&_hasMaterial(ex.material))));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
@@ -4592,13 +4592,12 @@ function renderOrderListMode(){
         else if(!hasMaterial)rowCls+=' ord-disabled';
         else rowCls+=' ord-pending';
         // 在庫・発注チェックは_renderProcCalcBoxesで処理
-        html+=`<div class="${rowCls}" id="ordchild_${child.id}">
-          <button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
-            📐 寸法・品番を編集
-          </button>
-        </div>`;
+        html+=`<div class="${rowCls}" id="ordchild_${child.id}"></div>`;
       });
 
+      html+=`<button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
+        📐 寸法・品番を編集
+      </button>`;
       html+='</div>';
     });
   }
