@@ -4594,10 +4594,6 @@ function renderOrderListMode(){
         else rowCls+=' ord-pending';
         // 在庫・発注チェックは_renderProcCalcBoxesで処理
         html+=`<div class="${rowCls}" id="ordchild_${child.id}">
-          <div class="name-row">
-            <span class="name">${esc(child.name||'')}</span>
-          </div>
-        html+=`<div class="${rowCls}" id="ordchild_${child.id}">
           <button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
             📐 寸法・品番を編集
           </button>
