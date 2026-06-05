@@ -1268,7 +1268,7 @@ function _renderInner(){
     // 📐：品番未入力の未発注がある？（寸法取り待ち）
     const _hasUnmaterialed=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasMaterial(ex.material))));
     // 📋：品番入力済みの未発注がある？（発注待ち）
-    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material))));
+    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!c.skipReason&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!ex.skipReason&&_hasMaterial(ex.material))));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
@@ -3518,10 +3518,9 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
 
   // 品番グループMap: normNum → {num, isCF, isCross, isExtra, items[], childCtxs[]}
   const groups = new Map();
-  const _parseHeightCm = (s) => {
-    if(!s) return 0;
-    const m = String(s).match(/(\d+(?:\.\d+)?)\s*(?:cm|センチ)?/i);
-    return m ? parseFloat(m[1]) : 0;
+  const _parseHeightCmLocal = (s) => {
+    const v = _parseHeightCm(s);
+    return (v !== null && v !== undefined) ? v : 0;
   };
   const _addToGroup = (numRaw, sizeStr, qtyStr, isExtra, childCtx) => {
     if(!numRaw) return;
@@ -3531,7 +3530,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
     if(!/^[A-Z0-9]/.test(normNum)) return;
     const size = (sizeStr||'').trim();
     const qty = (qtyStr||'').trim();
-    const heightCm = _parseHeightCm(size);
+    const heightCm = _parseHeightCmLocal(size);
     if(!groups.has(normNum)) {
       groups.set(normNum, {num: numRaw.trim(), isCF, isCross, isExtra, items:[], childCtxs:[]});
     }
@@ -3552,7 +3551,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         const normBase = p.num.trim().toUpperCase();
         if(groups.has(normBase)) {
           const ep = _splitMaterial(ex.material||'');
-          if(ep.size||ep.qty) groups.get(normBase).items.push({size:ep.size||'',qty:ep.qty||'',heightCm:_parseHeightCm(ep.size)});
+          if(ep.size||ep.qty) groups.get(normBase).items.push({size:ep.size||'',qty:ep.qty||'',heightCm:_parseHeightCmLocal(ep.size)});
         }
       } else {
         const ep = _splitMaterial(ex.material||'');
@@ -5322,7 +5321,6 @@ function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
     smpToast('✓ 在庫を戻しました');
   }
   ex.ordered=checked?true:false;
-  saveData();
   if(checked)smpToast('✓ 発注済みにしました');
   saveData(siteId);
   renderOrderListMode();
@@ -5354,7 +5352,6 @@ function ordToggleOrdered(siteId,procId,childId,checked){
     smpToast('✓ 在庫を戻しました');
   }
   c.ordered=checked?true:false;
-  saveData();
   if(checked)smpToast('✓ 発注済みにしました');
   saveData(siteId);
   renderOrderListMode();
