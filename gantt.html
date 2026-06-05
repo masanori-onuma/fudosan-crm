@@ -173,6 +173,60 @@ header a:hover{color:#185FA5}
 .calc-result-box .cr-title{font-size:10px;font-weight:700;color:#185FA5;margin-bottom:4px;letter-spacing:0.5px}
 .calc-result-box .cr-total{font-size:16px;font-weight:700;color:#0C447C;margin-bottom:2px}
 .calc-result-box .cr-detail{font-size:10px;color:#5a8ab0;line-height:1.6}
+/* 発注ボックス新デザイン */
+.ord-box-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ord-box-left{flex:1;min-width:0}
+.ord-box-code{font-size:14px;font-weight:700;color:#1565c0;margin-bottom:2px}
+.ord-box-qty{font-size:18px;font-weight:700;color:#1565c0;line-height:1.2}
+.ord-box-detail{font-size:11px;color:#1976d2;margin-top:2px}
+.ord-box-warn{font-size:11px;color:#d32f2f;font-weight:500;margin-top:3px}
+.ord-box-check{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.ord-box-check label{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;color:#1565c0}
+.ord-box-check input{accent-color:#1976d2;width:16px;height:16px}
+.ord-box-stock{border-top:1px solid #bbdefb;margin-top:7px;padding-top:7px}
+.ord-box-stock-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ord-box-stock-info{font-size:11px;color:#888}
+.ord-box-repeat{display:flex;align-items:center;gap:5px;margin-top:5px;padding-top:5px;border-top:1px solid #bbdefb}
+.ord-box-repeat label{font-size:10px;color:#5a8ab0}
+.ord-box-repeat input{width:44px;height:22px;font-size:11px;border:1px solid #90caf9;border-radius:4px;padding:0 4px;text-align:center;background:#fff;color:#1565c0}
+.ord-box-repeat span{font-size:10px;color:#5a8ab0}
+/* 編集ボタン */
+.ord-edit-btn{width:100%;font-size:12px;color:#1565c0;background:none;border:1px solid #bbdefb;border-radius:5px;padding:6px;margin-top:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+/* 編集モーダル */
+.ord-edit-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding-top:60px}
+.ord-edit-modal{background:var(--bg-primary,#fff);border-radius:10px;width:92%;max-width:480px;max-height:80vh;overflow-y:auto;padding:14px}
+.ord-edit-modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid #e0e0e0}
+.ord-edit-modal-title{font-size:13px;font-weight:600;color:#333}
+.ord-edit-modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:#888;padding:0 4px}
+.ord-edit-code-group{border-radius:6px;padding:9px 10px;margin-bottom:5px}
+.ord-edit-code-group.c0{background:#e3f2fd;border:0.5px solid #bbdefb}
+.ord-edit-code-group.c1{background:#e8f5e9;border:0.5px solid #c8e6c9}
+.ord-edit-cg-title{font-size:12px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.ord-edit-code-group.c0 .ord-edit-cg-title{color:#1565c0}
+.ord-edit-code-group.c1 .ord-edit-cg-title{color:#2e7d32}
+.ord-edit-cg-warn{font-size:11px;color:#d32f2f;font-weight:500}
+.ord-edit-fl{display:grid;grid-template-columns:2fr 2fr 1fr;gap:4px;margin-bottom:2px}
+.ord-edit-fl div{font-size:10px;opacity:.7}
+.ord-edit-fg{display:grid;grid-template-columns:2fr 2fr 1fr;gap:4px;margin-bottom:3px}
+.ord-edit-fgd{display:grid;grid-template-columns:2fr 2fr 1fr 28px;gap:4px;margin-bottom:3px;align-items:center}
+.ord-edit-fg input,.ord-edit-fgd input{border-radius:4px;padding:5px 6px;font-size:12px;width:100%;box-sizing:border-box;background:#fff}
+.ord-edit-code-group.c0 .ord-edit-fg input,.ord-edit-code-group.c0 .ord-edit-fgd input{border:0.5px solid #90caf9;color:#1565c0}
+.ord-edit-code-group.c1 .ord-edit-fg input,.ord-edit-code-group.c1 .ord-edit-fgd input{border:0.5px solid #a5d6a7;color:#2e7d32}
+.ord-edit-input-warn{border:1.5px solid #d32f2f !important;color:#333 !important}
+.ord-edit-sl{font-size:11px;padding:5px 6px;border-radius:2px;display:flex;align-items:center}
+.ord-edit-code-group.c0 .ord-edit-sl{background:#bbdefb;color:#1565c0;border-left:2px solid #90caf9}
+.ord-edit-code-group.c1 .ord-edit-sl{background:#c8e6c9;color:#2e7d32;border-left:2px solid #a5d6a7}
+.ord-edit-db{width:28px;height:28px;background:#fff5f5;border:1px solid #f0c0c0;border-radius:4px;color:#c00;font-size:12px;cursor:pointer}
+.ord-edit-sab{font-size:11px;padding:3px 8px;border-radius:4px;margin-top:3px;cursor:pointer}
+.ord-edit-code-group.c0 .ord-edit-sab{background:#bbdefb;color:#1565c0;border:0.5px solid #90caf9}
+.ord-edit-code-group.c1 .ord-edit-sab{background:#c8e6c9;color:#2e7d32;border:0.5px solid #a5d6a7}
+.ord-edit-repeat{display:flex;align-items:center;gap:6px;margin-top:5px;padding-top:5px;border-top:0.5px solid rgba(0,0,0,.08)}
+.ord-edit-repeat label{font-size:10px;opacity:.7}
+.ord-edit-code-group.c0 .ord-edit-repeat input{width:44px;height:22px;font-size:11px;border:1px solid #90caf9;border-radius:4px;padding:0 4px;text-align:center;background:#fff;color:#1565c0}
+.ord-edit-code-group.c1 .ord-edit-repeat input{width:44px;height:22px;font-size:11px;border:1px solid #a5d6a7;border-radius:4px;padding:0 4px;text-align:center;background:#fff;color:#2e7d32}
+.ord-edit-repeat span{font-size:10px;opacity:.7}
+.ord-edit-acb{width:100%;font-size:11px;padding:5px;border:0.5px solid #ccc;border-radius:4px;background:#fff;color:#333;margin-top:4px;cursor:pointer}
+.ord-edit-save{width:100%;padding:9px;background:#1976d2;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;margin-top:8px;cursor:pointer}
 .calc-input-row{display:flex;gap:6px;align-items:center;margin:6px 0}
 .calc-input-row label{font-size:10px;color:#888;white-space:nowrap}
 .calc-input-row input{height:28px;width:70px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:5px;text-align:center}
@@ -3515,24 +3569,24 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
     const escapedNum = normNum.replace(/'/g,"\\'");
 
     // 発注チェック・在庫HTML生成
-    const _boxFooters = group.childCtxs.map(ctx => {
+    // 各childCtxの発注ボックスフッターを生成（新デザイン）
+    const _makeOrderBox = (ctx, itemsHtml, calcHtml) => {
       const {child, isExtra, exId, ex} = ctx;
       const isOrdered = isExtra ? (ex&&ex.ordered===true) : (child.ordered===true);
       const checkOnchange = isExtra
         ? `ordToggleExtraOrdered(${siteId},${procId},${child.id},${exId},this.checked)`
         : `ordToggleOrdered(${siteId},${procId},${child.id},this.checked)`;
-      const stockMatchCode = normNum;
-      if(isOrdered) {
-        return `<div style="margin-top:4px;border-top:1px solid #bbdefb;padding-top:6px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#1565c0;cursor:pointer">
-            <input type="checkbox" checked onchange="${checkOnchange}" style="accent-color:#1976d2">
-            <span style="font-weight:500">✓ 発注済み</span>
-          </label>
-        </div>`;
-      }
-      const codeNorm = stockMatchCode.toLowerCase().replace(/[\s　\-]+/g,'');
+
+      // 数量チェック
+      const _mat = isExtra ? _splitMaterial(ex&&ex.material||'') : _splitMaterial(child.material||'');
+      const hasQty = !!(group.items.length > 0 || _mat.qty);
+      const qtyWarnHtml = !hasQty && !isOrdered
+        ? `<div class="ord-box-warn">⚠ 数量未入力 — 編集ボタンで入力してください</div>` : '';
+
+      // 在庫
+      const codeNorm = normNum.toLowerCase().replace(/[\s　\-]+/g,'');
       let stockHtml='', hasStock=false;
-      if(codeNorm) {
+      if(codeNorm && !isOrdered) {
         const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
         const matched=[...direct,...alias];
         if(matched.length) {
@@ -3540,31 +3594,49 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
           const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
           const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
           const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId})` : `ordShowSkipInput('ch',${child.id})`;
-          stockHtml=`<div style="border-top:1px solid #bbdefb;margin-top:6px;padding-top:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <div style="font-size:11px;color:#888">📦 ${stockDesc}${aliasNote}</div>
+          stockHtml=`<div class="ord-box-stock">
+            <div class="ord-box-stock-row">
+              <div class="ord-box-stock-info">📦 ${stockDesc}${aliasNote}</div>
               <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
             </div>
             <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
           </div>`;
         }
       }
+
       const skipReason = isExtra ? (ex&&ex.skipReason) : child.skipReason;
-      const disabled = hasStock && !skipReason ? 'disabled' : '';
-      return stockHtml+`<div style="margin-top:6px">
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:${disabled?'#bbb':'#1565c0'};cursor:${disabled?'not-allowed':'pointer'}">
-          <input type="checkbox" ${disabled} onchange="${checkOnchange}" style="accent-color:#1976d2">
-          <span>発注済みにする</span>
+      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !isOrdered) ? 'disabled' : '';
+      const checkColor = checkDisabled ? '#bbb' : (isOrdered ? '#1565c0' : '#1565c0');
+
+      const checkHtml = `<div class="ord-box-check">
+        <label style="color:${checkColor};cursor:${checkDisabled?'not-allowed':'pointer'};display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap">
+          <input type="checkbox" ${isOrdered?'checked':''} ${checkDisabled} onchange="${checkOnchange}" style="accent-color:#1976d2;width:16px;height:16px">
+          <span>${isOrdered?'✓ 発注済み':'発注する'}</span>
         </label>
       </div>`;
-    }).join('');
+
+      return `<div class="ord-box-header">
+        <div class="ord-box-left">
+          <div class="ord-box-code">${esc(group.num)}</div>
+          ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
+          ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
+          ${qtyWarnHtml}
+        </div>
+        ${checkHtml}
+      </div>
+      ${stockHtml}`;
+    };
+    // 各childCtxのボックスを生成（品番単位で1つにまとめる：最初のctxのみ使用）
+    const _primaryCtx = group.childCtxs[0];
+    const _boxFooters = _primaryCtx ? (() => {
+      const ctx = _primaryCtx;
+      return _makeOrderBox(ctx, null, null); // itemsHtml/calcHtmlは各ボックス側で渡す
+    })() : '';
 
     if(group.isCF) {
       const itemsHtml = group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
       html+=`<div class="calc-result-box">
-        <div class="cr-title">${esc(group.num)}</div>
-        <div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>
-        ${_boxFooters}
+        ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
       </div>`;
     } else if(group.isCross) {
       const repeatKey = 'repeat_'+siteId+'_'+procId+'_'+(children[0]&&children[0].id||0)+'_'+normNum;
@@ -3573,9 +3645,13 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       if(entries.length===0) {
         const itemsHtml = group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
         html+=`<div class="calc-result-box">
-          <div class="cr-title">${esc(group.num)}</div>
-          <div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>
-          ${_boxFooters}
+          ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
+          <div class="ord-box-repeat">
+            <label>リピート</label>
+            <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
+              onchange="setCalcRepeat(${siteId},${procId},${children[0]&&children[0].id||0},'${escapedNum}',this.value);renderOrderListMode()">
+            <span>cm（0=なし）</span>
+          </div>
         </div>`;
       } else {
         const calcEntries = entries.map(it=>({heightCm:it.heightCm,qty:parseInt(it.qty)}));
@@ -3586,26 +3662,21 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
           return `${useCmStr} × ${d.qty}本`;
         }).join('、');
         const baseChildId = children[0]&&children[0].id||0;
+        const calcQtyHtml = `${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span>`;
         html+=`<div class="calc-result-box">
-          <div class="cr-title">📐 ${esc(group.num)}</div>
-          <div class="cr-total">${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span></div>
-          <div class="cr-detail">${detailHtml}</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-            <label style="font-size:10px;color:#888">リピート</label>
-            <input type="number" value="${repeatCm||''}" placeholder="なし(cm)" min="0"
-              style="width:70px;height:24px;font-size:11px;border:1px solid #ccc;border-radius:4px;padding:0 5px;text-align:center"
+          ${_makeOrderBox(_primaryCtx, detailHtml, calcQtyHtml)}
+          <div class="ord-box-repeat">
+            <label>リピート</label>
+            <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
               onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
-            <span style="font-size:10px;color:#aaa">cm (0=なし)</span>
+            <span>cm（0=なし）</span>
           </div>
-          ${_boxFooters}
         </div>`;
       }
     } else {
-      const itemsHtml = group.items.map(it=>`${it.size||''}${it.qty?' × '+it.qty+'本':''}`).filter(Boolean).join('　');
+      const itemsHtml = group.items.map(it=>`${it.size||''}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).filter(Boolean).join('　');
       html+=`<div class="calc-result-box">
-        <div class="cr-title">${esc(group.num)}</div>
-        ${itemsHtml?`<div class="cr-detail" style="font-size:12px;color:#0C447C;font-weight:500">${itemsHtml}</div>`:''}
-        ${_boxFooters}
+        ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
       </div>`;
     }
   });
@@ -4526,55 +4597,10 @@ function renderOrderListMode(){
           <div class="name-row">
             <span class="name">${esc(child.name||'')}</span>
           </div>
-          <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div></div>
-          <div class="smp-fields">
-            <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
-            <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
-            <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="ordUpdateMaterial(${site.id},${proc.id},${child.id})" ${isOrdered?'disabled':''}>
-          </div>`; // ← child行ここで一旦閉じず、extra行の後に続ける
-        // extraMaterials（追加品番行）を発注一覧にも表示
-        (child.extraMaterials||[]).forEach(ex=>{
-          const exParts=_splitMaterial(ex.material||'');
-          const exIsOrdered=(ex.ordered===true);
-          const exHasMat=_hasMaterial(ex.material);
-          let exRowCls='smp-child';
-          if(exIsOrdered)exRowCls+=' ord-done';
-          else if(!exHasMat)exRowCls+=' ord-disabled';
-          else exRowCls+=' ord-pending';
-          // 在庫チェック（sizeOnly行はスキップ）
-          let exStockHtml='';
-          if(!exIsOrdered&&exHasMat&&!ex.sizeOnly){
-            const codeNorm=exParts.num.toLowerCase().replace(/[\s　\-]+/g,'');
-            if(codeNorm){
-              const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
-              const matched=[...direct,...alias];
-              if(matched.length){
-                const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#888;margin-left:4px">（※${aliasLabel}）</span>`:'';
-                const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
-                exStockHtml=`<div class="ord-stock-alert" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px">
-                  <div style="font-size:12px;color:#7A5800">📦 在庫あり：${stockDesc}${aliasNote}</div>
-                  <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id})">在庫を使う</button>
-                </div>`;
-              }
-            }
-          }
-          html+=`<div class="${exRowCls}" id="extra_${ex.id}" style="${ex.sizeOnly?'border-left:2px solid #1D9E75;padding-left:8px':''}">
-            <div class="name-row"><span class="name" style="color:#888;font-size:11px">${ex.sizeOnly?'サイズ追加':'追加品番'}</span></div>
-            <div class="smp-fields">
-              ${ex.sizeOnly?`<div class="f-num" style="display:flex;align-items:center;font-size:12px;color:#888;font-family:monospace">${esc(_splitMaterial(child.material).num)}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>`}
-              <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
-              <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})" ${exIsOrdered?'disabled':''}>
-              <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id},'order')" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
-            </div>
-            ${!exHasMat&&!exIsOrdered&&!ex.sizeOnly?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
-          </div>`;
-        });
-        // extra行の後：ボタンのみ
-        html+=`<div class="smp-two-btns">
-            <button class="smp-btn-sibling" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'sibling')">＋ 品番追加</button>
-            <button class="smp-btn-size" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'size')">＋ サイズ追加</button>
-          </div>
-          ${!hasMaterial&&!isOrdered?'<div class="ord-warn-no-mat">⚠ 品番未入力のため発注できません</div>':''}
+        html+=`<div class="${rowCls}" id="ordchild_${child.id}">
+          <button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
+            📐 寸法・品番を編集
+          </button>
         </div>`;
       });
 
@@ -5149,6 +5175,96 @@ function ordShowAllSites(){
   _orderFilter.focusSiteId=null;
   _orderFilter.mode='pending';
   renderOrderListMode();
+}
+
+function ordOpenEditModal(siteId, procId){
+  const site=sites.find(s=>s.id===siteId);if(!site)return;
+  const proc=site.processes.find(p=>p.id===procId);if(!proc)return;
+  const children=(proc.children||[]).filter(c=>c.ordered!==undefined);
+
+  // 品番グループを構築（寸法入力と同じ構造）
+  let groupsHtml='';
+  let colorIdx=0;
+  children.forEach(child=>{
+    const allMaterials=[];
+    const mainParts=_splitMaterial(child.material||'');
+    if(mainParts.num) allMaterials.push({type:'main',num:mainParts.num,size:mainParts.size,qty:mainParts.qty,child,ex:null});
+    (child.extraMaterials||[]).forEach(ex=>{
+      if(ex.sizeOnly){
+        // サイズ追加は親品番グループに含める（別途処理）
+      } else {
+        const ep=_splitMaterial(ex.material||'');
+        if(ep.num) allMaterials.push({type:'extra',num:ep.num,size:ep.size,qty:ep.qty,child,ex});
+      }
+    });
+    allMaterials.forEach(mat=>{
+      const cls=colorIdx%2===0?'c0':'c1';
+      colorIdx++;
+      const repeatKey='repeat_'+siteId+'_'+procId+'_'+child.id+'_'+mat.num.toUpperCase();
+      const repeatCm=parseInt(localStorage.getItem(repeatKey))||0;
+      const isCross=/クロス/.test(proc.name||'')||/クロス/.test(child.name||'');
+      const hasQty=!!mat.qty;
+      const warnHtml=!hasQty?`<span class="ord-edit-cg-warn">⚠ 数量を入力してください</span>`:'';
+
+      // サイズ追加行
+      let sizeRows='';
+      if(mat.type==='main'){
+        (child.extraMaterials||[]).filter(ex=>ex.sizeOnly).forEach(ex=>{
+          const ep=_splitMaterial(ex.material||'');
+          sizeRows+=`<div class="ord-edit-fgd">
+            <div class="ord-edit-sl">＋</div>
+            <input value="${esc(ep.size)}" placeholder="サイズ" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${siteId},${procId},${child.id},${ex.id})">
+            <input value="${esc(ep.qty)}" placeholder="数量" ${!ep.qty?'class="ord-edit-input-warn"':''} oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${siteId},${procId},${child.id},${ex.id})">
+            <button class="ord-edit-db" onclick="smpDelSibling(${siteId},${procId},${child.id},${ex.id},'order');ordOpenEditModal(${siteId},${procId})">×</button>
+          </div>`;
+        });
+      }
+
+      const repeatHtml=isCross&&mat.type==='main'?`<div class="ord-edit-repeat">
+        <label>リピート</label>
+        <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
+          onchange="setCalcRepeat(${siteId},${procId},${child.id},'${mat.num.toUpperCase().replace(/'/g,"\\'")}',this.value);renderOrderListMode()">
+        <span>cm（0=なし）</span>
+      </div>`:'';
+
+      const onchangeFn=mat.type==='extra'
+        ?`smpUpdateExtraMaterial(${siteId},${procId},${child.id},${mat.ex.id})`
+        :`ordUpdateMaterial(${siteId},${procId},${child.id})`;
+      const addSizeFn=mat.type==='main'
+        ?`smpAddSibling(${siteId},${procId},${child.id},'size');ordOpenEditModal(${siteId},${procId})`
+        :'';
+
+      groupsHtml+=`<div class="ord-edit-code-group ${cls}">
+        <div class="ord-edit-cg-title">${esc(mat.num)} ${warnHtml}</div>
+        <div class="ord-edit-fl"><div></div><div>サイズ</div><div>数量</div></div>
+        <div class="ord-edit-fgd">
+          <div class="ord-edit-sl">メイン</div>
+          <input value="${esc(mat.size)}" placeholder="サイズ" oninput="smpMarkDirty(this)" onchange="${onchangeFn}">
+          <input value="${esc(mat.qty)}" placeholder="数量" ${!hasQty?'class="ord-edit-input-warn"':''} oninput="smpMarkDirty(this)" onchange="${onchangeFn}">
+          <div></div>
+        </div>
+        ${sizeRows}
+        ${addSizeFn?`<button class="ord-edit-sab" onclick="${addSizeFn}">＋ サイズ追加</button>`:''}
+        ${repeatHtml}
+      </div>`;
+    });
+  });
+
+  const existing=document.getElementById('ordEditModalOverlay');
+  if(existing)existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='ordEditModalOverlay';
+  overlay.className='ord-edit-modal-overlay';
+  overlay.innerHTML=`<div class="ord-edit-modal">
+    <div class="ord-edit-modal-head">
+      <div class="ord-edit-modal-title">📐 ${esc(proc.name)} — 寸法・品番を編集</div>
+      <button class="ord-edit-modal-close" onclick="document.getElementById('ordEditModalOverlay').remove()">✕</button>
+    </div>
+    ${groupsHtml}
+    <button class="ord-edit-acb" onclick="smpAddSibling(${siteId},${procId},${children[0]&&children[0].id||0},'sibling');ordOpenEditModal(${siteId},${procId})">＋ 品番追加</button>
+    <button class="ord-edit-save" onclick="smpManualSave();document.getElementById('ordEditModalOverlay').remove();renderOrderListMode()">💾 保存して閉じる</button>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 function onOrderSearch(v){
