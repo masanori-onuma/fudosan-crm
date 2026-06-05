@@ -4592,12 +4592,19 @@ function renderOrderListMode(){
         else if(!hasMaterial)rowCls+=' ord-disabled';
         else rowCls+=' ord-pending';
         // 在庫・発注チェックは_renderProcCalcBoxesで処理
+        // 工程内の最後のchildのときだけ編集ボタンを表示
+        const _isLastInProc = (() => {
+          const allInProc = visibleChildren.filter(x => x.proc.id === proc.id);
+          return allInProc[allInProc.length - 1].child.id === child.id;
+        })();
         html+=`<div class="${rowCls}" id="ordchild_${child.id}"></div>`;
+        if(_isLastInProc) {
+          html+=`<button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
+            📐 寸法・品番を編集
+          </button>`;
+        }
       });
 
-      html+=`<button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
-        📐 寸法・品番を編集
-      </button>`;
       html+='</div>';
     });
   }
