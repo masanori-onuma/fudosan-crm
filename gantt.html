@@ -205,10 +205,10 @@ header a:hover{color:#185FA5}
 .ord-edit-code-group.c0 .ord-edit-cg-title{color:#1565c0}
 .ord-edit-code-group.c1 .ord-edit-cg-title{color:#2e7d32}
 .ord-edit-cg-warn{font-size:11px;color:#d32f2f;font-weight:500}
-.ord-edit-fl{display:grid;grid-template-columns:0 80px 52px 1fr;gap:4px;margin-bottom:2px}
+.ord-edit-fl{display:grid;grid-template-columns:80px 52px 28px;gap:4px;margin-bottom:2px}
 .ord-edit-fl div{font-size:10px;opacity:.7}
 .ord-edit-fg{display:grid;grid-template-columns:2fr 2fr 1fr;gap:4px;margin-bottom:3px}
-.ord-edit-fgd{display:grid;grid-template-columns:0 80px 52px 28px;gap:4px;margin-bottom:3px;align-items:center}
+.ord-edit-fgd{display:grid;grid-template-columns:80px 52px 28px;gap:4px;margin-bottom:3px;align-items:center}
 .ord-edit-fg input,.ord-edit-fgd input{border-radius:4px;padding:5px 6px;font-size:12px;width:100%;box-sizing:border-box;background:#fff}
 .ord-edit-code-group.c0 .ord-edit-fg input,.ord-edit-code-group.c0 .ord-edit-fgd input{border:0.5px solid #90caf9;color:#1565c0}
 .ord-edit-code-group.c1 .ord-edit-fg input,.ord-edit-code-group.c1 .ord-edit-fgd input{border:0.5px solid #a5d6a7;color:#2e7d32}
@@ -3592,11 +3592,11 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
           hasStock=true;
           const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
           const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
-          const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId})` : `ordShowSkipInput('ch',${child.id})`;
+          const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId},this)` : `ordShowSkipInput('ch',${child.id},0,this)`;
           stockHtml=`<div class="ord-box-stock">
             <div class="ord-box-stock-row">
               <div class="ord-box-stock-info">📦 ${stockDesc}${aliasNote}</div>
-              <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
+              <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this)" style="font-size:11px;padding:3px 8px">在庫を使う</button>
             </div>
             <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
           </div>`;
@@ -3778,11 +3778,11 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
         hasStock=true;
         const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
         const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
-        const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId})` : `ordShowSkipInput('ch',${child.id})`;
+        const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId},this)` : `ordShowSkipInput('ch',${child.id},0,this)`;
         stockHtml=`<div style="border-top:1px solid #bbdefb;margin-top:7px;padding-top:7px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <div style="font-size:11px;color:#888">📦 ${stockDesc}${aliasNote}</div>
-            <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
+            <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this)" style="font-size:11px;padding:3px 8px">在庫を使う</button>
           </div>
           <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
         </div>`;
@@ -5037,9 +5037,10 @@ function ordUseStockQty(stockId, childId){
 }
 
 // スキップ理由入力を表示
-function ordShowSkipInput(type, childId, exId){
+function ordShowSkipInput(type, childId, exId, btn){
   const containerId = (type==='ex') ? 'extra_'+exId : 'ordchild_'+childId;
-  const el=document.getElementById(containerId);
+  let el = btn ? btn.closest('.ord-box-stock') : document.getElementById(containerId);
+  if(!el) el = document.getElementById(containerId);
   if(!el)return;
   if(el.querySelector('.ord-skip-reason-wrap'))return;
   const wrap=document.createElement('div');
@@ -5099,13 +5100,16 @@ function ordEditSkipReason(siteId, procId, childId){
   },50);
 }
 
-function ordUseStock(stockId, type, childId, exId){
+function ordUseStock(stockId, type, childId, exId, btn){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const totalCount=s.count||1;
   const countStr=totalCount>1?` × ${totalCount}本`:'';
-  // 数量選択UIを展開
-  const containerId=(type==='ex')?'extra_'+exId:'ordchild_'+childId;
-  const container=document.getElementById(containerId);
+  // 数量選択UIを展開：ボタンの親(ord-box-stock)を使う。なければIDで探す
+  let container=btn?btn.closest('.ord-box-stock'):null;
+  if(!container){
+    const containerId=(type==='ex')?'extra_'+exId:'ordchild_'+childId;
+    container=document.getElementById(containerId);
+  }
   if(!container)return;
   // 既存の数量選択UIがあれば除去
   const existing=container.querySelector('.stock-use-picker');
@@ -5199,7 +5203,6 @@ function ordOpenEditModal(siteId, procId){
         (child.extraMaterials||[]).filter(ex=>ex.sizeOnly).forEach(ex=>{
           const ep=_splitMaterial(ex.material||'');
           sizeRows+=`<div class="ord-edit-fgd">
-            <div class="ord-edit-sl">＋</div>
             <input value="${esc(ep.size)}" placeholder="サイズ" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${siteId},${procId},${child.id},${ex.id})">
             <input value="${esc(ep.qty)}" placeholder="数量" ${!ep.qty?'class="ord-edit-input-warn"':''} oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${siteId},${procId},${child.id},${ex.id})">
             <button class="ord-edit-db" onclick="smpDelSibling(${siteId},${procId},${child.id},${ex.id},'order');ordOpenEditModal(${siteId},${procId})">×</button>
@@ -5223,9 +5226,8 @@ function ordOpenEditModal(siteId, procId){
 
       groupsHtml+=`<div class="ord-edit-code-group ${cls}">
         <div class="ord-edit-cg-title">${esc(mat.num)} ${warnHtml}</div>
-        <div class="ord-edit-fl"><div></div><div>サイズ</div><div>数量</div></div>
+        <div class="ord-edit-fl"><div>サイズ</div><div>数量</div><div></div></div>
         <div class="ord-edit-fgd">
-          <div class="ord-edit-sl">メイン</div>
           <input value="${esc(mat.size)}" placeholder="サイズ" oninput="smpMarkDirty(this)" onchange="${onchangeFn}">
           <input value="${esc(mat.qty)}" placeholder="数量" ${!hasQty?'class="ord-edit-input-warn"':''} oninput="smpMarkDirty(this)" onchange="${onchangeFn}">
           <div></div>
