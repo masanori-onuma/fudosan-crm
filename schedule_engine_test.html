@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自動スケジューリングエンジン — テスト</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f3ee; --surface: #ffffff; --surface2: #f0ede6;
+    --border: #ddd9d0; --border2: #c8c3b8;
+    --text: #1a1916; --text2: #6b6860; --text3: #9e9b95;
+    --accent: #2d5a3d; --accent-light: #e8f0ea; --accent-text: #1e3d29;
+    --warn: #7a4a0e; --warn-light: #fdf0e0;
+    --danger: #7a1e1e; --danger-light: #fde8e8;
+    --blue: #1a3d6b; --blue-light: #e8eef7;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif; font-size:14px; line-height:1.6; min-height:100vh; }
+  header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; }
+  header h1 { font-size:15px; font-weight:600; }
+  .badge { font-size:11px; background:var(--accent-light); color:var(--accent); padding:2px 8px; border-radius:4px; font-weight:500; }
+  .layout { display:grid; grid-template-columns:320px 1fr; min-height:calc(100vh - 49px); }
+  .panel-left { background:var(--surface); border-right:1px solid var(--border); overflow-y:auto; }
+  .section { border-bottom:1px solid var(--border); }
+  .section-header { padding:12px 16px; font-size:11px; font-weight:600; color:var(--text3); letter-spacing:.08em; text-transform:uppercase; background:var(--surface2); display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
+  .section-header:hover { background:var(--border); }
+  .section-body { padding:12px 16px; }
+  .workers-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .workers-table th { text-align:left; color:var(--text3); font-weight:500; padding:4px 6px; border-bottom:1px solid var(--border); }
+  .workers-table td { padding:6px 6px; vertical-align:middle; }
+  .workers-table tr:not(:last-child) td { border-bottom:1px solid var(--border); }
+  .workers-table input[type=number] { width:48px; text-align:center; font-size:12px; border:1px solid var(--border2); border-radius:4px; padding:3px 4px; background:var(--bg); }
+  .workers-table select { font-size:12px; border:1px solid var(--border2); border-radius:4px; padding:3px 4px; background:var(--bg); max-width:80px; }
+  .prop-item { padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; cursor:pointer; transition:border-color .15s; }
+  .prop-item:hover { border-color:var(--accent); }
+  .prop-item.selected { border-color:var(--accent); background:var(--accent-light); }
+  .prop-item-name { font-weight:600; font-size:13px; margin-bottom:2px; }
+  .prop-item-meta { font-size:11px; color:var(--text2); }
+  .prop-item-tasks { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .task-chip { font-size:10px; padding:2px 7px; border-radius:3px; border:1px solid var(--border2); background:var(--surface); display:flex; align-items:center; gap:4px; }
+  .task-chip.done { background:var(--surface2); color:var(--text3); text-decoration:line-through; }
+  .task-chip.pending { background:var(--blue-light); color:var(--blue); border-color:#b8cde0; }
+  .chip-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .run-area { padding:12px 16px; }
+  .run-area label { font-size:12px; color:var(--text2); display:block; margin-bottom:4px; }
+  .run-area input[type=date] { width:100%; font-size:13px; border:1px solid var(--border2); border-radius:var(--radius); padding:7px 10px; background:var(--bg); margin-bottom:10px; }
+  .btn-run { width:100%; padding:10px; font-size:14px; font-weight:600; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; transition:opacity .15s; }
+  .btn-run:hover { opacity:.88; }
+  .panel-right { overflow-y:auto; padding:20px 24px; }
+  .result-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .result-header h2 { font-size:16px; font-weight:600; }
+  .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+  .stat-card .label { font-size:11px; color:var(--text3); margin-bottom:4px; }
+  .stat-card .value { font-size:20px; font-weight:600; }
+  .stat-card .value.warn { color:var(--warn); }
+  .stat-card .value.ok { color:var(--accent); }
+  .warning-box { background:var(--warn-light); border:1px solid #e8c87a; border-radius:var(--radius); padding:10px 14px; margin-bottom:16px; font-size:12px; color:var(--warn); }
+  .warning-box .warn-title { font-weight:600; margin-bottom:4px; }
+  .warning-box ul { padding-left:14px; }
+  .warning-box li { margin-bottom:2px; }
+  .gantt-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:20px; }
+  .gantt-title { padding:10px 16px; font-size:12px; font-weight:600; background:var(--surface2); border-bottom:1px solid var(--border); color:var(--text2); }
+  .gantt-scroll { overflow-x:auto; }
+  .gantt-table { border-collapse:collapse; font-size:11px; min-width:100%; }
+  .gantt-table th { padding:5px 6px; text-align:center; white-space:nowrap; background:var(--surface2); border-bottom:1px solid var(--border); border-right:1px solid var(--border); font-weight:500; color:var(--text2); min-width:38px; }
+  .gantt-table th.row-label { text-align:left; min-width:130px; padding-left:10px; }
+  .gantt-table th.worker-col { min-width:60px; }
+  .gantt-table th.holiday { background:#f5f0e8; color:var(--text3); }
+  .gantt-table td { padding:3px 3px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); vertical-align:middle; }
+  .gantt-table td.row-label { padding:6px 10px; white-space:nowrap; font-weight:500; background:var(--surface); }
+  .gantt-table td.worker-col { padding:4px 6px; font-size:10px; color:var(--text2); background:var(--surface); white-space:nowrap; }
+  .gantt-table td.holiday { background:#faf7f0; }
+  .gantt-bar { border-radius:3px; height:22px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; white-space:nowrap; overflow:hidden; padding:0 4px; }
+  .gantt-bar.cross { background:#b5d4f4; color:#0c447c; }
+  .gantt-bar.floor { background:#9fe1cb; color:#085041; }
+  .gantt-bar.tatami { background:#fac775; color:#633806; }
+  .gantt-bar.cleaning { background:#e8d5f5; color:#5b2d8e; }
+  .load-table { width:100%; border-collapse:collapse; font-size:12px; background:var(--surface); border-radius:var(--radius); overflow:hidden; }
+  .load-table th { padding:7px 10px; text-align:left; background:var(--surface2); border-bottom:1px solid var(--border); font-weight:500; color:var(--text2); }
+  .load-table td { padding:7px 10px; border-bottom:1px solid var(--border); }
+  .load-bar-wrap { display:flex; align-items:center; gap:8px; }
+  .load-bar-bg { flex:1; height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .load-bar-fill { height:100%; border-radius:4px; background:var(--accent); }
+  .load-bar-fill.over { background:var(--danger); }
+  .apply-area { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+  .apply-area p { font-size:13px; color:var(--text2); }
+  .btn-apply { padding:9px 20px; font-size:13px; font-weight:600; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text3); }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; }
+  .tag-outer { background:#fff3cd; color:#7a4a0e; font-size:10px; padding:1px 5px; border-radius:3px; font-weight:600; }
+  .tag-inner { background:var(--accent-light); color:var(--accent-text); font-size:10px; padding:1px 5px; border-radius:3px; font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>自動スケジューリングエンジン</h1>
+  <span class="badge">テスト版 v0.3</span>
+  <span style="margin-left:auto;font-size:11px;color:var(--text3);">※ダミーデータで動作確認</span>
+</header>
+<div class="layout">
+  <div class="panel-left">
+    <div class="section">
+      <div class="section-header" onclick="toggleSection('workers')">職人マスタ <span id="workers-arrow">▲</span></div>
+      <div class="section-body" id="workers-body">
+        <table class="workers-table">
+          <thead><tr><th>名前</th><th>対応工程</th><th>クロス<br>㎡/日</th><th>床<br>㎡/日</th><th>稼働h</th></tr></thead>
+          <tbody id="workers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header" onclick="toggleSection('props')">対象物件（クリックで選択/解除） <span id="props-arrow">▲</span></div>
+      <div class="section-body" id="props-body"><div id="props-list"></div></div>
+    </div>
+    <div class="run-area">
+      <label>スケジュール開始日</label>
+      <input type="date" id="start-date" />
+      <button class="btn-run" onclick="runSchedule()">🗓 スケジュールを自動計算</button>
+    </div>
+  </div>
+  <div class="panel-right" id="result-panel">
+    <div class="empty-state"><div class="icon">📐</div><p>左パネルで物件を選んで「自動計算」を実行してください</p></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// マスタデータ
+// ============================================================
+const WORKERS = [
+  { id:'okawa',    name:'大川龍真',  capable:['cross','floor'],    crossSqmPerDay:40, floorSqmPerDay:30, cleaningPerDay:0, hoursPerDay:8, holidays:[0],   isOuter:false },
+  { id:'shuriki',  name:'秀力内装',  capable:['cross','floor'],    crossSqmPerDay:55, floorSqmPerDay:40, cleaningPerDay:0, hoursPerDay:8, holidays:[0],   isOuter:true  },
+  { id:'iwase',    name:'岩瀬畳店',  capable:['tatami'],           crossSqmPerDay:0,  floorSqmPerDay:0,  cleaningPerDay:0, hoursPerDay:7, holidays:[0,6], isOuter:true  },
+  { id:'eservice', name:'Eサービス', capable:['cleaning'],         crossSqmPerDay:0,  floorSqmPerDay:0,  cleaningPerDay:1, hoursPerDay:8, holidays:[0],   isOuter:true  },
+];
+
+// クロス外注優先ON（㎡大きい現場から外注へ）
+const CROSS_OUTER_FIRST = true;
+
+const PROPERTIES = [
+  { id:'P001', name:'田中様邸 リビング改修', address:'さいたま市大宮区', travelMin:25,
+    tasks:[
+      { id:'t1', type:'cross',    sqm:85, workerPref:'shuriki',  status:'pending', startDate:null, endDate:null },
+      { id:'t2', type:'floor',    sqm:32, workerPref:'okawa',    status:'pending', startDate:null, endDate:null },
+      { id:'t1c',type:'cleaning', sqm:1,  workerPref:'eservice', status:'pending', startDate:null, endDate:null },
+    ]},
+  { id:'P002', name:'鈴木アパート 201号室', address:'さいたま市浦和区', travelMin:35,
+    tasks:[
+      { id:'t3', type:'cross',  sqm:62, workerPref:'shuriki', status:'done', startDate:'2026-06-10', endDate:'2026-06-11' },
+      { id:'t4', type:'floor',  sqm:20, workerPref:'okawa',   status:'pending', startDate:null, endDate:null },
+    ]},
+  { id:'P003', name:'山田様邸 全室リフォーム', address:'川口市', travelMin:45,
+    tasks:[
+      { id:'t5', type:'cross',  sqm:120, workerPref:'shuriki', status:'pending', startDate:null, endDate:null },
+      { id:'t6', type:'floor',  sqm:48,  workerPref:'okawa',   status:'pending', startDate:null, endDate:null },
+      { id:'t7', type:'tatami', sqm:16,  workerPref:'iwase',   status:'pending', startDate:null, endDate:null },
+    ]},
+  { id:'P004', name:'佐藤マンション 305号室', address:'川越市', travelMin:60,
+    tasks:[
+      { id:'t8', type:'cross',    sqm:40, workerPref:'shuriki',  status:'pending', startDate:null, endDate:null },
+      { id:'t9', type:'floor',    sqm:15, workerPref:'okawa',    status:'pending', startDate:null, endDate:null },
+      { id:'t9c',type:'cleaning', sqm:1,  workerPref:'eservice', status:'pending', startDate:null, endDate:null },
+    ]},
+  { id:'P005', name:'高橋様邸 キッチン周り', address:'越谷市', travelMin:50,
+    tasks:[
+      { id:'t10', type:'cross', sqm:28, workerPref:'okawa', status:'wip', startDate:'2026-06-16', endDate:'2026-06-16' },
+      { id:'t11', type:'floor', sqm:12, workerPref:'okawa', status:'pending', startDate:null, endDate:null },
+    ]},
+];
+
+let selectedProps = new Set(PROPERTIES.map(p=>p.id));
+
+// ============================================================
+// 初期化
+// ============================================================
+function init() {
+  const today = new Date();
+  document.getElementById('start-date').value = fmtDate(today);
+  renderWorkers();
+  renderProps();
+}
+
+function toggleSection(key) {
+  const body = document.getElementById(key+'-body');
+  const arrow = document.getElementById(key+'-arrow');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  arrow.textContent = hidden ? '▲' : '▼';
+}
+
+function renderWorkers() {
+  const tbody = document.getElementById('workers-tbody');
+  tbody.innerHTML = '';
+  WORKERS.forEach((w,i) => {
+    const tr = document.createElement('tr');
+    const capLabel = { cross:'クロス', floor:'床', tatami:'畳', cleaning:'清掃' };
+    const capStr = w.capable.map(c => capLabel[c]||c).join('・');
+    tr.innerHTML = `
+      <td style="font-weight:600;white-space:nowrap;">
+        ${w.name}<br>
+        <span class="${w.isOuter?'tag-outer':'tag-inner'}">${w.isOuter?'外注':'自社'}</span>
+      </td>
+      <td style="font-size:11px;color:var(--text2);">${capStr}</td>
+      <td>${w.capable.includes('cross') ? `<input type="number" value="${w.crossSqmPerDay}" min="0" max="200" onchange="WORKERS[${i}].crossSqmPerDay=+this.value" />` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${w.capable.includes('floor') ? `<input type="number" value="${w.floorSqmPerDay}" min="0" max="200" onchange="WORKERS[${i}].floorSqmPerDay=+this.value" />` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>
+        <select onchange="WORKERS[${i}].hoursPerDay=+this.value">
+          ${[6,7,8,9].map(h=>`<option value="${h}" ${w.hoursPerDay===h?'selected':''}}>${h}h</option>`).join('')}
+        </select>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderProps() {
+  const container = document.getElementById('props-list');
+  container.innerHTML = '';
+  PROPERTIES.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prop-item' + (selectedProps.has(p.id) ? ' selected' : '');
+    div.onclick = () => {
+      selectedProps.has(p.id) ? selectedProps.delete(p.id) : selectedProps.add(p.id);
+      renderProps();
+    };
+    const typeLabel = { cross:'クロス', floor:'床材', tatami:'畳' };
+    const chips = p.tasks.map(t => {
+      const cls = t.status==='done' ? 'done' : 'pending';
+      const dot = t.status==='done' ? '#9e9b95' : '#378add';
+      return `<span class="task-chip ${cls}">
+        <span class="chip-dot" style="background:${dot}"></span>
+        ${typeLabel[t.type]} ${t.sqm}㎡
+      </span>`;
+    }).join('');
+    div.innerHTML = `
+      <div class="prop-item-name">${p.name}</div>
+      <div class="prop-item-meta">📍 ${p.address} ／ 移動 ${p.travelMin}分</div>
+      <div class="prop-item-tasks">${chips}</div>`;
+    container.appendChild(div);
+  });
+}
+
+// ============================================================
+// スケジューリングエンジン（書き直し版）
+// ============================================================
+function runSchedule() {
+  const startStr = document.getElementById('start-date').value;
+  if (!startStr) { alert('開始日を設定してください'); return; }
+
+  const targetProps = PROPERTIES.filter(p => selectedProps.has(p.id));
+  if (!targetProps.length) { alert('物件を選択してください'); return; }
+
+  const startDate = parseDate(startStr);
+
+  // ----------------------------------------------------------
+  // STEP1: 職人ごとの「日別空き時間帳簿」を初期化
+  // workerBook[workerId][dateStr] = { usedHours: 0, propIds: Set }
+  // ----------------------------------------------------------
+  const workerBook = {};
+  WORKERS.forEach(w => { workerBook[w.id] = {}; });
+
+  function getDay(workerId, dateStr) {
+    if (!workerBook[workerId][dateStr]) {
+      workerBook[workerId][dateStr] = { usedHours: 0, propIds: new Set(), hasFixedOther: false };
+    }
+    return workerBook[workerId][dateStr];
+  }
+
+  // 稼働可能時間 = 稼働時間 - 移動時間 - 既使用時間
+  // 移動時間: 1物件目は往復分、2物件目以降は+0.5h/物件（現場間移動）
+  function availableHours(worker, dayEntry, prop) {
+    const propIds = dayEntry.propIds;
+    const isNewProp = !propIds.has(prop.id);
+    const propCount = propIds.size + (isNewProp ? 1 : 0);
+    // 移動時間: 1物件=往復, 2物件以上=+現場間0.5h
+    const travel = (prop.travelMin / 60) + (propCount > 1 ? 0.5 * (propCount - 1) : 0);
+    return Math.max(0, worker.hoursPerDay - travel - dayEntry.usedHours);
+  }
+
+  // 1時間あたりの㎡（工程種別・職人）
+  function sqmPerHour(worker, type) {
+    if (type === 'cross')  return worker.crossSqmPerDay / worker.hoursPerDay;
+    if (type === 'floor')  return worker.floorSqmPerDay / worker.hoursPerDay;
+    if (type === 'tatami') return 8 / worker.hoursPerDay; // 畳: 8㎡/日固定
+    return 0;
+  }
+
+  // WIP・完了済みを帳簿に記録（固定）
+  targetProps.forEach(prop => {
+    prop.tasks.forEach(task => {
+      if (task.status !== 'wip' && task.status !== 'done') return;
+      if (!task.startDate || !task.endDate) return;
+      const worker = WORKERS.find(w => w.id === task.workerPref);
+      if (!worker) return;
+      iterDates(parseDate(task.startDate), parseDate(task.endDate), d => {
+        const ds = fmtDate(d);
+        const entry = getDay(worker.id, ds);
+        // 固定タスクは稼働時間を全部使ったとみなす
+        entry.usedHours = worker.hoursPerDay;
+        entry.propIds.add(prop.id);
+        entry.hasFixedOther = true;
+      });
+    });
+  });
+
+  // ----------------------------------------------------------
+  // STEP2: クロス完了日を記録（床の最早開始日算出用）
+  // propCrossEnd[propId] = Date  ← クロス最終日（同日施工OK）
+  // ----------------------------------------------------------
+  const propCrossEnd = {};
+  targetProps.forEach(prop => {
+    prop.tasks.forEach(task => {
+      if (task.type !== 'cross') return;
+      if ((task.status === 'done' || task.status === 'wip') && task.endDate) {
+        propCrossEnd[prop.id] = parseDate(task.endDate);
+      }
+    });
+  });
+
+  // ----------------------------------------------------------
+  // STEP3: 未着手タスクを処理順に並べる
+  // 順序: cross→floor→tatami、同種は㎡降順（外注優先のため）
+  // ----------------------------------------------------------
+  const TYPE_ORDER = { cross:0, floor:1, tatami:1, cleaning:2 }; // tatami=floor同順、cleaning=最後
+  const pendingTasks = [];
+  targetProps.forEach(prop => {
+    prop.tasks.forEach(task => {
+      if (task.status === 'pending') pendingTasks.push({ ...task, prop });
+    });
+  });
+  pendingTasks.sort((a, b) => {
+    if (TYPE_ORDER[a.type] !== TYPE_ORDER[b.type]) return TYPE_ORDER[a.type] - TYPE_ORDER[b.type];
+    return b.sqm - a.sqm; // 同種は㎡大きい順
+  });
+
+  // ----------------------------------------------------------
+  // STEP4: 各タスクに職人と日程を割り当てる
+  // ----------------------------------------------------------
+  const assignedTasks = [];
+  const warnings = [];
+
+  // 職人候補リスト（外注優先/自社優先）
+  function workerCandidates(task) {
+    const pref = WORKERS.find(w => w.id === task.workerPref);
+    const capable = WORKERS.filter(w => sqmPerHour(w, task.type) > 0);
+    // クロスは外注優先（㎡大→外注から）、床は自社優先
+    let ordered;
+    if (task.type === 'cross' && CROSS_OUTER_FIRST) {
+      ordered = [...capable.filter(w=>w.isOuter), ...capable.filter(w=>!w.isOuter)];
+    } else {
+      ordered = [...capable.filter(w=>!w.isOuter), ...capable.filter(w=>w.isOuter)];
+    }
+    // 希望職人を先頭に
+    if (pref && capable.find(w=>w.id===pref.id)) {
+      ordered = [pref, ...ordered.filter(w=>w.id!==pref.id)];
+    }
+    return ordered;
+  }
+
+  for (const task of pendingTasks) {
+    const prop = task.prop;
+
+    // 最早開始日の計算
+    let earliest = new Date(startDate);
+    if ((task.type === 'floor' || task.type === 'tatami') && propCrossEnd[prop.id]) {
+      // 床・畳はクロス完了日から（同日OK）
+      if (propCrossEnd[prop.id] > earliest) earliest = new Date(propCrossEnd[prop.id]);
+    }
+    if (task.type === 'cleaning') {
+      // クリーニングは全工程（cross/floor/tatami）完了後の翌日
+      const allEnd = getLastWorkEnd(prop, assignedTasks, workerBook);
+      if (allEnd) {
+        const nextDay = new Date(allEnd);
+        nextDay.setDate(nextDay.getDate() + 1);
+        if (nextDay > earliest) earliest = nextDay;
+      }
+    }
+
+    const candidates = workerCandidates(task);
+    let assigned = false;
+
+    for (const worker of candidates) {
+      const result = assignTask(task, prop, worker, earliest, workerBook, warnings);
+      if (result) {
+        assignedTasks.push(result);
+        // クロス完了日を更新（後続の床の最早開始日に使用）
+        if (task.type === 'cross') {
+          if (!propCrossEnd[prop.id] || result.endDate > propCrossEnd[prop.id]) {
+            propCrossEnd[prop.id] = new Date(result.endDate);
+          }
+        }
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      warnings.push(`⚠ ${prop.name}「${task.type}」: 割り当て可能な職人が見つかりません`);
+    }
+  }
+
+  renderResult({ assignedTasks, warnings, startDate, targetProps });
+}
+
+// ============================================================
+// 物件の全工程（cleaning以外）の最終完了日を返す
+// ============================================================
+function getLastWorkEnd(prop, assignedTasks, workerBook) {
+  let last = null;
+  // 完了済み・WIPの工程
+  prop.tasks.forEach(task => {
+    if (task.type === 'cleaning') return;
+    if ((task.status === 'done' || task.status === 'wip') && task.endDate) {
+      const d = parseDate(task.endDate);
+      if (!last || d > last) last = d;
+    }
+  });
+  // 今回割り当て済みの工程
+  assignedTasks.forEach(a => {
+    if (a.prop.id !== prop.id) return;
+    if (a.task.type === 'cleaning') return;
+    if (!last || a.endDate > last) last = new Date(a.endDate);
+  });
+  return last;
+}
+
+// ============================================================
+// タスク割り当てコア
+// ============================================================
+function assignTask(task, prop, worker, earliest, workerBook, warnings) {
+  const sph = sqmPerHour(worker, task.type);
+  if (sph <= 0) return null;
+
+  let remaining = task.sqm;
+  let cursor = new Date(earliest);
+  const days = [];
+  let guard = 0;
+
+  while (remaining > 0.01 && guard++ < 120) {
+    const ds = fmtDate(cursor);
+    const dow = cursor.getDay();
+
+    // 休日スキップ
+    if (worker.holidays.includes(dow)) {
+      cursor.setDate(cursor.getDate() + 1);
+      continue;
+    }
+
+    const entry = getBookEntry(worker.id, ds, workerBook);
+
+    // 他物件の固定工程と競合したらスキップ
+    if (entry.hasFixedOther && !entry.propIds.has(prop.id)) {
+      warnings.push(`⚠ ${fmtDateJP(cursor)}：${worker.name}は既存工程と重複 → 自動回避`);
+      cursor.setDate(cursor.getDate() + 1);
+      continue;
+    }
+
+    // 同日3物件まで
+    const isNewProp = !entry.propIds.has(prop.id);
+    if (isNewProp && entry.propIds.size >= 3) {
+      cursor.setDate(cursor.getDate() + 1);
+      continue;
+    }
+
+    // 稼働可能時間を計算
+    const propCount = entry.propIds.size + (isNewProp ? 1 : 0);
+    const travel = (prop.travelMin / 60) + (propCount > 1 ? 0.5 * (propCount - 1) : 0);
+    const avail = Math.max(0, worker.hoursPerDay - travel - entry.usedHours);
+
+    if (avail < 0.1) {
+      cursor.setDate(cursor.getDate() + 1);
+      continue;
+    }
+
+    // 今日施工できる㎡
+    const todaySqm = Math.min(avail * sph, remaining);
+
+    // 帳簿に記録
+    entry.usedHours += todaySqm / sph;
+    entry.propIds.add(prop.id);
+    days.push({ date: new Date(cursor), sqm: Math.round(todaySqm * 10) / 10 });
+    remaining -= todaySqm;
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  if (days.length === 0) return null;
+  return {
+    task, prop, worker,
+    startDate: days[0].date,
+    endDate: days[days.length - 1].date,
+    days,
+    totalDays: days.length,
+  };
+}
+
+function getBookEntry(workerId, ds, workerBook) {
+  if (!workerBook[workerId]) workerBook[workerId] = {};
+  if (!workerBook[workerId][ds]) {
+    workerBook[workerId][ds] = { usedHours: 0, propIds: new Set(), hasFixedOther: false };
+  }
+  return workerBook[workerId][ds];
+}
+
+function sqmPerHour(worker, type) {
+  if (type === 'cross')    return worker.crossSqmPerDay / worker.hoursPerDay;
+  if (type === 'floor')    return worker.floorSqmPerDay / worker.hoursPerDay;
+  if (type === 'tatami')   return 8 / worker.hoursPerDay;
+  if (type === 'cleaning') return worker.cleaningPerDay > 0 ? 1 : 0; // 1物件/日
+  return 0;
+}
+
+// ============================================================
+// 結果描画
+// ============================================================
+function renderResult({ assignedTasks, warnings, startDate, targetProps }) {
+  const panel = document.getElementById('result-panel');
+  if (assignedTasks.length === 0) {
+    panel.innerHTML = '<div class="empty-state"><p>割り当て可能な工程がありませんでした</p></div>';
+    return;
+  }
+
+  let maxEnd = new Date(startDate);
+  assignedTasks.forEach(a => { if (a.endDate > maxEnd) maxEnd = a.endDate; });
+
+  const allDates = [];
+  const cur = new Date(startDate);
+  while (cur <= maxEnd) { allDates.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+
+  const workDays = allDates.filter(d => d.getDay() !== 0 && d.getDay() !== 6).length;
+  const conflictCount = [...new Set(warnings.filter(w => w.includes('自動回避')))].length;
+
+  const uniqWarnings = [...new Set(warnings)];
+
+  let html = `
+    <div class="result-header">
+      <h2>スケジュール提案</h2>
+      <span style="font-size:12px;color:var(--text3);">${fmtDateJP(startDate)} 〜 ${fmtDateJP(maxEnd)}</span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">完了予定日</div><div class="value ok">${fmtDateJP(maxEnd)}</div></div>
+      <div class="stat-card"><div class="label">稼働日数</div><div class="value">${workDays}日</div></div>
+      <div class="stat-card"><div class="label">割当工程数</div><div class="value">${assignedTasks.length}</div></div>
+      <div class="stat-card"><div class="label">競合（自動回避）</div><div class="value ${conflictCount>0?'warn':'ok'}">${conflictCount}件</div></div>
+    </div>`;
+
+  if (uniqWarnings.length) {
+    html += `<div class="warning-box">
+      <div class="warn-title">⚠ 自動回避・注意事項 (${uniqWarnings.length}件)</div>
+      <ul>${uniqWarnings.map(w=>`<li>${w}</li>`).join('')}</ul>
+    </div>`;
+  }
+
+  // Ganttチャート
+  html += `<div class="gantt-wrap">
+    <div class="gantt-title">工程Gantt — 職人別</div>
+    <div class="gantt-scroll"><table class="gantt-table">
+      <thead><tr>
+        <th class="row-label">物件 / 工程</th>
+        <th class="worker-col">担当</th>
+        ${allDates.map(d => {
+          const dow = d.getDay();
+          const isHol = dow===0||dow===6;
+          return `<th class="${isHol?'holiday':''}">${d.getMonth()+1}/${d.getDate()}<br>${['日','月','火','水','木','金','土'][dow]}</th>`;
+        }).join('')}
+      </tr></thead>
+      <tbody>`;
+
+  targetProps.forEach(prop => {
+    prop.tasks.forEach(task => {
+      const a = assignedTasks.find(x => x.task.id === task.id);
+      const isDone = task.status === 'done';
+      const isWip  = task.status === 'wip';
+      const typeLabel = { cross:'クロス', floor:'床材', tatami:'畳', cleaning:'クリーニング' };
+      const wName = a ? a.worker.name : (WORKERS.find(w=>w.id===task.workerPref)?.name || '—');
+
+      html += `<tr>
+        <td class="row-label" style="${isDone?'color:var(--text3);text-decoration:line-through;':''}">
+          ${prop.name.length>10 ? prop.name.slice(0,10)+'…' : prop.name}<br>
+          <span style="font-size:10px;color:var(--text3);">${typeLabel[task.type]} ${task.sqm}㎡</span>
+        </td>
+        <td class="worker-col">${wName}</td>`;
+
+      allDates.forEach(d => {
+        const dow = d.getDay();
+        const isHol = dow===0||dow===6;
+        let cell = `<td class="${isHol?'holiday':''}">`;
+        if (!isDone && a) {
+          const de = a.days.find(x => fmtDate(x.date) === fmtDate(d));
+          if (de) {
+            const cls = task.type==='cross'?'cross':task.type==='floor'?'floor':task.type==='tatami'?'tatami':'cleaning';
+            cell += `<div class="gantt-bar ${cls}">${Math.round(de.sqm)}㎡</div>`;
+          }
+        } else if (isWip && task.startDate && task.endDate) {
+          if (fmtDate(d) >= task.startDate && fmtDate(d) <= task.endDate) {
+            cell += `<div class="gantt-bar cross" style="opacity:.5;">着手中</div>`;
+          }
+        }
+        cell += '</td>';
+        html += cell;
+      });
+      html += '</tr>';
+    });
+  });
+
+  html += `</tbody></table></div></div>`;
+
+  // 職人稼働サマリ
+  html += `<div class="gantt-wrap" style="margin-bottom:20px;">
+    <div class="gantt-title">職人別 稼働サマリ</div>
+    <div style="padding:12px 16px;">
+    <table class="load-table">
+      <thead><tr><th>職人</th><th>割当工程</th><th>総㎡</th><th>稼働日数</th><th>稼働率</th></tr></thead>
+      <tbody>`;
+
+  WORKERS.forEach(worker => {
+    const myTasks = assignedTasks.filter(a => a.worker.id === worker.id);
+    if (!myTasks.length) return;
+    const totalSqm = myTasks.reduce((s,a) => s + a.task.sqm, 0);
+    const totalDays = myTasks.reduce((s,a) => s + a.totalDays, 0);
+    const rate = Math.min(100, Math.round(totalDays / workDays * 100));
+    const tag = worker.isOuter ? `<span class="tag-outer">外注</span>` : `<span class="tag-inner">自社</span>`;
+    html += `<tr>
+      <td style="font-weight:600;">${worker.name} ${tag}</td>
+      <td>${myTasks.length}件</td>
+      <td>${totalSqm}㎡</td>
+      <td>${totalDays}日</td>
+      <td><div class="load-bar-wrap">
+        <div class="load-bar-bg"><div class="load-bar-fill ${rate>90?'over':''}" style="width:${rate}%"></div></div>
+        <span style="font-size:11px;min-width:32px;">${rate}%</span>
+      </div></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div></div>`;
+  html += `<div class="apply-area">
+    <p>このスケジュールを<strong>gantt.htmlに適用</strong>する場合、各工程の開始日・終了日を自動セットします。</p>
+    <button class="btn-apply" onclick="alert('gantt.html組み込み時に実装されます')">📋 Ganttに適用（準備中）</button>
+  </div>`;
+
+  panel.innerHTML = html;
+}
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function parseDate(str) {
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDateJP(d) {
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+function iterDates(start, end, fn) {
+  const cur = new Date(start);
+  while (cur <= end) { fn(new Date(cur)); cur.setDate(cur.getDate()+1); }
+}
+
+init();
+</script>
+</body>
+</html>
