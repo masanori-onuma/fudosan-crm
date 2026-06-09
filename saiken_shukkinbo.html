@@ -131,7 +131,7 @@ select.row-sel{border:none;background:transparent;font-size:15px;color:#222;widt
           <th style="width:54px">実労時間</th>
           <th style="width:54px">時間外</th>
           <th style="width:56px">区分</th>
-          <th style="width:90px">備考</th>
+          <th style="width:60px">備考</th>
         </tr>
       </thead>
       <tbody id="att-body"></tbody>
@@ -607,7 +607,7 @@ function renderTable() {
         <option value="abs"${type==='abs'?' selected':''}>欠勤</option>
         <option value="hol"${type==='hol'?' selected':''}>休日</option>
       </select></td>
-      <td><input class="note-input" type="text" value="${r.note||''}" onchange="setField('${sid}',${year},${month},${d},'note',this.value)" style="width:86px"></td>
+      <td><input class="note-input" type="text" value="${r.note||''}" onchange="setField('${sid}',${year},${month},${d},'note',this.value)" style="width:56px"></td>
     </tr>`;
   }
   document.getElementById('att-body').innerHTML = rows;
