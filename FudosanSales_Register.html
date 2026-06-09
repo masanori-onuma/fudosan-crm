@@ -382,7 +382,16 @@ textarea.field-input { min-height: 72px; resize: vertical; }
       </div>
       <div class="field-group">
         <div class="field-label">所有者住所</div>
-        <input type="text" class="field-input" id="tr_owner_address">
+        <input type="text" class="field-input" id="tr_owner_address" oninput="schedulePostalLookup('tr_owner_address','tr_postal_code')">
+      </div>
+      <div class="field-group">
+        <div class="field-label">郵便番号（所有者）</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="text" class="field-input" id="tr_postal_code" placeholder="自動入力" style="flex:1;">
+          <button type="button" onclick="lookupPostalCode('tr_owner_address','tr_postal_code')"
+            style="white-space:nowrap;border:none;background:#e6f1fb;color:#185fa5;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;">🔍 再取得</button>
+        </div>
+        <div id="tr_postal_code_status" style="font-size:11px;color:#a0aec0;margin-top:3px;min-height:14px;"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="field-group">
@@ -525,6 +534,46 @@ textarea.field-input { min-height: 72px; resize: vertical; }
 </div>
 
 <script>
+
+// ─── 郵便番号自動取得（GAS経由 → Google Maps Geocoder） ───────────────────
+
+let _postalLookupTimer = null;
+
+function schedulePostalLookup(addrId, postalId) {
+  clearTimeout(_postalLookupTimer);
+  _postalLookupTimer = setTimeout(() => lookupPostalCode(addrId, postalId), 600);
+}
+
+async function lookupPostalCode(addrId, postalId) {
+  const addr = document.getElementById(addrId)?.value?.trim() || '';
+  const statusEl = document.getElementById(postalId + '_status');
+  const postalEl = document.getElementById(postalId);
+  if (!addr || !postalEl) return;
+
+  const gasUrl = localStorage.getItem(GAS_URL_KEY);
+  if (!gasUrl) return;
+
+  if (statusEl) statusEl.textContent = '検索中…';
+
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'postalCode', address: addr })
+    });
+    const data = await res.json();
+    if (data.postal) {
+      postalEl.value = data.postal;
+      if (statusEl) statusEl.textContent = '✅ 自動入力しました';
+    } else {
+      if (statusEl) statusEl.textContent = '特定できませんでした（手入力してください）';
+    }
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '取得失敗（手入力してください）';
+  }
+}
+
+
 const GAS_URL_KEY = 'sales_gas_url';
 const USER_KEY = 'sales_user';
 
@@ -684,6 +733,10 @@ function fillForm(d) {
   const ownerAddr = d.owner_address || '';
   const isLocal = SAITAMA_KW.some(k => ownerAddr.includes(k)) ? '県内' : (ownerAddr ? '県外' : '');
   if (isLocal) document.getElementById('tr_is_local').value = isLocal;
+
+  // 所有者住所から郵便番号を自動取得
+  document.getElementById('tr_postal_code').value = '';
+  if (ownerAddr) lookupPostalCode('tr_owner_address', 'tr_postal_code');
 
   if (d.inheritance_chain) {
     document.getElementById('inheritanceNote').textContent =
@@ -905,6 +958,7 @@ async function registerProperty() {
     address: document.getElementById('tr_address').value,
     owner_name: document.getElementById('tr_owner_name').value,
     owner_address: document.getElementById('tr_owner_address').value,
+    postal_code: document.getElementById('tr_postal_code').value.trim(),
     is_local: document.getElementById('tr_is_local').value,
     registration_date: document.getElementById('tr_registration_date').value,
     registration_reason: document.getElementById('tr_registration_reason').value,
@@ -1031,6 +1085,8 @@ function resetAll() {
   document.getElementById('analysisContent').classList.remove('show');
   document.getElementById('analysisPlaceholder').style.display = 'flex';
   document.getElementById('fileInput').value = '';
+  document.getElementById('tr_postal_code').value = '';
+  document.getElementById('tr_postal_code_status').textContent = '';
   document.getElementById('registerBtn').disabled = false;
   document.getElementById('registerBtn').textContent = '📋 登録する';
 
