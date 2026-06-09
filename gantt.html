@@ -3655,9 +3655,17 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       const repeatCm = parseInt(localStorage.getItem(repeatKey))||0;
       const entries = group.items.filter(it=>it.heightCm&&parseInt(it.qty));
       if(entries.length===0) {
-        const itemsHtml = group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
+        // m単位のsizeが直接入っている場合（例: size:"15m"）はそれを必要量として表示
+        const directMItem = group.items.find(it => it.size && /^\d+(\.\d+)?\s*[mｍ]$/i.test(it.size.trim()));
+        const directM = directMItem ? parseFloat(directMItem.size) : 0;
+        const itemsHtml = directM
+          ? `${directM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（直接指定）</span>`
+          : group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
+        const calcHtmlForDirect = directM
+          ? `${directM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（直接指定）</span>`
+          : null;
         html+=`<div class="calc-result-box">
-          ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
+          ${_makeOrderBox(_primaryCtx, directM ? null : itemsHtml, calcHtmlForDirect, directM||0)}
           <div class="ord-box-repeat">
             <label>リピート</label>
             <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
