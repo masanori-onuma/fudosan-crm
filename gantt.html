@@ -4845,12 +4845,12 @@ function _onStockSiteChange(){
     if(existing.length>0){
       // 既存在庫は全件表示（数量が違うケースに対応）
       rowsHtml=existing.map((st,ri)=>`<div style="display:flex;gap:4px;margin-bottom:2px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格(例:50m)" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
         <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center" value="${st.count||''}">
       </div>`).join('');
     }else{
       rowsHtml=`<div style="display:flex;gap:4px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格(例:50m)" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
         <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="1" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
       </div>`;
     }
