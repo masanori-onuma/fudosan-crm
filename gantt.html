@@ -8,18 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<script>(function(){const VER=107;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<script>
-(function(){
-  const VER=106;
-  const p=new URLSearchParams(location.search);
-  if(parseInt(p.get('v'))!==VER){
-    p.set('v',VER);
-    location.replace(location.pathname+'?'+p.toString()+(location.hash||''));
-  }
-})();
-</script>
 <title>リフォーム工程表</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -3377,11 +3368,11 @@ function renderSumpouMode(){
               <span class="name">${esc(child.name||'')}</span>
               ${hasMaterial?'<span class="smp-tag-done">✓入力済</span>':''}
             </div>
-            <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">${child.name==='クロス貼替'?'必要m数':'サイズ'}</div>${child.name==='クロス貼替'?'':'<div class="l-qty">数量</div>'}<div class="l-btn"></div></div>
+            <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
-              <input class="f-num" placeholder="品番" value="${esc(parts.num||(child.name==='クロス貼替'?'SP2516':''))}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
-              <input class="f-size" placeholder="${child.name==='クロス貼替'?'例: 15m':'サイズ'}" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
-              ${child.name==='クロス貼替'?'':`<input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
+              <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
             </div>
             <div class="smp-two-btns">
               <button class="smp-btn-sibling" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'sibling')">＋ 品番追加</button>
@@ -3486,23 +3477,6 @@ function _joinMaterial(num,size,qty){
 // ============================================================
 // material.size から天井高(cm)を抽出する
 // 例: "2.45m" → 245, "245cm" → 245, "2450mm" → 245, "2.45" → 245
-// 在庫1件の合計m数を返す。qty="50m"でcount=3なら150。qty="150m"でcount=1なら150。mなしなら0。
-function _stockTotalM(s) {
-  if(!s) return 0;
-  const m = (s.qty||'').trim().match(/^(\d+(?:\.\d+)?)\s*[mｍ]/i);
-  if(!m) return 0;
-  return parseFloat(m[1]) * (s.count||1);
-}
-// 在庫1件のm/本の表示ラベル（例: "50m × 3本 計150m"）
-function _stockLabel(s) {
-  const perM = parseFloat(((s.qty||'').trim().match(/^(\d+(?:\.\d+)?)\s*[mｍ]/i)||[])[1]||0);
-  const cnt = s.count||1;
-  if(!perM) return `${esc(s.qty||'')}${cnt>1?' × '+cnt+'本':''}`;
-  const total = perM * cnt;
-  if(cnt > 1) return `${perM}m × ${cnt}本 計${total}m`;
-  return `${total}m`;
-}
-
 function _parseHeightCm(sizeStr) {
   if(!sizeStr) return null;
   const s = String(sizeStr).trim();
@@ -3608,7 +3582,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
 
     // 発注チェック・在庫HTML生成
     // 各childCtxの発注ボックスフッターを生成（新デザイン）
-    const _makeOrderBox = (ctx, itemsHtml, calcHtml, needM) => {
+    const _makeOrderBox = (ctx, itemsHtml, calcHtml) => {
       const {child, isExtra, exId, ex} = ctx;
       const isOrdered = isExtra ? (ex&&ex.ordered===true) : (child.ordered===true);
       const checkOnchange = isExtra
@@ -3630,12 +3604,12 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         if(matched.length) {
           hasStock=true;
           const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
-          const stockDesc=matched.map(st=>_stockLabel(st)).join('、');
+          const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
           const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId},this)` : `ordShowSkipInput('ch',${child.id},0,this)`;
           stockHtml=`<div class="ord-box-stock">
             <div class="ord-box-stock-row">
               <div class="ord-box-stock-info">📦 ${stockDesc}${aliasNote}</div>
-              <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this,${needM||0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
+              <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this)" style="font-size:11px;padding:3px 8px">在庫を使う</button>
             </div>
             <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
           </div>`;
@@ -3643,8 +3617,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       }
 
       const skipReason = isExtra ? (ex&&ex.skipReason) : child.skipReason;
-      const usedStock = isExtra ? (ex&&ex.usedStockId) : child.usedStockId;
-      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !usedStock && !isOrdered) ? 'disabled' : '';
+      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !isOrdered) ? 'disabled' : '';
       const checkColor = checkDisabled ? '#bbb' : (isOrdered ? '#1565c0' : '#1565c0');
 
       const checkHtml = `<div class="ord-box-check">
@@ -3682,15 +3655,9 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       const repeatCm = parseInt(localStorage.getItem(repeatKey))||0;
       const entries = group.items.filter(it=>it.heightCm&&parseInt(it.qty));
       if(entries.length===0) {
-        // m単位のsizeが直接入っている場合（例: size:"15m"）はそれを必要量として表示
-        const directMItem = group.items.find(it => it.size && /^\d+(\.\d+)?\s*[mｍ]/i.test(it.size.trim()));
-        const directM = directMItem ? parseFloat(directMItem.size) : 0;
         const itemsHtml = group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
-        const calcHtmlForDirect = directM
-          ? `${directM}m`
-          : null;
         html+=`<div class="calc-result-box">
-          ${_makeOrderBox(_primaryCtx, directM ? null : itemsHtml, calcHtmlForDirect, directM||0)}
+          ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
           <div class="ord-box-repeat">
             <label>リピート</label>
             <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
@@ -3709,7 +3676,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         const baseChildId = children[0]&&children[0].id||0;
         const calcQtyHtml = `${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span>`;
         html+=`<div class="calc-result-box">
-          ${_makeOrderBox(_primaryCtx, detailHtml, calcQtyHtml, totalM)}
+          ${_makeOrderBox(_primaryCtx, detailHtml, calcQtyHtml)}
           <div class="ord-box-repeat">
             <label>リピート</label>
             <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
@@ -3823,7 +3790,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
       if(matched.length) {
         hasStock=true;
         const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
-        const stockDesc=matched.map(st=>_stockLabel(st)).join('、');
+        const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
         const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId},this)` : `ordShowSkipInput('ch',${child.id},0,this)`;
         stockHtml=`<div style="border-top:1px solid #bbdefb;margin-top:7px;padding-top:7px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -4154,12 +4121,6 @@ function smpManualSave(){
     el.dispatchEvent(new Event('change',{bubbles:true}));
     el.classList.remove('dirty');
   });
-  // クロス貼替で品番空のときSP2516を自動セット
-  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
-    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
-      c.material='SP2516';
-    }
-  })));
   // 少し待ってから保存（onchange内の非同期処理を待つ）
   setTimeout(()=>{
     saveData();
@@ -4420,14 +4381,6 @@ function closeOrderListMode(){
 function _ordKoukiBadge(site){return _smpKoukiBadge(site);}
 
 function renderOrderListMode(){
-  // クロス貼替で品番空のときSP2516を自動セット
-  let _defaultFilled=false;
-  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
-    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
-      c.material='SP2516';_defaultFilled=true;
-    }
-  })));
-  if(_defaultFilled)saveData();
   const v=document.getElementById('sumpouView');
   const tab=_orderFilter.tab||'list';
   const focusId=_orderFilter.focusSiteId;
@@ -4768,7 +4721,8 @@ function _renderStockTabBody(){
         <div class="stock-item" style="padding-right:10px">
           <div class="stock-row1">
             <span class="stock-code">${esc(s.code||'(品番なし)')}</span>
-            <span class="stock-qty">${_stockLabel(s)}</span>
+            <span class="stock-qty">${esc(s.qty||'')}</span>
+            ${s.count>1?`<span style="font-size:12px;color:var(--color-text-secondary)">× ${s.count}本</span>`:''}
             <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
               <button class="btn btn-sm stock-action-btn" data-code="${esc(s.code||'')}" data-siteid="${s.siteId||''}" onclick="openStockAddModal(parseInt(this.dataset.siteid)||null,this.dataset.code)" style="font-size:10px;padding:0 5px;height:20px;background:#e6f1fb;color:#185FA5;border-color:#85B7EB" title="同じ品番で追加">＋</button>
               <button class="btn btn-sm stock-action-btn" onclick="openStockEditModal(${s.id})" style="font-size:10px;padding:0 5px;height:20px" title="編集">編集</button>
@@ -4891,12 +4845,12 @@ function _onStockSiteChange(){
     if(existing.length>0){
       // 既存在庫は全件表示（数量が違うケースに対応）
       rowsHtml=existing.map((st,ri)=>`<div style="display:flex;gap:4px;margin-bottom:2px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格(例:50m)" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" data-stock-id="${st.id}" value="${esc(st.qty||'')}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #1D9E75;border-radius:4px;font-family:monospace;box-sizing:border-box">
         <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="${st.count||1}" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #1D9E75;border-radius:4px;box-sizing:border-box;text-align:center" value="${st.count||''}">
       </div>`).join('');
     }else{
       rowsHtml=`<div style="display:flex;gap:4px">
-        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格(例:50m)" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
+        <input class="stock-bulk-qty" data-code="${esc(it.code)}" placeholder="規格" style="flex:1 1 0;min-width:0;height:28px;font-size:12px;padding:0 6px;border:1px solid #ccc;border-radius:4px;font-family:monospace;box-sizing:border-box">
         <input class="stock-bulk-count" type="text" inputmode="numeric" min="1" value="1" placeholder="数量" style="flex:0 0 48px;height:28px;font-size:12px;padding:0 4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;text-align:center">
       </div>`;
     }
@@ -4964,7 +4918,7 @@ function _addStockManualRow(inheritCode){
   row.style.cssText='display:flex;gap:4px;margin-bottom:6px;box-sizing:border-box;width:100%';
   row.innerHTML=`
     <input class="sma-code" placeholder="品番" value="${esc(inheritCode||'')}" style="flex:2;min-width:0;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
-    <input class="sma-spec" placeholder="1本あたり(例:50m)" style="flex:2;min-width:0;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
+    <input class="sma-spec" placeholder="規格" style="flex:2;min-width:0;height:32px;font-size:13px;padding:0 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;box-sizing:border-box">
     <input class="sma-count" placeholder="数量" type="text" inputmode="numeric" min="1" value="" style="flex:0 0 56px;min-width:0;height:32px;font-size:13px;padding:0 6px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box;text-align:center">
     <button onclick="_addStockManualRow(this.closest('.stock-manual-row').querySelector('.sma-code').value.trim())" style="flex:0 0 32px;height:32px;background:#1D9E75;color:#fff;border:none;border-radius:5px;font-size:18px;cursor:pointer;line-height:1;padding:0">+</button>
   `;
@@ -5159,8 +5113,10 @@ function ordEditSkipReason(siteId, procId, childId){
   },50);
 }
 
-function ordUseStock(stockId, type, childId, exId, btn, needM){
+function ordUseStock(stockId, type, childId, exId, btn){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
+  const totalCount=s.count||1;
+  const countStr=totalCount>1?` × ${totalCount}本`:'';
   // 数量選択UIを展開：ボタンの親(ord-box-stock)を使う。なければIDで探す
   let container=btn?btn.closest('.ord-box-stock'):null;
   if(!container){
@@ -5174,15 +5130,11 @@ function ordUseStock(stockId, type, childId, exId, btn, needM){
   const picker=document.createElement('div');
   picker.className='stock-use-picker';
   picker.style.cssText='background:#fffde7;border:1px solid #ffe082;border-radius:6px;padding:8px 10px;margin-top:6px';
-  // 在庫の合計m数を取得（常にm単位で扱う）
-  const totalM = _stockTotalM(s);
-  const initVal = needM > 0 ? needM : (totalM > 0 ? totalM : 1);
-  const stockDesc = _stockLabel(s);
-  picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${stockDesc}</div>
+  picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${esc(s.qty||'')}${countStr}</div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:12px;color:#7A5800">使う量</span>
-      <input type="number" min="0.1" max="${totalM||9999}" value="${initVal}" step="0.1" style="width:64px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
-      <span style="font-size:11px;color:#aaa">m / 計${totalM>0?totalM+'m':'不明'}</span>
+      <span style="font-size:12px;color:#7A5800">使う数量</span>
+      <input type="number" min="1" max="${totalCount}" value="1" style="width:52px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
+      <span style="font-size:11px;color:#aaa">本 / ${totalCount}本</span>
       <button onclick="ordUseStockConfirm(${stockId},'${type||'ch'}',${childId},${exId||0})" style="background:#f9a825;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer">使う</button>
       <button onclick="this.closest('.stock-use-picker').remove()" style="background:none;border:1px solid #ccc;border-radius:4px;font-size:11px;padding:5px 8px;cursor:pointer;color:#666">キャンセル</button>
     </div>`;
@@ -5192,7 +5144,7 @@ function ordUseStock(stockId, type, childId, exId, btn, needM){
 function ordUseStockConfirm(stockId, type, childId, exId){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const inp=document.getElementById('suq_picker_'+stockId);
-  const useM=parseFloat(inp?inp.value:1)||1;
+  const useCount=Math.min(parseInt(inp?inp.value:1)||1, s.count||1);
   // 使用情報をchild/extraに保存
   let targetObj=null;
   sites.forEach(si=>si.processes.forEach(p=>(p.children||[]).forEach(c=>{
@@ -5204,53 +5156,19 @@ function ordUseStockConfirm(stockId, type, childId, exId){
   })));
   if(targetObj){
     targetObj.usedStockId=stockId;
-    targetObj.usedStockCount=useM;
+    targetObj.usedStockCount=useCount;
   }
-  // 在庫を合計m数から引いて残量を本数に分割保存
+  // 在庫を減らす
   const focusSiteId=_orderFilter.focusSiteId;
   const focusSite=focusSiteId?sites.find(x=>x.id===focusSiteId):null;
-  const logEntry={id:Date.now(),site_name:focusSite?focusSite.name:'',code:s.code||'',qty:s.qty||'',count:useM,used_at:new Date().toISOString()};
+  const logEntry={id:Date.now(),site_name:focusSite?focusSite.name:'',code:s.code||'',qty:s.qty||'',count:useCount,used_at:new Date().toISOString()};
   fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_stock_log',log:JSON.stringify(logEntry)})}).catch(()=>{});
-  const totalM = _stockTotalM(s);
-  if(totalM > 0){
-    const perM = parseFloat(((s.qty||'').trim().match(/^(\d+(?:\.\d+)?)\s*[mｍ]/i)||[])[1]||0);
-    const remainM = Math.round((totalM - useM) * 10) / 10;
-    if(remainM <= 0){
-      stocks = stocks.filter(x=>x.id!==stockId);
-      smpToast('✓ 在庫を使いました（在庫なし）');
-    } else {
-      // 残量を1本あたりのm数（perM）で割り直して本数を再計算
-      if(perM > 0){
-        const fullRolls = Math.floor(remainM / perM);
-        const remainder = Math.round((remainM - fullRolls * perM) * 10) / 10;
-        if(fullRolls > 0 && remainder > 0){
-          // 端数ロールを別エントリとして追加
-          s.count = fullRolls;
-          stocks.push({id:nextStockId++, code:s.code, qty:remainder+'m', count:1, siteId:s.siteId, addedBy:s.addedBy, date:s.date, note:s.note});
-        } else if(fullRolls > 0){
-          s.count = fullRolls;
-        } else {
-          // 1本未満の端数のみ
-          s.qty = remainder+'m';
-          s.count = 1;
-        }
-      } else {
-        // perMが取れない場合（qtyにmなし）はqtyを残量で更新
-        s.qty = remainM+'m';
-        s.count = 1;
-      }
-      smpToast(`✓ 在庫を使いました（残り${remainM}m）`);
-    }
-  } else {
-    // mなし在庫（本単位）
-    const useCount = Math.round(useM);
-    if((s.count||1) > useCount){
-      s.count = (s.count||1) - useCount;
-      smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
-    } else {
-      stocks = stocks.filter(x=>x.id!==stockId);
-      smpToast('✓ 在庫を使いました（在庫なし）');
-    }
+  if((s.count||1)>useCount){
+    s.count=(s.count||1)-useCount;
+    smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
+  }else{
+    stocks=stocks.filter(x=>x.id!==stockId);
+    smpToast('✓ 在庫を使いました（在庫なし）');
   }
   saveStocks();
   saveData();
