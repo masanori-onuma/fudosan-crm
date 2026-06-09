@@ -3369,7 +3369,7 @@ function renderSumpouMode(){
             </div>
             <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
-              <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              <input class="f-num" placeholder="品番" value="${esc(parts.num||(child.name==='クロス貼替'?'SP2516':''))}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
               <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
               <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
             </div>
@@ -4121,6 +4121,12 @@ function smpManualSave(){
     el.dispatchEvent(new Event('change',{bubbles:true}));
     el.classList.remove('dirty');
   });
+  // クロス貼替で品番空のときSP2516を自動セット
+  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
+      c.material='SP2516';
+    }
+  })));
   // 少し待ってから保存（onchange内の非同期処理を待つ）
   setTimeout(()=>{
     saveData();
@@ -4381,6 +4387,14 @@ function closeOrderListMode(){
 function _ordKoukiBadge(site){return _smpKoukiBadge(site);}
 
 function renderOrderListMode(){
+  // クロス貼替で品番空のときSP2516を自動セット
+  let _defaultFilled=false;
+  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
+    if(c.name==='クロス貼替'&&!_hasMaterial(c.material)){
+      c.material='SP2516';_defaultFilled=true;
+    }
+  })));
+  if(_defaultFilled)saveData();
   const v=document.getElementById('sumpouView');
   const tab=_orderFilter.tab||'list';
   const focusId=_orderFilter.focusSiteId;
