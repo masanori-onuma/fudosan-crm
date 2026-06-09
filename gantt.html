@@ -4402,6 +4402,9 @@ function renderOrderListMode(){
     if(c.name!=='クロス貼替') return;
     const mat=typeof c.material==='object'?c.material:{num:c.material||'',size:'',qty:''};
     if(!mat.num) return;
+    const normNum=mat.num.trim().toUpperCase();
+    // CFはカーペット/フロア（本数管理）なので変換しない
+    if(/^CF/.test(normNum)) return;
     const sizeStr=(mat.size||'').trim();
     const qtyStr=(mat.qty||'').trim();
     // m直接指定はスキップ
