@@ -10,6 +10,16 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<script>
+(function(){
+  const VER=106;
+  const p=new URLSearchParams(location.search);
+  if(parseInt(p.get('v'))!==VER){
+    p.set('v',VER);
+    location.replace(location.pathname+'?'+p.toString()+(location.hash||''));
+  }
+})();
+</script>
 <title>リフォーム工程表</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
