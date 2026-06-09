@@ -5132,7 +5132,7 @@ function ordUseStock(stockId, type, childId, exId, btn){
   picker.style.cssText='background:#fffde7;border:1px solid #ffe082;border-radius:6px;padding:8px 10px;margin-top:6px';
   // m単位かどうか判定
   const qtyStr = (s.qty||'').trim();
-  const mMatch = qtyStr.match(/^(\d+(?:\.\d+)?)\s*m$/i);
+  const mMatch = qtyStr.match(/^(\d+(?:\.\d+)?)\s*[mｍ]$/i);
   const isMeter = !!mMatch;
   const totalM = isMeter ? parseFloat(mMatch[1]) * (s.count||1) : null;
   const unitLabel = isMeter ? 'm' : '本';
@@ -5174,7 +5174,7 @@ function ordUseStockConfirm(stockId, type, childId, exId, isMeter){
   fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_stock_log',log:JSON.stringify(logEntry)})}).catch(()=>{});
   if(isMeter){
     // m単位：qtyを減算して残量を更新
-    const qtyM=parseFloat((s.qty||'0').replace(/[^\d.]/g,''))||0;
+    const qtyM=parseFloat((s.qty||'0').replace(/[^0-9.]/g,''))||0;
     const remainM=Math.round((qtyM-useCount)*10)/10;
     if(remainM>0){
       s.qty=remainM+'m';
