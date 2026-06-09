@@ -700,7 +700,7 @@ function App(){
       if(!eventId)return;
       try{
         const staffCalId=staffMaster.find(s=>s.name===staffName)?.calendarId||"";
-        const delParams=new URLSearchParams({action:"deleteCalEvent",eventId,calendarId:staffCalId});
+        const delParams=new URLSearchParams({action:"deleteCalEvent",eventId,calendarId:staffCalId,origin:location.origin});
         await fetch(`${GAS_URL}?${delParams}`,{redirect:"follow"});
       }catch(e){console.log("旧カレンダーイベント削除失敗",e);}
     };
@@ -718,7 +718,7 @@ function App(){
         const datetime=currentForm.ad+"T"+currentForm.at+":00";
         const endtime=currentForm.ate?currentForm.ad+"T"+currentForm.ate+":00":"";
         const alarms=JSON.stringify(currentForm.aa||[]);
-        const staffCalId=staffMaster.find(s=>s.name===(currentForm.staff||myName))?.calendarId||"";const params=new URLSearchParams({action:"createCalEvent",title:currentForm.ac,datetime,endtime,location:currentForm.al||"",description:currentForm.am||"",alarms,staffName:currentForm.staff||myName,calendarId:staffCalId});
+        const staffCalId=staffMaster.find(s=>s.name===(currentForm.staff||myName))?.calendarId||"";const params=new URLSearchParams({action:"createCalEvent",title:currentForm.ac,datetime,endtime,location:currentForm.al||"",description:currentForm.am||"",alarms,staffName:currentForm.staff||myName,calendarId:staffCalId,origin:location.origin});
         const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
         const json=await res.json();
         if(json.ok&&json.data)currentForm={...currentForm,calEventId:json.data};
@@ -733,7 +733,7 @@ function App(){
   const movePropertyFolder=async(propertyUrl)=>{
     if(!propertyUrl)return null;
     try{
-      const res=await fetch(`${GAS_URL}?action=moveToCompleted&folderUrl=${encodeURIComponent(propertyUrl)}`,{redirect:"follow"});
+      const res=await fetch(`${GAS_URL}?action=moveToCompleted&folderUrl=${encodeURIComponent(propertyUrl)}&origin=${encodeURIComponent(location.origin)}`,{redirect:"follow"});
       const json=await res.json();
       return json.ok?json.data:null;
     }catch(e){return null;}
@@ -792,7 +792,7 @@ function App(){
     // Googleカレンダーにイベント登録
     try{
       const datetime=histForm.date+"T09:00:00";
-      const params=new URLSearchParams({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName});
+      const params=new URLSearchParams({action:"createCalEvent",title:histForm.content,datetime,staffName:form.staff||myName,origin:location.origin});
       const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
       const json=await res.json();
       if(json.ok&&json.data)newEntry.calEventId=json.data;
@@ -959,7 +959,7 @@ function App(){
     <div style={{fontSize:14,fontWeight:700,color:"#1F4E79",marginBottom:4}}>📁 資料フォルダ</div>
     <div style={{fontSize:12,color:"#718096",marginBottom:16}}>{folderModal.n}</div>
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      <a href="#" onClick={async e=>{e.preventDefault();const spId=folderModal._spId||folderModal.id;const res=await fetch(`${GAS_URL}?action=getFolderUrl&spId=${spId}`,{redirect:"follow"});const json=await res.json();if(json.ok&&json.data)window.open(json.data,"_blank");else alert("顧客資料フォルダが見つかりません");setFolderModal(null);}} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#EBF3FB",borderRadius:12,textDecoration:"none"}}>
+      <a href="#" onClick={async e=>{e.preventDefault();const spId=folderModal._spId||folderModal.id;const res=await fetch(`${GAS_URL}?action=getFolderUrl&spId=${spId}&origin=${encodeURIComponent(location.origin)}`,{redirect:"follow"});const json=await res.json();if(json.ok&&json.data)window.open(json.data,"_blank");else alert("顧客資料フォルダが見つかりません");setFolderModal(null);}} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",background:"#EBF3FB",borderRadius:12,textDecoration:"none"}}>
         <span style={{fontSize:24}}>📁</span>
         <div><div style={{fontSize:14,fontWeight:700,color:"#1F4E79"}}>顧客資料</div><div style={{fontSize:11,color:"#718096"}}>重説・契約書・ローン関係</div></div>
       </a>
@@ -1098,7 +1098,7 @@ function AttendanceTab(){
   const reload=async()=>{
     setLoading(true);
     try{
-      const params=new URLSearchParams({action:"loadAttendance",month});
+      const params=new URLSearchParams({action:"loadAttendance",month,origin:location.origin});
       if(staffFilter!=="all")params.set("staffName",staffFilter);
       const res=await fetch(`${GAS_URL}?${params}`,{redirect:"follow"});
       const json=await res.json();
