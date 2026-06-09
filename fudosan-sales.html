@@ -1018,7 +1018,7 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 
 <script>
 
-// ─── 郵便番号自動取得（zipcloud API） ───────────────────
+// ─── 郵便番号自動取得（GAS経由 → Google Maps Geocoder） ───────────────────
 
 let _postalLookupTimer = null;
 
@@ -1033,17 +1033,21 @@ async function lookupPostalCode(addrId, postalId) {
   const postalEl = document.getElementById(postalId);
   if (!addr || !postalEl) return;
 
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) return;
+
   if (statusEl) statusEl.textContent = '検索中…';
 
   try {
-    const query = encodeURIComponent(addr.replace(/[0-9０-９－\-番地号室]/g, '').slice(0, 20));
-    const res = await fetch('https://zipcloud.ibsnet.co.jp/api/search?address=' + query + '&limit=1');
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'postalCode', address: addr })
+    });
     const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      const zip = data.results[0].zipcode;
-      const formatted = zip.slice(0, 3) + '-' + zip.slice(3);
-      postalEl.value = formatted;
-      if (statusEl) statusEl.textContent = '✅ ' + data.results[0].address1 + data.results[0].address2 + data.results[0].address3;
+    if (data.postal) {
+      postalEl.value = data.postal;
+      if (statusEl) statusEl.textContent = '✅ 自動入力しました';
     } else {
       if (statusEl) statusEl.textContent = '特定できませんでした（手入力してください）';
     }
@@ -1051,6 +1055,7 @@ async function lookupPostalCode(addrId, postalId) {
     if (statusEl) statusEl.textContent = '取得失敗（手入力してください）';
   }
 }
+
 
 let allProperties = [];
 let currentView = 'today';
