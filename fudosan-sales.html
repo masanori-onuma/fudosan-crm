@@ -1017,6 +1017,41 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 </div>
 
 <script>
+
+// ─── 郵便番号自動取得（zipcloud API） ───────────────────
+
+let _postalLookupTimer = null;
+
+function schedulePostalLookup(addrId, postalId) {
+  clearTimeout(_postalLookupTimer);
+  _postalLookupTimer = setTimeout(() => lookupPostalCode(addrId, postalId), 600);
+}
+
+async function lookupPostalCode(addrId, postalId) {
+  const addr = document.getElementById(addrId)?.value?.trim() || '';
+  const statusEl = document.getElementById(postalId + '_status');
+  const postalEl = document.getElementById(postalId);
+  if (!addr || !postalEl) return;
+
+  if (statusEl) statusEl.textContent = '検索中…';
+
+  try {
+    const query = encodeURIComponent(addr.replace(/[0-9０-９－\-番地号室]/g, '').slice(0, 20));
+    const res = await fetch('https://zipcloud.ibsnet.co.jp/api/search?address=' + query + '&limit=1');
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const zip = data.results[0].zipcode;
+      const formatted = zip.slice(0, 3) + '-' + zip.slice(3);
+      postalEl.value = formatted;
+      if (statusEl) statusEl.textContent = '✅ ' + data.results[0].address1 + data.results[0].address2 + data.results[0].address3;
+    } else {
+      if (statusEl) statusEl.textContent = '特定できませんでした（手入力してください）';
+    }
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '取得失敗（手入力してください）';
+  }
+}
+
 let allProperties = [];
 let currentView = 'today';
 let currentDetailId = null;
@@ -2041,7 +2076,16 @@ function openDetail(id) {
     <div class="field-group">
       <div class="field-label">所有者住所</div>
       <input type="text" class="field-input" id="f_owner_address" value="${escHtml(p.owner_address)}" 
-             oninput="autoDetectLocal()">
+             oninput="autoDetectLocal();schedulePostalLookup('f_owner_address','f_postal_code')">
+    </div>
+    <div class="field-group">
+      <div class="field-label">郵便番号（所有者）</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" class="field-input" id="f_postal_code" value="${escHtml(p.postal_code||'')}" placeholder="自動入力" style="flex:1;">
+        <button type="button" onclick="lookupPostalCode('f_owner_address','f_postal_code')"
+          style="white-space:nowrap;border:none;background:#e6f1fb;color:#185fa5;border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;">🔍</button>
+      </div>
+      <div id="f_postal_code_status" style="font-size:11px;color:#a0aec0;margin-top:3px;min-height:14px;"></div>
     </div>
     <div class="field-group">
       <div class="field-label">県内/県外</div>
@@ -2268,6 +2312,7 @@ async function saveDetail() {
   const updates = {
     owner_name: document.getElementById('f_owner_name').value,
     owner_address: document.getElementById('f_owner_address').value,
+    postal_code: document.getElementById('f_postal_code').value.trim(),
     is_local: document.getElementById('f_is_local').value,
     tohon_obtained: document.getElementById('f_tohon_obtained').value,
     photo_url: document.getElementById('f_photo_url').value,
