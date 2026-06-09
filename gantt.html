@@ -3678,15 +3678,46 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         ${_makeOrderBox(_primaryCtx, itemsHtml, null)}
       </div>`;
     } else if(group.isCross) {
-      // クロス貼替：sizeに必要m数が直接入っている（統一後）
-      const mItem = group.items.find(it => it.size && /^\d+(\.\d+)?\s*[mｍ]/i.test(it.size.trim()));
-      const needM = mItem ? parseFloat(mItem.size) : 0;
-      const calcHtml = needM
-        ? `${needM}m`
-        : null;
-      html+=`<div class="calc-result-box">
-        ${_makeOrderBox(_primaryCtx, null, calcHtml, needM||0)}
-      </div>`;
+      const repeatKey = 'repeat_'+siteId+'_'+procId+'_'+(children[0]&&children[0].id||0)+'_'+normNum;
+      const repeatCm = parseInt(localStorage.getItem(repeatKey))||0;
+      const entries = group.items.filter(it=>it.heightCm&&parseInt(it.qty));
+      if(entries.length===0) {
+        // m単位のsizeが直接入っている場合（例: size:"15m"）はそれを必要量として表示
+        const directMItem = group.items.find(it => it.size && /^\d+(\.\d+)?\s*[mｍ]/i.test(it.size.trim()));
+        const directM = directMItem ? parseFloat(directMItem.size) : 0;
+        const itemsHtml = group.items.map(it=>`${it.size||'?'}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).join('　');
+        const calcHtmlForDirect = directM
+          ? `${directM}m`
+          : null;
+        html+=`<div class="calc-result-box">
+          ${_makeOrderBox(_primaryCtx, directM ? null : itemsHtml, calcHtmlForDirect, directM||0)}
+          <div class="ord-box-repeat">
+            <label>リピート</label>
+            <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
+              onchange="setCalcRepeat(${siteId},${procId},${children[0]&&children[0].id||0},'${escapedNum}',this.value);renderOrderListMode()">
+            <span>cm（0=なし）</span>
+          </div>
+        </div>`;
+      } else {
+        const calcEntries = entries.map(it=>({heightCm:it.heightCm,qty:parseInt(it.qty)}));
+        const result = _calcCrossTotal(calcEntries, repeatCm, 100);
+        const totalM = Math.ceil(result.grandTotal/100);
+        const detailHtml = result.details.map(d=>{
+          const useCmStr = repeatCm&&repeatCm>0?`⌈${d.heightCm}÷${repeatCm}⌉×${repeatCm}=${d.useCm}cm`:`${d.heightCm}cm`;
+          return `${useCmStr} × ${d.qty}本`;
+        }).join('、');
+        const baseChildId = children[0]&&children[0].id||0;
+        const calcQtyHtml = `${totalM}m <span style="font-size:11px;font-weight:400;color:#5a8ab0">（+1mロス・切り上げ）</span>`;
+        html+=`<div class="calc-result-box">
+          ${_makeOrderBox(_primaryCtx, detailHtml, calcQtyHtml, totalM)}
+          <div class="ord-box-repeat">
+            <label>リピート</label>
+            <input type="number" value="${repeatCm||''}" placeholder="なし" min="0" maxlength="3"
+              onchange="setCalcRepeat(${siteId},${procId},${baseChildId},'${escapedNum}',this.value);renderOrderListMode()">
+            <span>cm（0=なし）</span>
+          </div>
+        </div>`;
+      }
     } else {
       const itemsHtml = group.items.map(it=>`${it.size||''}${(it.qty&&parseInt(it.qty)>1)?' × '+it.qty+'本':''}`).filter(Boolean).join('　');
       html+=`<div class="calc-result-box">
@@ -4396,33 +4427,7 @@ function renderOrderListMode(){
       c.material='SP2516';_defaultFilled=true;
     }
   })));
-  // クロス貼替でsize=天井高・qty=本数の旧形式をm数に自動変換
-  let _legacyConverted=false;
-  sites.forEach(s=>s.processes.forEach(p=>(p.children||[]).forEach(c=>{
-    if(c.name!=='クロス貼替') return;
-    const mat=typeof c.material==='object'?c.material:{num:c.material||'',size:'',qty:''};
-    if(!mat.num) return;
-    const normNum=mat.num.trim().toUpperCase();
-    // CFはカーペット/フロア（本数管理）なので変換しない
-    if(/^CF/.test(normNum)) return;
-    const sizeStr=(mat.size||'').trim();
-    const qtyStr=(mat.qty||'').trim();
-    // m直接指定はスキップ
-    if(/\d+\s*[mｍ]/i.test(sizeStr)) return;
-    // entries有りはスキップ
-    if(c.entries&&c.entries.length>0) return;
-    // 天井高とみなせるsizeがある場合（数値または cm/mm単位）
-    const hcm=_parseHeightCm(sizeStr);
-    const qtyNum=parseInt(qtyStr)||0;
-    if(hcm&&qtyNum){
-      // 天井高(cm) × 本数 → 必要m数（+1mロス切り上げ）
-      const needM=Math.ceil((hcm*qtyNum+100)/100);
-      if(typeof c.material==='object'){c.material.size=needM+'m';c.material.qty='';}
-      else{c.material={num:mat.num,size:needM+'m',qty:''};}
-      _legacyConverted=true;
-    }
-  })));
-  if(_defaultFilled||_legacyConverted)saveData();
+  if(_defaultFilled)saveData();
   const v=document.getElementById('sumpouView');
   const tab=_orderFilter.tab||'list';
   const focusId=_orderFilter.focusSiteId;
