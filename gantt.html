@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=116;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=117;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -5472,8 +5472,8 @@ function ordToggleOrdered(siteId,procId,childId,checked){
     smpToast('✓ 在庫を戻しました');
   }
   c.ordered=checked?true:false;
-  // extraMaterialsも連動して更新
-  (c.extraMaterials||[]).forEach(ex=>{ ex.ordered=checked?true:false; });
+  // sizeOnly:true（サイズ追加行）のみ連動して更新、品番追加行は個別管理
+  (c.extraMaterials||[]).forEach(ex=>{ if(ex.sizeOnly) ex.ordered=checked?true:false; });
   if(checked)smpToast('✓ 発注済みにしました');
   saveData(siteId);
   renderOrderListMode();
