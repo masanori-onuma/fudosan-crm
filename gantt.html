@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=108;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=109;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -153,6 +153,10 @@ header a:hover{color:#185FA5}
 .smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0;box-sizing:border-box}
 .smp-fields .f-num{flex:0 0 120px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis}
 .smp-fields .f-size{flex:1 1 0;min-width:0;height:32px}
+.unit-toggle-btns{display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0}
+.utbtn{padding:0 8px;font-size:11px;border:none;cursor:pointer;background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.utbtn+.utbtn{border-left:0.5px solid var(--color-border-tertiary)}
+.utbtn.utbtn-active{background:var(--color-background-info);color:var(--color-text-info);font-weight:500}
 .smp-fields .f-qty{flex:0 0 68px;min-width:0;height:32px;text-align:center;border-left:2px solid #ddd!important}
 .smp-fields .f-qty-free{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
 .smp-two-btns{display:flex;gap:6px;margin-top:6px}
@@ -3371,7 +3375,7 @@ function renderSumpouMode(){
             <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
-              ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(parts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})"><div class="unit-toggle-btns" style="display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'mat')" style="padding:0 8px;font-size:11px;border:none;cursor:pointer;background:${d.unit==='m'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='m'?'var(--color-text-info)':'var(--color-text-secondary)'}">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'mat')" style="padding:0 8px;font-size:11px;border:none;border-left:0.5px solid var(--color-border-tertiary);cursor:pointer;background:${d.unit==='cm'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='cm'?'var(--color-text-info)':'var(--color-text-secondary)'}">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
+              ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(parts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'mat')">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'mat')">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
               <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
             </div>
             <div class="smp-two-btns">
@@ -3388,7 +3392,7 @@ function renderSumpouMode(){
               <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
                 ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
-                ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(exParts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})"><div style="display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0"><button type="button" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'ex',${ex.id})" style="padding:0 8px;font-size:11px;border:none;cursor:pointer;background:${d.unit==='m'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='m'?'var(--color-text-info)':'var(--color-text-secondary)'}">m</button><button type="button" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'ex',${ex.id})" style="padding:0 8px;font-size:11px;border:none;border-left:0.5px solid var(--color-border-tertiary);cursor:pointer;background:${d.unit==='cm'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='cm'?'var(--color-text-info)':'var(--color-text-secondary)'}">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(exParts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'ex',${ex.id})">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'ex',${ex.id})">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
               </div>
@@ -3975,11 +3979,7 @@ function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
 // m/cm切替ボタン押下時：ボタン色を切替えてsave
 function smpToggleUnit(btn, unit, siteId, procId, childId, type, exId) {
   const btns = btn.parentElement.querySelectorAll('button');
-  btns.forEach(b => {
-    const isActive = b === btn;
-    b.style.background = isActive ? 'var(--color-background-info)' : 'var(--color-background-secondary)';
-    b.style.color = isActive ? 'var(--color-text-info)' : 'var(--color-text-secondary)';
-  });
+  btns.forEach(b => b.classList.toggle('utbtn-active', b === btn));
   const inp = btn.parentElement.previousElementSibling;
   if(inp && inp.classList.contains('f-size')) inp.dataset.unit = unit;
   if(type === 'ex') smpUpdateExtraMaterial(siteId, procId, childId, exId);
