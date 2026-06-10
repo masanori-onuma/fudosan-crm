@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=111;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=112;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -1425,7 +1425,7 @@ function _renderInner(){
       const barColor=proc.color||'#7cb9ff';
       const topPx=TOP_PAD+KOUKI_BAR_H+MID_GAP+lane*(LANE_H+LANE_GAP);
       // 未発注判定：発注管理する子項目で、まだ発注されていないものがあるか
-      const _unordered=(proc.children||[]).some(c=>c.ordered===false||(c.extraMaterials||[]).some(ex=>ex.ordered===false));
+      const _unordered=(proc.children||[]).some(c=>(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId)||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&!ex.usedStockId));
       // 工期超過判定（proc単位で判定済みのヘルパーを使用）
       const _overdue=_isProcOverdue(proc);
       // ボーダー色：未発注(赤)＞工期超過(オレンジ)＞通常(黄/グレー) の優先順
@@ -1565,7 +1565,7 @@ function _renderInner(){
           sc.style.position='relative';sc.style.overflow='visible';sc.style.touchAction='pan-x pan-y';
           const span=aei-asi+1;
           const col=proc.done?'#999':proc.color;
-          const _procUnordered=(proc.children||[]).some(c=>c.ordered===false||(c.extraMaterials||[]).some(ex=>ex.ordered===false));
+          const _procUnordered=(proc.children||[]).some(c=>(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId)||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&!ex.usedStockId));
           const _procOverdue=_isProcOverdue(proc);
           const bar=makeBar(col,span,proc.name+(proc.done&&proc.doneDate?' ✓'+fmtD(proc.doneDate):''),proc.done,span<=3,_dayW,_procUnordered,_procOverdue);
           bar.dataset.procId=proc.id;bar.dataset.siteId=site.id;
