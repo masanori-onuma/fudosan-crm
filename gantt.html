@@ -3371,7 +3371,7 @@ function renderSumpouMode(){
             <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
-              <input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
+              ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(parts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})"><div class="unit-toggle-btns" style="display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'mat')" style="padding:0 8px;font-size:11px;border:none;cursor:pointer;background:${d.unit==='m'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='m'?'var(--color-text-info)':'var(--color-text-secondary)'}">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'mat')" style="padding:0 8px;font-size:11px;border:none;border-left:0.5px solid var(--color-border-tertiary);cursor:pointer;background:${d.unit==='cm'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='cm'?'var(--color-text-info)':'var(--color-text-secondary)'}">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
               <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
             </div>
             <div class="smp-two-btns">
@@ -3388,7 +3388,7 @@ function renderSumpouMode(){
               <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
                 ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
-                <input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
+                ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(exParts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})"><div style="display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0"><button type="button" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'ex',${ex.id})" style="padding:0 8px;font-size:11px;border:none;cursor:pointer;background:${d.unit==='m'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='m'?'var(--color-text-info)':'var(--color-text-secondary)'}">m</button><button type="button" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'ex',${ex.id})" style="padding:0 8px;font-size:11px;border:none;border-left:0.5px solid var(--color-border-tertiary);cursor:pointer;background:${d.unit==='cm'?'var(--color-background-info)':'var(--color-background-secondary)'};color:${d.unit==='cm'?'var(--color-text-info)':'var(--color-text-secondary)'}">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
               </div>
@@ -3477,6 +3477,29 @@ function _joinMaterial(num,size,qty){
 // ============================================================
 // material.size から天井高(cm)を抽出する
 // 例: "2.45m" → 245, "245cm" → 245, "2450mm" → 245, "2.45" → 245
+// 寸法入力のm/cm切替ボタン用：数値＋unitボタンの状態からcm文字列に変換して返す
+// unit='m'→"240cm", unit='cm'→"240cm" として保存（_parseHeightCmで読めるcm形式）
+function _unitBtnToCmStr(val, unit) {
+  const n = parseFloat(val);
+  if(!val || isNaN(n)) return val; // 空または非数値はそのまま
+  if(unit === 'm') return Math.round(n * 100) + 'cm';
+  return Math.round(n) + 'cm';
+}
+// cm文字列から表示用の数値と単位を推定（例: "240cm" → {val:"2.4", unit:"m"}）
+function _cmStrToDisplay(sizeStr) {
+  if(!sizeStr) return {val:'', unit:'m'};
+  const cmMatch = sizeStr.match(/^(\d+\.?\d*)\s*cm$/i);
+  if(cmMatch) {
+    const cm = parseFloat(cmMatch[1]);
+    // 200cm以上はcm表示、未満はm表示
+    if(cm >= 200) return {val: Math.round(cm)+'', unit:'cm'};
+    return {val: (cm/100)+'', unit:'m'};
+  }
+  const mMatch = sizeStr.match(/^(\d+\.?\d*)\s*m$/i);
+  if(mMatch) return {val: mMatch[1], unit:'m'};
+  return {val: sizeStr, unit:'m'};
+}
+
 function _parseHeightCm(sizeStr) {
   if(!sizeStr) return null;
   const s = String(sizeStr).trim();
@@ -3937,7 +3960,10 @@ function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
   const ex=(c.extraMaterials||[]).find(x=>x.id===extraId);if(!ex)return;
   const row=document.getElementById('extra_'+extraId);if(!row)return;
   const num=ex.sizeOnly?(_splitMaterial(c.material).num):(row.querySelector('.f-num')||{value:''}).value.trim();
-  const size=(row.querySelector('.f-size')||{value:''}).value.trim();
+  const sizeInpEx=row.querySelector('.f-size');
+  const sizeRawEx=(sizeInpEx||{value:''}).value.trim();
+  const sizeUnitEx=(sizeInpEx&&sizeInpEx.dataset&&sizeInpEx.dataset.unit)||'';
+  const size=sizeUnitEx?_unitBtnToCmStr(sizeRawEx,sizeUnitEx):sizeRawEx;
   const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
   row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList&&el.classList.remove('dirty'));
   const newMat=_joinMaterial(num,size,qty);
@@ -3946,13 +3972,30 @@ function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
   saveData();
 }
 
+// m/cm切替ボタン押下時：ボタン色を切替えてsave
+function smpToggleUnit(btn, unit, siteId, procId, childId, type, exId) {
+  const btns = btn.parentElement.querySelectorAll('button');
+  btns.forEach(b => {
+    const isActive = b === btn;
+    b.style.background = isActive ? 'var(--color-background-info)' : 'var(--color-background-secondary)';
+    b.style.color = isActive ? 'var(--color-text-info)' : 'var(--color-text-secondary)';
+  });
+  const inp = btn.parentElement.previousElementSibling;
+  if(inp && inp.classList.contains('f-size')) inp.dataset.unit = unit;
+  if(type === 'ex') smpUpdateExtraMaterial(siteId, procId, childId, exId);
+  else smpUpdateMaterial(siteId, procId, childId);
+}
+
 function smpUpdateMaterial(siteId,procId,childId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
   const row=document.getElementById('smpchild_'+childId);if(!row)return;
   const num=(row.querySelector('.f-num')||{value:''}).value.trim();
-  const size=(row.querySelector('.f-size')||{value:''}).value.trim();
+  const sizeInp=row.querySelector('.f-size');
+  const sizeRaw=(sizeInp||{value:''}).value.trim();
+  const sizeUnit=(sizeInp&&sizeInp.dataset&&sizeInp.dataset.unit)||'';
+  const size=sizeUnit?_unitBtnToCmStr(sizeRaw,sizeUnit):sizeRaw;
   const qty=(row.querySelector('.f-qty')||{value:''}).value.trim();
   row.querySelectorAll('.f-num,.f-size,.f-qty').forEach(el=>el.classList.remove('dirty'));
   const newMat=_joinMaterial(num,size,qty);
