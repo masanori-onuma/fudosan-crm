@@ -1703,7 +1703,7 @@ function _renderInner(){
               // 子行セルは描画時点でDOM未接続のためgetBoundingClientRectが0を返す→親バーと同じ_dayWを使う
               const hasOwnPeriods=!!(child.periods&&child.periods.length);
               // 子項目自身の未発注判定(ordered===false)
-              const _childUnordered=child.ordered===false;
+              const _childUnordered=child.ordered===false&&!_hasValidSkipReason(child.skipReason)&&!child.usedStockId;
               // 子バーは少し細く・透過して親バーと区別
               cbar.style.cssText=`position:absolute;top:5px;bottom:5px;left:0;width:${span*_dayW}px;z-index:2;display:flex;align-items:center;overflow:visible;border-radius:2px;${hasOwnPeriods?'cursor:grab;':'pointer-events:none;'}user-select:none;-webkit-user-select:none;`;
               if(_childDone){
@@ -2233,7 +2233,7 @@ function _countOrderWaiting(assigneeKey){
     return s.processes.some(p=>{
       const a=getAssignee(p.name,s.id,p.id);
       if(a!==assigneeKey)return false;
-      return (p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material)));
+      return (p.children||[]).some(c=>(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&!ex.usedStockId&&_hasMaterial(ex.material)));
     });
   }).length;
 }
@@ -2263,7 +2263,7 @@ function _isAssigneeBannerFiltered(site){
   return site.processes.some(p=>{
     const a=getAssignee(p.name,site.id,p.id);
     if(a!==_assigneeBannerActive)return false;
-    return (p.children||[]).some(c=>(c.ordered===false&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&_hasMaterial(ex.material)));
+    return (p.children||[]).some(c=>(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&!ex.usedStockId&&_hasMaterial(ex.material)));
   });
 }
 
@@ -4510,7 +4510,7 @@ function renderOrderListMode(){
     }
     if(mode==='pending'){
       targetSites=targetSites.filter(s=>{
-        return s.processes.some(p=>(p.children||[]).some(c=>c.ordered===false));
+        return s.processes.some(p=>(p.children||[]).some(c=>c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId));
       });
     }
   }
@@ -4520,8 +4520,8 @@ function renderOrderListMode(){
   sites.forEach(s=>{
     if(s.archived)return;
     s.processes.forEach(p=>(p.children||[]).forEach(c=>{
-      if(c.ordered===false)totalPending++;
-      (c.extraMaterials||[]).forEach(ex=>{if(ex.ordered===false)totalPending++;});
+      if(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&!c.usedStockId)totalPending++;
+      (c.extraMaterials||[]).forEach(ex=>{if(ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&!ex.usedStockId)totalPending++;});
     }));
   });
 
