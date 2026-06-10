@@ -3617,7 +3617,8 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       }
 
       const skipReason = isExtra ? (ex&&ex.skipReason) : child.skipReason;
-      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !isOrdered) ? 'disabled' : '';
+      const usedStock = isExtra ? (ex&&ex.usedStockId) : child.usedStockId;
+      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !usedStock && !isOrdered) ? 'disabled' : '';
       const checkColor = checkDisabled ? '#bbb' : (isOrdered ? '#1565c0' : '#1565c0');
 
       const checkHtml = `<div class="ord-box-check">
@@ -3803,7 +3804,8 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
     }
     // 発注チェック（在庫あり＋スキップ理由なしはdisabled）
     const skipReason = isExtra ? ((extraMaterials||[]).find(e=>e.id===exId)||{}).skipReason : child.skipReason;
-    const disabled = hasStock && !skipReason ? 'disabled' : '';
+    const usedStock2 = isExtra ? ((extraMaterials||[]).find(e=>e.id===exId)||{}).usedStockId : child.usedStockId;
+    const disabled = hasStock && !skipReason && !usedStock2 ? 'disabled' : '';
     const checkHtml=`<div style="margin-top:7px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:${disabled?'#bbb':'#1565c0'};cursor:${disabled?'not-allowed':'pointer'}">
         <input type="checkbox" ${disabled} onchange="${checkOnchange}" style="accent-color:#1976d2">
