@@ -1285,7 +1285,7 @@ function _renderInner(){
       (c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&(ex.ordered===false&&!_isSumpouDone(ex.material))||(!ex.sizeOnly&&!_splitMaterial(ex.material||'').num))
     ));
     // 📋：品番入力済みの未発注がある？（発注待ち）
-    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!c.skipReason&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&ex.ordered===false&&!ex.skipReason&&_hasMaterial(ex.material))));
+    const _hasReadyToOrder=site.processes.some(p=>(p.children||[]).some(c=>(c.ordered===false&&!_hasValidSkipReason(c.skipReason)&&_hasMaterial(c.material))||(c.extraMaterials||[]).some(ex=>!ex.sizeOnly&&ex.ordered===false&&!_hasValidSkipReason(ex.skipReason)&&_hasMaterial(ex.material))));
     const _sumpouBtnCls=_hasUnmaterialed?'sumpou-btn smp-alert':'sumpou-btn';
     const _sumpouBtnTitle=_hasUnmaterialed?'品番未入力の項目あり：寸法入力へ':'この物件の寸法入力へ';
     const _orderBtnCls=_hasReadyToOrder?'sumpou-btn ord-alert':'sumpou-btn';
@@ -3504,6 +3504,12 @@ function _cmStrToDisplay(sizeStr) {
   return {val: sizeStr, unit:'m'};
 }
 
+// skipReasonが有効（空白・読点・句点のみでない）かチェック
+function _hasValidSkipReason(reason) {
+  if(!reason) return false;
+  return !!reason.replace(/[\s　、。，．]/g,'').length;
+}
+
 function _parseHeightCm(sizeStr) {
   if(!sizeStr) return null;
   const s = String(sizeStr).trim();
@@ -3625,6 +3631,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       // 在庫
       const codeNorm = normNum.toLowerCase().replace(/[\s　\-]+/g,'');
       let stockHtml='', hasStock=false;
+      const skipReason = isExtra ? (ex&&ex.skipReason) : child.skipReason;
       if(codeNorm && !isOrdered) {
         const {direct,alias,aliasLabel}=_stockMatchWithAlias(codeNorm);
         const matched=[...direct,...alias];
@@ -3633,19 +3640,30 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
           const aliasNote=alias.length&&aliasLabel?`<span style="font-size:10px;color:#5a8ab0;margin-left:4px">（※${aliasLabel}）</span>`:'';
           const stockDesc=matched.map(st=>`${esc(st.code||'')}${st.qty?' '+esc(st.qty):''}${st.count>1?' × '+st.count+'本':''}`).join('、');
           const skipFn = isExtra ? `ordShowSkipInput('ex',${child.id},${exId},this)` : `ordShowSkipInput('ch',${child.id},0,this)`;
-          stockHtml=`<div class="ord-box-stock">
-            <div class="ord-box-stock-row">
-              <div class="ord-box-stock-info">📦 ${stockDesc}${aliasNote}</div>
-              <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this,${needM||0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
-            </div>
-            <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
-          </div>`;
+          if(_hasValidSkipReason(skipReason)){
+            // スキップ理由入力済み → 理由を表示＋変更ボタン
+            stockHtml=`<div class="ord-box-stock">
+              <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:6px 10px;display:flex;align-items:center;gap:8px">
+                <span style="font-size:11px;color:var(--color-text-secondary);flex-shrink:0">スキップ理由</span>
+                <span style="font-size:12px;color:var(--color-text-primary);flex:1">${esc(skipReason)}</span>
+                <button style="font-size:11px;color:var(--color-text-info);background:none;border:none;cursor:pointer;text-decoration:underline;flex-shrink:0" onclick="${skipFn}">変更</button>
+              </div>
+            </div>`;
+          } else {
+            // スキップ理由未入力 → 在庫を使うボタン
+            stockHtml=`<div class="ord-box-stock">
+              <div class="ord-box-stock-row">
+                <div class="ord-box-stock-info">📦 ${stockDesc}${aliasNote}</div>
+                <button class="ord-stock-use" onclick="ordUseStock(${matched[0].id},'${isExtra?'ex':'ch'}',${child.id},${isExtra?exId:0},this,${needM||0})" style="font-size:11px;padding:3px 8px">在庫を使う</button>
+              </div>
+              <button style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;display:block;text-align:right;width:100%" onclick="${skipFn}">在庫を使わない場合はこちら →</button>
+            </div>`;
+          }
         }
       }
 
-      const skipReason = isExtra ? (ex&&ex.skipReason) : child.skipReason;
       const usedStock = isExtra ? (ex&&ex.usedStockId) : child.usedStockId;
-      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !skipReason && !usedStock && !isOrdered) ? 'disabled' : '';
+      const checkDisabled = (!hasQty && !isOrdered) || (hasStock && !_hasValidSkipReason(skipReason) && !usedStock && !isOrdered) ? 'disabled' : '';
       const checkColor = checkDisabled ? '#bbb' : (isOrdered ? '#1565c0' : '#1565c0');
 
       const checkHtml = `<div class="ord-box-check">
@@ -3843,7 +3861,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
     // 発注チェック（在庫あり＋スキップ理由なしはdisabled）
     const skipReason = isExtra ? ((extraMaterials||[]).find(e=>e.id===exId)||{}).skipReason : child.skipReason;
     const usedStock2 = isExtra ? ((extraMaterials||[]).find(e=>e.id===exId)||{}).usedStockId : child.usedStockId;
-    const disabled = hasStock && !skipReason && !usedStock2 ? 'disabled' : '';
+    const disabled = hasStock && !_hasValidSkipReason(skipReason) && !usedStock2 ? 'disabled' : '';
     const checkHtml=`<div style="margin-top:7px">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:${disabled?'#bbb':'#1565c0'};cursor:${disabled?'not-allowed':'pointer'}">
         <input type="checkbox" ${disabled} onchange="${checkOnchange}" style="accent-color:#1976d2">
@@ -4556,7 +4574,7 @@ function renderOrderListMode(){
         if(proc.id!==lastProcId){
           // 発注件数カウント
           const _procChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
-          const _procDone=_procChildren.filter(c=>c.ordered===true).length;
+          const _procDone=_procChildren.filter(c=>c.ordered===true || _hasValidSkipReason(c.skipReason) || c.usedStockId).length;
           const _procTotal=_procChildren.length;
           let _procBadgeCls='smp-proc-badge-pending';
           let _procBadgeTxt=`未発注${_procTotal-_procDone}件`;
