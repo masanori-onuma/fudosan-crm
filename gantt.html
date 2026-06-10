@@ -5118,36 +5118,51 @@ function ordEditSkipReason(siteId, procId, childId){
 function ordUseStock(stockId, type, childId, exId, btn){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const totalCount=s.count||1;
-  const countStr=totalCount>1?` × ${totalCount}本`:'';
-  // 数量選択UIを展開：ボタンの親(ord-box-stock)を使う。なければIDで探す
+  const qtyStr=(s.qty||'').trim();
+  const mMatch=qtyStr.match(/^(\d+(?:\.\d+)?)\s*[mｍ]/i);
+  const isMeter=!!mMatch;
+  const perM=isMeter?parseFloat(mMatch[1]):0;
+  const totalM=isMeter?Math.round(perM*totalCount*10)/10:0;
   let container=btn?btn.closest('.ord-box-stock'):null;
   if(!container){
     const containerId=(type==='ex')?'extra_'+exId:'ordchild_'+childId;
     container=document.getElementById(containerId);
   }
   if(!container)return;
-  // 既存の数量選択UIがあれば除去
   const existing=container.querySelector('.stock-use-picker');
   if(existing){existing.remove();return;}
   const picker=document.createElement('div');
   picker.className='stock-use-picker';
   picker.style.cssText='background:#fffde7;border:1px solid #ffe082;border-radius:6px;padding:8px 10px;margin-top:6px';
-  picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${esc(s.qty||'')}${countStr}</div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:12px;color:#7A5800">使う数量</span>
-      <input type="number" min="1" max="${totalCount}" value="1" style="width:52px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
-      <span style="font-size:11px;color:#aaa">本 / ${totalCount}本</span>
-      <button onclick="ordUseStockConfirm(${stockId},'${type||'ch'}',${childId},${exId||0})" style="background:#f9a825;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer">使う</button>
-      <button onclick="this.closest('.stock-use-picker').remove()" style="background:none;border:1px solid #ccc;border-radius:4px;font-size:11px;padding:5px 8px;cursor:pointer;color:#666">キャンセル</button>
-    </div>`;
+  if(isMeter){
+    const stockDesc=totalCount>1?`${perM}m × ${totalCount}本 計${totalM}m`:`${totalM}m`;
+    picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${stockDesc}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#7A5800">使う量</span>
+        <input type="number" min="0.1" max="${totalM}" value="${perM}" step="0.1" style="width:64px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
+        <span style="font-size:11px;color:#aaa">m / 計${totalM}m</span>
+        <button onclick="ordUseStockConfirm(${stockId},'${type||'ch'}',${childId},${exId||0},true)" style="background:#f9a825;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer">使う</button>
+        <button onclick="this.closest('.stock-use-picker').remove()" style="background:none;border:1px solid #ccc;border-radius:4px;font-size:11px;padding:5px 8px;cursor:pointer;color:#666">キャンセル</button>
+      </div>`;
+  } else {
+    const countStr=totalCount>1?` × ${totalCount}本`:'';
+    picker.innerHTML=`<div style="font-size:12px;color:#7A5800;margin-bottom:6px">📦 ${esc(s.code)} ${esc(s.qty||'')}${countStr}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#7A5800">使う数量</span>
+        <input type="number" min="1" max="${totalCount}" value="1" style="width:52px;height:30px;border:1px solid #ffd54f;border-radius:5px;font-size:13px;text-align:center;background:#fffde7" id="suq_picker_${stockId}">
+        <span style="font-size:11px;color:#aaa">本 / ${totalCount}本</span>
+        <button onclick="ordUseStockConfirm(${stockId},'${type||'ch'}',${childId},${exId||0},false)" style="background:#f9a825;border:none;border-radius:4px;color:#fff;font-size:12px;font-weight:500;padding:5px 12px;cursor:pointer">使う</button>
+        <button onclick="this.closest('.stock-use-picker').remove()" style="background:none;border:1px solid #ccc;border-radius:4px;font-size:11px;padding:5px 8px;cursor:pointer;color:#666">キャンセル</button>
+      </div>`;
+  }
   container.appendChild(picker);
 }
 
-function ordUseStockConfirm(stockId, type, childId, exId){
+function ordUseStockConfirm(stockId, type, childId, exId, isMeter){
   const s=stocks.find(x=>x.id===stockId);if(!s)return;
   const inp=document.getElementById('suq_picker_'+stockId);
-  const useCount=Math.min(parseInt(inp?inp.value:1)||1, s.count||1);
-  // 使用情報をchild/extraに保存
+  const useVal=parseFloat(inp?inp.value:1)||1;
+  const useCount=isMeter?useVal:Math.min(Math.round(useVal),s.count||1);
   let targetObj=null;
   sites.forEach(si=>si.processes.forEach(p=>(p.children||[]).forEach(c=>{
     if(type==='ex'){
@@ -5156,25 +5171,45 @@ function ordUseStockConfirm(stockId, type, childId, exId){
       if(c.id===childId)targetObj=c;
     }
   })));
-  if(targetObj){
-    targetObj.usedStockId=stockId;
-    targetObj.usedStockCount=useCount;
-  }
-  // 在庫を減らす
+  if(targetObj){targetObj.usedStockId=stockId;targetObj.usedStockCount=useCount;}
   const focusSiteId=_orderFilter.focusSiteId;
   const focusSite=focusSiteId?sites.find(x=>x.id===focusSiteId):null;
   const logEntry={id:Date.now(),site_name:focusSite?focusSite.name:'',code:s.code||'',qty:s.qty||'',count:useCount,used_at:new Date().toISOString()};
   fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_stock_log',log:JSON.stringify(logEntry)})}).catch(()=>{});
-  if((s.count||1)>useCount){
-    s.count=(s.count||1)-useCount;
-    smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
-  }else{
-    stocks=stocks.filter(x=>x.id!==stockId);
-    smpToast('✓ 在庫を使いました（在庫なし）');
+  if(isMeter){
+    // m単位：合計mから引いて残量を本数に分割
+    const perM=parseFloat(((s.qty||'').trim().match(/^(\d+(?:\.\d+)?)\s*[mｍ]/i)||[])[1]||0);
+    const totalM=Math.round(perM*(s.count||1)*10)/10;
+    const remainM=Math.round((totalM-useCount)*10)/10;
+    if(remainM<=0){
+      stocks=stocks.filter(x=>x.id!==stockId);
+      smpToast('✓ 在庫を使いました（在庫なし）');
+    } else if(perM>0){
+      const fullRolls=Math.floor(remainM/perM);
+      const rem=Math.round((remainM-fullRolls*perM)*10)/10;
+      if(fullRolls>0&&rem>0){
+        s.count=fullRolls;
+        stocks.push({id:nextStockId++,code:s.code,qty:rem+'m',count:1,siteId:s.siteId,addedBy:s.addedBy,date:s.date,note:s.note});
+      } else if(fullRolls>0){
+        s.count=fullRolls;
+      } else {
+        s.qty=remainM+'m';s.count=1;
+      }
+      smpToast(`✓ 在庫を使いました（残り${remainM}m）`);
+    } else {
+      s.qty=remainM+'m';s.count=1;
+      smpToast(`✓ 在庫を使いました（残り${remainM}m）`);
+    }
+  } else {
+    if((s.count||1)>useCount){
+      s.count=(s.count||1)-useCount;
+      smpToast(`✓ 在庫を使いました（残り${s.count}本）`);
+    } else {
+      stocks=stocks.filter(x=>x.id!==stockId);
+      smpToast('✓ 在庫を使いました（在庫なし）');
+    }
   }
-  saveStocks();
-  saveData();
-  renderOrderListMode();
+  saveStocks();saveData();renderOrderListMode();
 }
 
 function ordShowAllSites(){
