@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=115;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=116;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -4617,8 +4617,12 @@ function renderOrderListMode(){
           };
           const _summaryChildren=(proc.children||[]).filter(c=>{
             if(c.ordered===true)return false;
+            if(_hasValidSkipReason(c.skipReason))return false;
             if(!_hasMaterial(c.material))return false;
-            return !_hasCalcBox(c);
+            if(_hasCalcBox(c))return false;
+            // extraMaterialsがある場合はcalc-result-boxで表示されるので除外
+            if(c.extraMaterials&&c.extraMaterials.length>0)return false;
+            return true;
           });
           if(_summaryChildren.length>0){
             html+=_summaryChildren.map(c=>{
