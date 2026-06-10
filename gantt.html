@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=114;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=115;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -3879,7 +3879,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
     if(group.isCF) {
       // CFはサイズ一覧のみ（計算なし）
       const itemsHtml = group.items.map(it =>
-        `${it.size||'?'}${it.qty?' × '+it.qty+'本':''}`
+        `${it.size||'?'}${it.qty?' × '+String(it.qty).replace(/本/g,'')+'本':''}`
       ).join('　');
       html += `<div class="calc-result-box">
         <div class="cr-title">${esc(group.num)}</div>
@@ -3893,7 +3893,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
       if(entries.length === 0) {
         // サイズが高さとして解釈できない場合はCF同様に一覧表示
         const itemsHtml = group.items.map(it =>
-          `${it.size||'?'}${it.qty?' × '+it.qty+'本':''}`
+          `${it.size||'?'}${it.qty?' × '+String(it.qty).replace(/本/g,'')+'本':''}`
         ).join('　');
         html += `<div class="calc-result-box">
           <div class="cr-title">${esc(group.num)}</div>
@@ -3927,7 +3927,7 @@ function _renderCalcResult(siteId, procId, baseChildId, procName, childName, ord
     } else {
       // その他工程：品番＋サイズ一覧のみ表示（計算なし）
       const itemsHtml = group.items.map(it =>
-        `${it.size||''}${it.qty?' × '+it.qty+'本':''}`
+        `${it.size||''}${it.qty?' × '+String(it.qty).replace(/本/g,'')+'本':''}`
       ).filter(Boolean).join('　');
       html += `<div class="calc-result-box">
         <div class="cr-title">${esc(group.num)}</div>
@@ -4627,7 +4627,7 @@ function renderOrderListMode(){
               const sizeTxt=p.size?`<span>${esc(p.size)}</span>`:'';
               const qtyTxt=(p.qty&&parseInt(p.qty)>1)?`<span>× ${esc(p.qty)}</span>`:'';
               // extraMaterialsも追記
-              const extraHtml=(c.extraMaterials||[]).filter(ex=>ex.ordered!==true&&_hasMaterial(ex.material)).map(ex=>{
+              const extraHtml=(c.extraMaterials||[]).filter(ex=>!ex.sizeOnly&&ex.ordered!==true&&_hasMaterial(ex.material)).map(ex=>{
                 const ep=_splitMaterial(ex.material||'');
                 const en=ep.num?`<span>${esc(ep.num)}</span>`:'';
                 const es=ep.size?`<span>${esc(ep.size)}</span>`:'';
