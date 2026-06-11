@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=122;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=123;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -4561,6 +4561,14 @@ function renderOrderListMode(){
           if(mode==='pending'&&c.ordered===true)return;
           visibleChildren.push({proc,child:c});
         });
+        // 工程直下のextraMaterials（雑工事の追加品番など）も表示
+        (proc.extraMaterials||[]).forEach(ex=>{
+          if(ex.ordered===undefined)return;
+          if(mode==='pending'&&ex.ordered===true)return;
+          // 仮想childとして扱う
+          const virtualChild={id:ex.id, name:proc.name, material:ex.material, ordered:ex.ordered, skipReason:ex.skipReason, _isProcExtra:true, _procExtraId:ex.id};
+          visibleChildren.push({proc, child:virtualChild});
+        });
       });
       if(!visibleChildren.length)return;
 
@@ -5467,7 +5475,19 @@ function ordToggleExtraOrdered(siteId,procId,childId,extraId,checked){
 function ordToggleOrdered(siteId,procId,childId,checked){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
-  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  // 通常のchild、なければprocのextraMaterialsを探す
+  const c=(p.children||[]).find(x=>x.id===childId);
+  if(!c){
+    // proc直下のextraMaterials
+    const ex=(p.extraMaterials||[]).find(x=>x.id===childId);
+    if(!ex)return;
+    ex.ordered=checked?true:false;
+    if(checked)smpToast('✓ 発注済みにしました');
+    saveData(siteId);
+    renderOrderListMode();
+    setTimeout(()=>render(),10);
+    return;
+  }
   // 品番未入力で発注済みにしようとした場合は弾く
   if(checked&&!_hasMaterial(c.material)){
     alert('品番が未入力のため発注済みにできません。先に品番を入力してください。');
