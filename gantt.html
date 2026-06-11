@@ -3693,13 +3693,6 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
           ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
           ${qtyWarnHtml}
         </div>
-      return `<div class="ord-box-header">
-        <div class="ord-box-left">
-          ${_numDisplayHtml}
-          ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
-          ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
-          ${qtyWarnHtml}
-        </div>
         ${checkHtml}
       </div>
       ${stockHtml}`;
