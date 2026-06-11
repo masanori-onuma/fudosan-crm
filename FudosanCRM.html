@@ -644,7 +644,7 @@ function StaffCard({s,onChangePass,onRemove}){
 }
 
 function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(false);const [clocking,setClocking]=useState(false);const [staffMaster,setStaffMaster]=useState([]);const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(()=>{const today=new Date().toISOString().slice(0,10);const saved=localStorage.getItem("clockedIn");if(!saved)return false;try{const obj=JSON.parse(saved);return obj.date===today&&obj.status===true;}catch(e){return false;}});const [clocking,setClocking]=useState(false);const [staffMaster,setStaffMaster]=useState([]);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
   const fetchGAS=useCallback(async(background=false)=>{
@@ -902,11 +902,11 @@ function App(){
             try{
               const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:10000}));
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:pos.coords.latitude,lng:pos.coords.longitude})});
-              setClockedIn(!clockedIn);
+              setClockedIn(v=>{const nv=!v;localStorage.setItem("clockedIn",JSON.stringify({date:new Date().toISOString().slice(0,10),status:nv}));return nv;});
               flash(`✓ ${type}しました`);
             }catch(e){
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:"",lng:""})});
-              setClockedIn(!clockedIn);
+              setClockedIn(v=>{const nv=!v;localStorage.setItem("clockedIn",JSON.stringify({date:new Date().toISOString().slice(0,10),status:nv}));return nv;});
               flash(`✓ ${type}しました（位置情報なし）`);
             }
             setClocking(false);
