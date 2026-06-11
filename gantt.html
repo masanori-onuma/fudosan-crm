@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=125;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=126;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -4685,6 +4685,28 @@ function renderOrderListMode(){
           return allInProc[allInProc.length - 1].child.id === child.id;
         })();
         html+=`<div class="${rowCls}" id="ordchild_${child.id}"></div>`;
+        // proc直下extraMaterialsのvirtualChildは直接発注ボックスを生成
+        if(child._isProcExtra) {
+          const _exParts = _splitMaterial(child.material||'');
+          const _exOrdered = child.ordered===true;
+          const _exOnchange = `ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)`;
+          html+=`<div class="calc-result-box" style="margin:0 12px 8px">
+            <div class="ord-box-header">
+              <div class="ord-box-left">
+                <input class="ord-box-code-inp" value="${esc(_exParts.num||'')}" placeholder="品番"
+                  style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);pointer-events:auto;-webkit-user-select:text;user-select:text"
+                  onchange="ordUpdateNum(this.value,${site.id},${proc.id},${child.id},'ch',0)">
+                ${_exParts.size||_exParts.qty?`<div class="ord-box-qty" style="font-size:16px;font-weight:500;color:var(--color-text-info)">${esc(_exParts.size||'')}${_exParts.qty?' '+esc(_exParts.qty):''}</div>`:''}
+              </div>
+              <div class="ord-box-check">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:${_exOrdered?'#1565c0':'#555'}">
+                  <input type="checkbox" ${_exOrdered?'checked':''} onchange="${_exOnchange}">
+                  ${_exOrdered?'✓ 発注済み':'発注する'}
+                </label>
+              </div>
+            </div>
+          </div>`;
+        }
         if(_isLastInProc) {
           html+=`<button class="ord-edit-btn" onclick="ordOpenEditModal(${site.id},${proc.id})">
             📐 寸法・品番を編集
