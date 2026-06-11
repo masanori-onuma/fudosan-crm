@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=124;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=125;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -4503,7 +4503,7 @@ function renderOrderListMode(){
   // 発注管理対象の子項目があり、アーカイブされていない物件のみ
   let targetSites=sites.filter(s=>{
     if(s.archived)return false;
-    if(!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined)))return false;
+    if(!s.processes.some(p=>(p.children||[]).some(c=>c.ordered!==undefined)||(p.extraMaterials||[]).some(ex=>ex.ordered!==undefined)))return false;
     // バナーフィルターが有効なら絞り込む
     if(_assigneeBannerActive&&!_isAssigneeBannerFiltered(s))return false;
     return true;
@@ -4590,8 +4590,10 @@ function renderOrderListMode(){
         if(proc.id!==lastProcId){
           // 発注件数カウント
           const _procChildren=(proc.children||[]).filter(c=>c.ordered!==undefined);
-          const _procDone=_procChildren.filter(c=>c.ordered===true || _hasValidSkipReason(c.skipReason) || c.usedStockId).length;
-          const _procTotal=_procChildren.length;
+          const _procExtras=(proc.extraMaterials||[]).filter(ex=>ex.ordered!==undefined);
+          const _procDone=_procChildren.filter(c=>c.ordered===true || _hasValidSkipReason(c.skipReason) || c.usedStockId).length
+            + _procExtras.filter(ex=>ex.ordered===true || _hasValidSkipReason(ex.skipReason)).length;
+          const _procTotal=_procChildren.length + _procExtras.length;
           let _procBadgeCls='smp-proc-badge-pending';
           let _procBadgeTxt=`未発注${_procTotal-_procDone}件`;
           if(_procDone===_procTotal){_procBadgeCls='smp-proc-badge-done';_procBadgeTxt='✓ 全発注済';}
