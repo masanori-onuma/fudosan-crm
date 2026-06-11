@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=129;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=130;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -3683,7 +3683,8 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         ? `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ex',${exId})`
         : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
       const _numBorderColor = group.num ? 'var(--color-border-info)' : '#1976d2';
-      const _numDisplayHtml = `<input value="${esc(group.num)}" placeholder="✎ 品番を入力"
+      const _numPlaceholder = group.num ? '✎ 編集' : '✎ 品番を入力';
+      const _numDisplayHtml = `<input value="${esc(group.num)}" placeholder="${_numPlaceholder}"
         style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1.5px solid ${_numBorderColor};padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);touch-action:manipulation;-webkit-user-select:text;user-select:text;cursor:text"
         onchange="${_numOnchange}">`;
       return `<div class="ord-box-header">
@@ -4663,7 +4664,7 @@ function renderOrderListMode(){
           }
           lastProcId=proc.id;
           // 工程内の全visibleChildをまとめて青ボックスを生成
-          const _procVisibleIds=visibleChildren.filter(x=>x.proc.id===proc.id).map(x=>x.child.id);
+          const _procVisibleIds=visibleChildren.filter(x=>x.proc.id===proc.id&&!x.child._isProcExtra).map(x=>x.child.id);
           html+=_renderProcCalcBoxes(site.id, proc.id, proc.name, _procVisibleIds);
         }
         const isOrdered=(child.ordered===true);
@@ -4688,7 +4689,7 @@ function renderOrderListMode(){
           const allInProc = visibleChildren.filter(x => x.proc.id === proc.id);
           return allInProc[allInProc.length - 1].child.id === child.id;
         })();
-        html+=`<div class="${rowCls}" id="ordchild_${child.id}"></div>`;
+        if(!child._isProcExtra) html+=`<div class="${rowCls}" id="ordchild_${child.id}"></div>`;
         // proc直下extraMaterialsのvirtualChildは直接発注ボックスを生成
         if(child._isProcExtra) {
           const _exParts = _splitMaterial(child.material||'');
