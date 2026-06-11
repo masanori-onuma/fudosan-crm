@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=117;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=118;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -3624,7 +3624,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
 
       // 数量チェック
       const _mat = isExtra ? _splitMaterial(ex&&ex.material||'') : _splitMaterial(child.material||'');
-      const hasQty = !!(group.items.length > 0 || _mat.qty);
+      const hasQty = !!(group.items.length > 0 || _mat.qty || _mat.num);
       const qtyWarnHtml = !hasQty && !isOrdered
         ? `<div class="ord-box-warn">⚠ 数量未入力 — 編集ボタンで入力してください</div>` : '';
 
