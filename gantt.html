@@ -8,7 +8,13 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=121;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=122;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>
+if('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
+    .then(reg => reg.update());
+}
+</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -3678,7 +3684,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
       return `<div class="ord-box-header">
         <div class="ord-box-left">
-          <input class="ord-box-code-inp" value="${esc(group.num)}" placeholder="品番" style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans)" onchange="${_numOnchange}">
+          <input class="ord-box-code-inp" value="${esc(group.num)}" placeholder="品番" style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);pointer-events:auto;-webkit-user-select:text;user-select:text" onchange="${_numOnchange}">
           ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
           ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
           ${qtyWarnHtml}
