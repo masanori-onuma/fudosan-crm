@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=126;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=127;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -3682,9 +3682,16 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       const _numOnchange = isExtra
         ? `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ex',${exId})`
         : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
+      const _numEditId = `ord_num_${child.id}_${exId||0}`;
+      const _numDisplayHtml = `<div id="${_numEditId}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='block';this.nextElementSibling.focus()">
+          <span style="font-size:14px;font-weight:500;color:var(--color-text-info)">${esc(group.num)||'<span style=\\"color:#aaa;font-size:13px\\">品番を入力 ✎</span>'}</span>
+        </div>
+        <input value="${esc(group.num)}" placeholder="品番を入力" style="display:none;font-size:14px;font-weight:500;color:var(--color-text-info);border:none;border-bottom:1.5px solid var(--color-border-info);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);background:transparent"
+          onblur="this.style.display='none';this.previousElementSibling.style.display='block';this.previousElementSibling.querySelector('span').textContent=this.value||'品番を入力 ✎'"
+          onchange="${_numOnchange}">`;
       return `<div class="ord-box-header">
         <div class="ord-box-left">
-          <input class="ord-box-code-inp" value="${esc(group.num)}" placeholder="品番" style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);pointer-events:auto;-webkit-user-select:text;user-select:text" onchange="${_numOnchange}">
+          ${_numDisplayHtml}
           ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
           ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
           ${qtyWarnHtml}
