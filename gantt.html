@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=127;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=129;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -3579,16 +3579,16 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
     const normNum = numRaw.trim().toUpperCase();
     const isCF = /^CF/.test(normNum);
     const isCross = !isCF && !isExtra && (/クロス/.test(procName||'')||/クロス/.test(childCtx.childName||''));
-    if(!normNum) return; // 空の場合のみスキップ
+    if(!normNum && !sizeStr && !qtyStr) return; // 全部空の場合のみスキップ
+    const groupKey = normNum || '(未入力)';
     const size = (sizeStr||'').trim();
     const qty = (qtyStr||'').trim();
     const heightCm = _parseHeightCmLocal(size);
-    if(!groups.has(normNum)) {
-      groups.set(normNum, {num: numRaw.trim(), isCF, isCross, isExtra, items:[], childCtxs:[]});
+    if(!groups.has(groupKey)) {
+      groups.set(groupKey, {num: numRaw.trim(), isCF, isCross, isExtra, items:[], childCtxs:[]});
     }
-    const g = groups.get(normNum);
+    const g = groups.get(groupKey);
     if(size || qty) g.items.push({size, qty, heightCm});
-    // 同じchildCtxが未登録なら追加
     if(childCtx && !g.childCtxs.find(x=>x.child.id===childCtx.child.id&&x.isExtra===childCtx.isExtra&&(!childCtx.isExtra||x.exId===childCtx.exId))) {
       g.childCtxs.push(childCtx);
     }
@@ -3682,13 +3682,17 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
       const _numOnchange = isExtra
         ? `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ex',${exId})`
         : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
-      const _numEditId = `ord_num_${child.id}_${exId||0}`;
-      const _numDisplayHtml = `<div id="${_numEditId}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='block';this.nextElementSibling.focus()">
-          <span style="font-size:14px;font-weight:500;color:var(--color-text-info)">${esc(group.num)||'<span style=\\"color:#aaa;font-size:13px\\">品番を入力 ✎</span>'}</span>
+      const _numBorderColor = group.num ? 'var(--color-border-info)' : '#1976d2';
+      const _numDisplayHtml = `<input value="${esc(group.num)}" placeholder="✎ 品番を入力"
+        style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1.5px solid ${_numBorderColor};padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);touch-action:manipulation;-webkit-user-select:text;user-select:text;cursor:text"
+        onchange="${_numOnchange}">`;
+      return `<div class="ord-box-header">
+        <div class="ord-box-left">
+          ${_numDisplayHtml}
+          ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
+          ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
+          ${qtyWarnHtml}
         </div>
-        <input value="${esc(group.num)}" placeholder="品番を入力" style="display:none;font-size:14px;font-weight:500;color:var(--color-text-info);border:none;border-bottom:1.5px solid var(--color-border-info);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);background:transparent"
-          onblur="this.style.display='none';this.previousElementSibling.style.display='block';this.previousElementSibling.querySelector('span').textContent=this.value||'品番を入力 ✎'"
-          onchange="${_numOnchange}">`;
       return `<div class="ord-box-header">
         <div class="ord-box-left">
           ${_numDisplayHtml}
@@ -4697,18 +4701,22 @@ function renderOrderListMode(){
           const _exParts = _splitMaterial(child.material||'');
           const _exOrdered = child.ordered===true;
           const _exOnchange = `ordToggleOrdered(${site.id},${proc.id},${child.id},this.checked)`;
+          const _exColor = _exOrdered ? '#1565c0' : '#555';
+          const _exSizeHtml = (_exParts.size||_exParts.qty) ? `<div class="ord-box-qty" style="font-size:16px;font-weight:500;color:var(--color-text-info)">${esc(_exParts.size||'')}${_exParts.qty?' '+esc(_exParts.qty):''}</div>` : '';
+          const _exChecked = _exOrdered ? 'checked' : '';
+          const _exLabel = _exOrdered ? '✓ 発注済み' : '発注する';
           html+=`<div class="calc-result-box" style="margin:0 12px 8px">
             <div class="ord-box-header">
               <div class="ord-box-left">
-                <input class="ord-box-code-inp" value="${esc(_exParts.num||'')}" placeholder="品番"
-                  style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);pointer-events:auto;-webkit-user-select:text;user-select:text"
+                <input class="ord-box-code-inp" value="${esc(_exParts.num||'')}" placeholder="✎ 品番を入力"
+                  style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1.5px solid #1976d2;padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans);touch-action:manipulation;-webkit-user-select:text;user-select:text"
                   onchange="ordUpdateNum(this.value,${site.id},${proc.id},${child.id},'ch',0)">
-                ${_exParts.size||_exParts.qty?`<div class="ord-box-qty" style="font-size:16px;font-weight:500;color:var(--color-text-info)">${esc(_exParts.size||'')}${_exParts.qty?' '+esc(_exParts.qty):''}</div>`:''}
+                ${_exSizeHtml}
               </div>
               <div class="ord-box-check">
-                <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:${_exOrdered?'#1565c0':'#555'}">
-                  <input type="checkbox" ${_exOrdered?'checked':''} onchange="${_exOnchange}">
-                  ${_exOrdered?'✓ 発注済み':'発注する'}
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:${_exColor}">
+                  <input type="checkbox" ${_exChecked} onchange="${_exOnchange}">
+                  ${_exLabel}
                 </label>
               </div>
             </div>
