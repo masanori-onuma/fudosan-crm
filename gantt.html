@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=132;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=133;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -3389,8 +3389,24 @@ function renderSumpouMode(){
               <button class="smp-btn-size" onclick="smpAddSibling(${site.id},${proc.id},${child.id},'size')">＋ サイズ追加</button>
             </div>
           </div>`;
-          // extraMaterials（追加品番行）を表示
-          (child.extraMaterials||[]).forEach(ex=>{
+          // extraMaterials（追加品番行）を品番単位でグループ化して表示
+          const extras = child.extraMaterials||[];
+          // 品番追加行と、その直後のサイズ追加行をグループ化
+          const exGroups = [];
+          extras.forEach(ex => {
+            if(!ex.sizeOnly) {
+              exGroups.push({base: ex, sizes: []});
+            } else {
+              if(exGroups.length > 0) {
+                exGroups[exGroups.length-1].sizes.push(ex);
+              } else {
+                exGroups.push({base: null, sizes: [ex]});
+              }
+            }
+          });
+          exGroups.forEach(grp => {
+            const allEx = grp.base ? [grp.base, ...grp.sizes] : grp.sizes;
+            allEx.forEach(ex => {
             const exParts=_splitMaterial(ex.material||'');
             const exHasMat=_hasMaterial(ex.material);
             const isSizeOnly=ex.sizeOnly===true;
@@ -3406,6 +3422,7 @@ function renderSumpouMode(){
                 <button class="smp-btn-size" onclick="smpAddSiblingFromExtra(${site.id},${proc.id},${child.id},${ex.id})">＋ サイズ追加</button>
               </div>`}
             </div>`;
+            });
           });
         });
       });
