@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=120;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=121;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>リフォーム工程表</title>
@@ -3673,9 +3673,12 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         </label>
       </div>`;
 
+      const _numOnchange = isExtra
+        ? `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ex',${exId})`
+        : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
       return `<div class="ord-box-header">
         <div class="ord-box-left">
-          <div class="ord-box-code">${esc(group.num)}</div>
+          <input class="ord-box-code-inp" value="${esc(group.num)}" placeholder="品番" style="font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1px dashed var(--color-border-secondary);padding:0 0 2px;width:100%;outline:none;font-family:var(--font-sans)" onchange="${_numOnchange}">
           ${calcHtml ? `<div class="ord-box-qty">${calcHtml}</div>` : ''}
           ${itemsHtml ? `<div class="ord-box-detail">${itemsHtml}</div>` : ''}
           ${qtyWarnHtml}
@@ -5181,6 +5184,22 @@ function ordEditSkipReason(siteId, procId, childId){
     const ta=document.getElementById('skip_ta_'+childId);
     if(ta)ta.value=currentReason;
   },50);
+}
+
+function ordUpdateNum(newNum, siteId, procId, childId, type, exId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  const p=s.processes.find(x=>x.id===procId);if(!p)return;
+  const c=(p.children||[]).find(x=>x.id===childId);if(!c)return;
+  if(type==='ex'){
+    const ex=(c.extraMaterials||[]).find(x=>x.id===exId);if(!ex)return;
+    const parts=_splitMaterial(ex.material||'');
+    ex.material=_joinMaterial(newNum.trim(),parts.size,parts.qty);
+  } else {
+    const parts=_splitMaterial(c.material||'');
+    c.material=_joinMaterial(newNum.trim(),parts.size,parts.qty);
+  }
+  saveData();
+  renderOrderListMode();
 }
 
 function ordUseStock(stockId, type, childId, exId, btn, needM){
