@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=131;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=132;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/fudosan-crm/sw.js', {scope:'/fudosan-crm/'})
@@ -3683,7 +3683,7 @@ function _renderProcCalcBoxes(siteId, procId, procName, visibleChildIds) {
         ? `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ex',${exId})`
         : `ordUpdateNum(this.value,${siteId},${procId},${child.id},'ch',0)`;
       const _numDisplayHtml = `<input value="${esc(group.num)}" placeholder="品番を入力"
-        style="font-size:13px;height:28px;border:1px solid #ccc;border-radius:5px;padding:0 8px;background:#fff;color:#333;touch-action:manipulation;-webkit-user-select:text;user-select:text;max-width:160px"
+        style="font-size:14px;font-weight:500;height:28px;border:1px solid #ccc;border-radius:5px;padding:0 8px;background:#fff;color:#1565c0;touch-action:manipulation;-webkit-user-select:text;user-select:text;max-width:160px"
         onchange="${_numOnchange}">`;
       return `<div class="ord-box-header">
         <div class="ord-box-left">
