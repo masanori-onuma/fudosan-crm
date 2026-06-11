@@ -4033,7 +4033,7 @@ function smpUpdateExtraMaterial(siteId,procId,childId,extraId){
   const newMat=_joinMaterial(num,size,qty);
   if(JSON.stringify(ex.material)===JSON.stringify(newMat))return;
   ex.material=newMat;
-  saveData();
+  saveData(siteId);
 }
 
 // m/cm切替ボタン押下時：ボタン色を切替えてsave
