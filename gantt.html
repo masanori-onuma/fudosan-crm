@@ -646,9 +646,24 @@ function setAssignee(siteId, procId, value) {
   renderOrderListMode();
 }
 const GAS_URL='https://script.google.com/macros/s/AKfycbzliNpkjVDN4-TO-ibJqwP4DJc0a-ymv4Gh_PmbC7_DJcvfvBvex90f9OOIS2h5IPqN/exec';
+const APP_VER=(function(){try{return parseInt(new URLSearchParams(location.search).get('v')||'0');}catch(_){return 0;}})();
 async function gasLoad(key){try{const r=await fetch(GAS_URL+'?action=load&key='+encodeURIComponent(key));const j=await r.json();return j.ok?j.value:null;}catch(e){return null;}}
 async function gasSave(key,val){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save',key,value:JSON.stringify(val)})});const j=await r.json();return j.ok;}catch(e){return false;}}
-async function gasSaveSite(site){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_site',site:JSON.stringify(site)})});const j=await r.json();return j.ok;}catch(e){return false;}}
+async function gasSaveSite(site){
+  try{
+    const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_site',site:JSON.stringify(site)})});
+    const j=await r.json();
+    if(j.ok){
+      // 操作ログを非同期で送信（失敗しても保存には影響しない）
+      try{
+        const ver=APP_VER;
+        const log={site_id:site.id,site_name:site.name,user:getCurrentUser()||'unknown',ver,ts:new Date().toISOString()};
+        fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'save_op_log',log:JSON.stringify(log)})});
+      }catch(_){}
+    }
+    return j.ok;
+  }catch(e){return false;}
+}
 async function gasArchiveSite(siteId,by){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'archive_site',site_id:String(siteId),archived_by:by||'manual'})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
 async function gasUnarchiveSite(siteId){try{const r=await fetch(GAS_URL,{method:'POST',body:new URLSearchParams({action:'unarchive_site',site_id:String(siteId)})});const j=await r.json();return j.ok?{ok:true}:{ok:false,error:j.error||'unknown'};}catch(e){return{ok:false,error:e.message};}}
 async function gasLoadArchived(){try{const r=await fetch(GAS_URL+'?action=load_archived');const j=await r.json();if(!j.ok)return null;return j.value?JSON.parse(j.value):[];}catch(e){return null;}}
