@@ -805,7 +805,8 @@ let _lastSaved=null;
 // 保存シリアライズ用の状態
 let _savingNow=false;       // GAS送信中かどうか
 let _pendingSave=false;     // 送信中に新しい保存要求が来たか
-let _pendingSaveId=null;    // 差分保存用：次に保存するsiteId（nullなら全件）
+let _pendingSaveId=null;    // 差分保存用：次に保存するsiteId
+let _pendingSiteIds=null;   // 複数物件の個別保存キュー（Setまたはnull）
 let _lastSaveOkAt=0;        // 最後に保存成功した時刻（ポーリング抑制用）
 let _lastSaveAttemptAt=0;   // 最後に保存試行した時刻
 function saveData(siteId){
@@ -825,10 +826,12 @@ function saveData(siteId){
   // シリアライズ: 既に保存中ならフラグを立てて、現在の保存完了後にもう一度保存する
   if(_savingNow){
     _pendingSave=true;
-    // siteIdなし（全件）が来たら全件優先、同じsiteIdなら上書きOK
-    if(!siteId)_pendingSaveId=null;
-    else if(_pendingSaveId!==null&&_pendingSaveId!==siteId)_pendingSaveId=null; // 複数物件→全件
-    else _pendingSaveId=siteId;
+    // 複数物件が来ても全件保存しない→pendingSiteIdsに追加
+    if(siteId){
+      if(!_pendingSiteIds)_pendingSiteIds=new Set();
+      _pendingSiteIds.add(siteId);
+    }
+    // siteIdなしは無視（全件保存を発生させない）
     showSyncStatus('保存待機中…',2000);return;
   }
   _pendingSaveId=siteId||null;
@@ -841,13 +844,19 @@ function _runSave(){
   showSyncStatus('保存中…');
   const snapshot=_lastSaved;
   const siteId=_pendingSaveId; _pendingSaveId=null;
-  // 差分保存：siteIdがあれば1物件だけ、なければ全件
+  // 常に個別保存（全件保存しない）
   let savePromise;
   if(siteId){
     const site=sites.find(x=>x.id===siteId);
-    savePromise=site?gasSaveSite(site):gasSave('gantt_sites',sites);
+    savePromise=site?gasSaveSite(site):Promise.resolve(true);
+  }else if(_pendingSiteIds&&_pendingSiteIds.size>0){
+    const ids=[..._pendingSiteIds];_pendingSiteIds=null;
+    savePromise=ids.reduce((p,id)=>p.then(()=>{
+      const s=sites.find(x=>x.id===id);
+      return s?gasSaveSite(s):Promise.resolve(true);
+    }),Promise.resolve(true));
   }else{
-    savePromise=gasSave('gantt_sites',sites);
+    savePromise=Promise.resolve(true);
   }
   savePromise.then(ok=>{
     _savingNow=false;
