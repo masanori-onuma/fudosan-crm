@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=146;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=148;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -165,7 +165,7 @@ header a:hover{color:#185FA5}
 .unit-toggle-btns{display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0;touch-action:manipulation}
 .utbtn{padding:0 8px;font-size:11px;border:none;cursor:pointer;touch-action:manipulation;background:var(--color-background-secondary);color:var(--color-text-secondary)}
 .utbtn+.utbtn{border-left:0.5px solid var(--color-border-tertiary)}
-.utbtn.utbtn-active{background:var(--color-background-info);color:var(--color-text-info);font-weight:500}
+.utbtn.utbtn-active{background:#1565C0;color:#fff;font-weight:500}
 .smp-fields .f-qty{flex:0 0 68px;min-width:0;height:32px;text-align:center;border-left:2px solid #ddd!important}
 .smp-fields .f-qty-free{flex:1 1 0;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:32px}
 .smp-two-btns{display:flex;gap:6px;margin-top:6px}
@@ -3449,7 +3449,7 @@ function renderSumpouMode(){
             <div class="smp-field-labels"><div class="l-num">品番</div><div class="l-size">サイズ</div><div class="l-qty">数量</div><div class="l-btn"></div></div>
             <div class="smp-fields">
               <input class="f-num" placeholder="品番" value="${esc(parts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
-              ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(parts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'mat')">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'mat')">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
+              ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(parts.size);return`<input class="f-size" placeholder="" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'mat')">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'mat')">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(parts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">`}
               <input class="f-qty" placeholder="数量" value="${esc(parts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateMaterial(${site.id},${proc.id},${child.id})">
             </div>
             <div class="smp-two-btns">
@@ -3482,7 +3482,7 @@ function renderSumpouMode(){
               <div class="extra-lbl">${isSizeOnly?'サイズ追加':'品番追加'}${exHasMat?' <span class="smp-tag-done">✓入力済</span>':''}</div>
               <div class="smp-fields">
                 ${isSizeOnly?`<div class="extra-num-fixed">${esc(exParts.num||(child.material||'').split(/[\s　]/)[0])}</div>`:`<input class="f-num" placeholder="品番" value="${esc(exParts.num)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
-                ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(exParts.size);return`<input class="f-size" placeholder="高さ" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'ex',${ex.id})">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'ex',${ex.id})">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
+                ${child.name==='クロス貼替'?(()=>{const d=_cmStrToDisplay(exParts.size);return`<input class="f-size" placeholder="" value="${esc(d.val)}" data-unit="${d.unit}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})"><div class="unit-toggle-btns"><button type="button" class="utbtn${d.unit==='m'?' utbtn-active':''}" onclick="smpToggleUnit(this,'m',${site.id},${proc.id},${child.id},'ex',${ex.id})">m</button><button type="button" class="utbtn${d.unit==='cm'?' utbtn-active':''}" onclick="smpToggleUnit(this,'cm',${site.id},${proc.id},${child.id},'ex',${ex.id})">cm</button></div>`;})():`<input class="f-size" placeholder="サイズ" value="${esc(exParts.size)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">`}
                 <input class="f-qty" placeholder="数量" value="${esc(exParts.qty)}" oninput="smpMarkDirty(this)" onchange="smpUpdateExtraMaterial(${site.id},${proc.id},${child.id},${ex.id})">
                 <button class="smp-del-btn" onclick="smpDelSibling(${site.id},${proc.id},${child.id},${ex.id})" style="display:flex!important;position:static;width:32px;height:32px;background:#fff5f5;color:#c00;border:1px solid #f0c0c0;border-radius:5px">×</button>
               </div>
