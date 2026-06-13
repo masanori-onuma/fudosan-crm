@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=138;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=139;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -807,6 +807,7 @@ let _savingNow=false;       // GAS送信中かどうか
 let _pendingSave=false;     // 送信中に新しい保存要求が来たか
 let _pendingSaveId=null;    // 差分保存用：次に保存するsiteId
 let _pendingSiteIds=null;   // 複数物件の個別保存キュー（Setまたはnull）
+function _findSiteIdByProc(procId){const s=sites.find(x=>x.processes&&x.processes.some(p=>p.id===procId));return s?s.id:null;}
 let _lastSaveOkAt=0;        // 最後に保存成功した時刻（ポーリング抑制用）
 let _lastSaveAttemptAt=0;   // 最後に保存試行した時刻
 function saveData(siteId){
@@ -1371,7 +1372,7 @@ function _renderInner(){
       };
       td.onmouseup=()=>{
         if(_koukiLongPress){clearTimeout(_koukiLongPress);_koukiLongPress=null;}
-        else if(barDrag.active&&barDrag.isKouki){barDrag.active=false;saveData();}
+        else if(barDrag.active&&barDrag.isKouki){const _bsid=barDrag.siteId;barDrag.active=false;saveData(_bsid);}
       };
       td.onmousemove=(e)=>{
         if(!_koukiLongPress)return;
@@ -1995,7 +1996,7 @@ document.addEventListener('mouseup',function(e){
     const _gsUnlock=document.getElementById('ganttScroll');
     if(_gsUnlock)_gsUnlock.style.overflowX='';
     render();
-    saveData();
+    saveData(barDrag.siteId);
   }
 });
 
@@ -2082,7 +2083,7 @@ document.addEventListener('mouseup',function(e){
         const ti=site.processes.findIndex(p=>p.id===sortDrag.overProcId);
         if(fi>=0&&ti>=0){const[m]=site.processes.splice(fi,1);site.processes.splice(ti,0,m);}
       }
-      saveData();render();
+      saveData(sortDrag.siteId);render();
     }
     sortDrag={active:false,siteId:null,procId:null,overProcId:null};return;
   }
@@ -2124,7 +2125,7 @@ function toggleChildDone(procId,childId){
     }
     break;
   }
-  saveData();render();
+  saveData(_findSiteIdByProc(arguments[0]));render();
 }
 function openChildDoneModal(procId,childId){
   const today=fmt(new Date());
@@ -2160,13 +2161,13 @@ function saveChildDone(procId,childId){
     }
     break;
   }
-  saveData();closeModal();
+  saveData(_findSiteIdByProc(procId));closeModal();
 }
 function toggleChildren(procId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.childCollapsed=!p.childCollapsed;break;}
-  saveData();render();
+  saveData(_findSiteIdByProc(procId));render();
 }
-function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;saveData();render();}
+function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;saveData(id);render();}
 function expandAll(){sites.forEach(s=>s.collapsed=false);saveData();render();}
 function collapseAll(){sites.forEach(s=>s.collapsed=true);saveData();render();}
 function toggleDone(pid){
@@ -2341,7 +2342,7 @@ function saveKeyOnly(siteId){
   const s=sites.find(x=>x.id===siteId);if(!s){closeModal();return;}
   const v=document.getElementById('k_loc').value.trim();
   s.keyLocation=v;
-  saveData();
+  saveData(siteId);
   closeModal();
 }
 
@@ -2514,7 +2515,7 @@ function updateChild(procId,idx,key,val){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     if(p.children[idx])p.children[idx][key]=val;break;
   }
-  saveData();
+  saveData(_findSiteIdByProc(procId));
 }
 function updateChildTrackOrder(procId,idx,checked){
   if(procId===null)return;
@@ -2530,7 +2531,7 @@ function updateChildTrackOrder(procId,idx,checked){
     }
     break;
   }
-  saveData();
+  saveData(_findSiteIdByProc(procId));
 }
 function delChildInModal(procId,idx){
   if(procId===null){
@@ -2538,7 +2539,7 @@ function delChildInModal(procId,idx){
     return;
   }
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.splice(idx,1);break;}
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
@@ -2567,13 +2568,13 @@ function addChildInModal(procId){
     return;
   }
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.children.push({id:nextCid++,name:'',area:''});break;}
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
 function updatePeriod(procId,idx,key,val){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods[idx][key]=val;break;}
-  saveData();
+  saveData(_findSiteIdByProc(procId));
 }
 function delPeriod(procId,idx){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
@@ -2584,7 +2585,7 @@ function delPeriod(procId,idx){
     }
     break;
   }
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   // モーダルを再描画
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
@@ -2604,7 +2605,7 @@ function addPeriodInModal(procId){
     return;
   }
   for(const s of sites)for(const p of s.processes)if(p.id===procId){p.periods.push({startD:'',endD:''});break;}
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openProcModal(site.id,procId);
 }
@@ -2673,7 +2674,7 @@ function addChildPeriodInModal(procId,childId){
     if(c){if(!c.periods)c.periods=[];c.periods.push({startD:'',endD:''});}
     break;
   }
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
@@ -2682,7 +2683,7 @@ function updateChildPeriod(childId,idx,key,val){
   if(childId===null)return;
   for(const s of sites)for(const p of s.processes){
     const c=p.children.find(x=>x.id===childId);
-    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData();return;}
+    if(c&&c.periods&&c.periods[idx]){c.periods[idx][key]=val;saveData(s.id);return;}
   }
 }
 
@@ -2693,7 +2694,7 @@ function delChildPeriod(procId,childId,idx){
     if(c&&c.periods)c.periods.splice(idx,1);
     break;
   }
-  saveData();
+  saveData(_findSiteIdByProc(procId));
   const site=sites.find(s=>s.processes.some(p=>p.id===procId));
   if(site)openChildModal(site.id,procId,childId);
 }
@@ -2729,14 +2730,14 @@ function saveChild(procId,childId){
     _expandProcPeriods(p);
     break;
   }
-  saveData();closeModal();
+  saveData(_findSiteIdByProc(procId));closeModal();
 }
 
 function delChild(procId,childId){
   for(const s of sites)for(const p of s.processes)if(p.id===procId){
     p.children=p.children.filter(x=>x.id!==childId);break;
   }
-  saveData();closeModal();
+  saveData(_findSiteIdByProc(procId));closeModal();
 }
 
 function closeModal(){document.getElementById('modalEl').innerHTML='';render();}
@@ -2752,11 +2753,11 @@ function saveSite(id){
   const koukiStart=document.getElementById('s_kouki_start').value;
   const koukiEnd=document.getElementById('s_kouki_end').value;
   const nyukyoDate=document.getElementById('s_nyukyo_date').value;
-  if(id===null)sites.push({id:nextSid++,name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,nyukyoDate,processes:[]});
-  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,koukiStart,koukiEnd,nyukyoDate});}
-  saveData();closeModal();
+  if(id===null){const newId=nextSid++;sites.push({id:newId,name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,collapsed:false,koukiStart,koukiEnd,nyukyoDate,processes:[]});saveData(newId);}
+  else{const s=sites.find(x=>x.id===id);if(s)Object.assign(s,{name,addr,client,dropboxUrl,dropboxUrl2,keyLocation,parking,koukiStart,koukiEnd,nyukyoDate});saveData(id);}
+  closeModal();
 }
-function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);saveData();closeModal();}
+function delSite(id){if(!confirm('削除しますか？'))return;sites=sites.filter(x=>x.id!==id);gasSaveSite({id,_deleted:true});closeModal();}
 
 // =============================================================
 // アーカイブ機能
@@ -4253,7 +4254,7 @@ function smpManualSave(){
   });
   // 少し待ってから保存（onchange内の非同期処理を待つ）
   setTimeout(()=>{
-    saveData();
+    saveData(_smpSiteId);
     smpToast('💾 保存しました');
     _smpUpdatePendingState();
   },100);
@@ -4303,7 +4304,7 @@ function smpAddSibling(siteId,procId,baseChildId,mode){
   const inheritNum=isSizeOnly?(_splitMaterial(baseChild.material).num):'';
   const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:isSizeOnly};
   baseChild.extraMaterials.push(newExtra);
-  saveData();
+  saveData(siteId);
   if(mode==='order'){renderOrderListMode();}else{
     // 追加直後はフィルタで物件ごと消えないよう全表示モードにする
     _sumpouFilter.mode='all';
@@ -4330,7 +4331,7 @@ function smpAddSiblingFromExtra(siteId,procId,childId,baseExtraId){
   const inheritNum=_splitMaterial(baseEx.material).num||'';
   const newExtra={id:nextCid++,material:inheritNum,ordered:false,sizeOnly:true};
   c.extraMaterials.push(newExtra);
-  saveData();
+  saveData(siteId);
   _sumpouFilter.mode='all';
   renderSumpouMode();
   setTimeout(()=>{
@@ -4351,7 +4352,7 @@ function smpDelSibling(siteId,procId,childId,extraId,mode){
   const label=ex&&_hasMaterial(ex.material)?`「${_materialStr(ex.material)}」`:'この品番';
   if(!confirm(label+'を削除しますか？'))return;
   c.extraMaterials=c.extraMaterials.filter(x=>x.id!==extraId);
-  saveData();
+  saveData(siteId);
   if(mode==='order'){renderOrderListMode();}else{renderSumpouMode();}
 }
 
@@ -4407,7 +4408,7 @@ function smpDoAddChild(siteId){
   const form=document.getElementById('smpAddForm_'+siteId);
   if(form)form.style.display='none';
 
-  saveData();
+  saveData(siteId);
   _sumpouFilter.mode='all';
   renderSumpouMode();
   setTimeout(()=>{
@@ -4444,7 +4445,7 @@ function smpDoAddProcExtra(siteId){
   if(numInp)numInp.value='';
   if(sizeInp)sizeInp.value='';
   if(qtyInp)qtyInp.value='';
-  saveData();
+  saveData(siteId);
   _sumpouFilter.mode='all';
   renderSumpouMode();
   setTimeout(()=>{
@@ -4464,14 +4465,14 @@ function smpUpdateProcExtra(siteId,procId,extraId){
   ex.material=_joinMaterial(num?num.value:'',size?size.value:'',qty?qty.value:'');
   row.classList.toggle('done-input',_hasMaterial(ex.material));
   row.querySelectorAll('.dirty').forEach(el=>el.classList.remove('dirty'));
-  saveData();
+  saveData(siteId);
 }
 
 function smpDelProcExtra(siteId,procId,extraId){
   const s=sites.find(x=>x.id===siteId);if(!s)return;
   const p=s.processes.find(x=>x.id===procId);if(!p)return;
   p.extraMaterials=(p.extraMaterials||[]).filter(x=>x.id!==extraId);
-  saveData();
+  saveData(siteId);
   renderSumpouMode();
 }
 
@@ -5204,7 +5205,7 @@ function ordUseStockQty(stockId, childId){
   } else {
     // 数量を減らす
     stock.count=remaining;
-    saveData();
+    saveStocks();
   }
   // 発注一覧を再描画
   renderOrderListMode();
@@ -5253,7 +5254,7 @@ function ordConfirmSkip(type, childId, exId){
       if(c.id===childId){c.skipReason=reason;found=true;}
     })));
   }
-  if(found){saveData();renderOrderListMode();}
+  if(found){const _skSite=sites.find(s=>s.processes.some(p=>(p.children||[]).some(c=>c.id===childId)));saveData(_skSite?_skSite.id:null);renderOrderListMode();}
 }
 
 function ordEditSkipReason(siteId, procId, childId){
@@ -5265,7 +5266,7 @@ function ordEditSkipReason(siteId, procId, childId){
   if(!c)return;
   const currentReason=c.skipReason||'';
   delete c.skipReason;
-  saveData();
+  saveData(siteId);
   renderOrderListMode();
   setTimeout(()=>{
     ordShowSkipInput(childId);
@@ -5286,7 +5287,7 @@ function ordUpdateNum(newNum, siteId, procId, childId, type, exId){
     const parts=_splitMaterial(c.material||'');
     c.material=_joinMaterial(newNum.trim(),parts.size,parts.qty);
   }
-  saveData();
+  saveData(siteId);
   renderOrderListMode();
 }
 
@@ -5384,7 +5385,7 @@ function ordUseStockConfirm(stockId, type, childId, exId, isMeter){
       smpToast('✓ 在庫を使いました（在庫なし）');
     }
   }
-  saveStocks();saveData();renderOrderListMode();
+  saveStocks();renderOrderListMode();
 }
 
 function ordShowAllSites(){
@@ -5688,7 +5689,7 @@ function importJSON(){
         if(!confirm('最終確認：現在のデータは完全に消えます。よろしいですか？'))return;
         sites=normalizeSites(data.sites);
         if(data.masters)masters=data.masters;
-        saveData();saveMasters();render();
+        sites.forEach(s=>saveData(s.id));saveMasters();render();
         alert('復元が完了しました。'+sites.length+'件の物件を読み込みました。');
       }catch(err){
         alert('ファイルの読み込みに失敗しました: '+err.message);
@@ -5720,7 +5721,7 @@ document.addEventListener('touchend',function(e){
   },50);
   setTimeout(()=>{clearInterval(_waitForScrollStop);_isTouching=false;},1000);
   if(_lpt){clearTimeout(_lpt);_lpt=null;}
-  if(barDrag.active){barDrag.active=false;barDrag.isNew=false;saveData();}
+  if(barDrag.active){const _bsid2=barDrag.siteId;barDrag.active=false;barDrag.isNew=false;saveData(_bsid2);}
 },{passive:true});
 
 function showDonePopup(sid,pid,cx,cy){
