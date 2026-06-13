@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=137;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=138;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -2068,7 +2068,8 @@ document.addEventListener('mouseup',function(e){
       const fi=sites.findIndex(x=>x.id===siteDrag.siteId);
       const ti=sites.findIndex(x=>x.id===siteDrag.overSiteId);
       if(fi>=0&&ti>=0){const[m]=sites.splice(fi,1);sites.splice(ti,0,m);}
-      saveData();render();
+      // 並び替え後は全物件を個別保存（順番をGASに反映）
+      sites.forEach(s=>saveData(s.id));render();
     }
     siteDrag={active:false,siteId:null,overSiteId:null};return;
   }
