@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=144;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=145;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -162,7 +162,7 @@ header a:hover{color:#185FA5}
 .smp-fields input,.smp-fields textarea{font-size:13px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;font-family:monospace;min-width:0;box-sizing:border-box}
 .smp-fields .f-num{flex:0 0 120px;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:500;color:var(--color-text-info);background:none;border:none;border-bottom:1.5px solid var(--color-border-info);border-radius:0;padding:0 4px}
 .smp-fields .f-size{flex:1 1 0;min-width:0;height:32px}
-.unit-toggle-btns{display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0}
+.unit-toggle-btns{display:flex;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;height:32px;flex-shrink:0;touch-action:manipulation}
 .utbtn{padding:0 8px;font-size:11px;border:none;cursor:pointer;touch-action:manipulation;background:var(--color-background-secondary);color:var(--color-text-secondary)}
 .utbtn+.utbtn{border-left:0.5px solid var(--color-border-tertiary)}
 .utbtn.utbtn-active{background:var(--color-background-info);color:var(--color-text-info);font-weight:500}
