@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=142;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=143;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -1343,7 +1343,7 @@ function _renderInner(){
     // ボタン配置：📐📋がない場合も同じ幅でスペース確保してフォルダ位置を統一
     const _sumpouBtn=_hasAnyProcess?`<button class="btn btn-sm ${_sumpouBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openSumpouMode(${site.id})" title="${_sumpouBtnTitle}">📐</button>`:'<span style="width:28px;display:inline-block"></span>';
     const _orderBtn=_hasOrderedChildren?`<button class="btn btn-sm ${_orderBtnCls}" style="flex-shrink:0;padding:0 5px;font-size:11px" onclick="openOrderListMode(${site.id})" title="${_orderBtnTitle}">📋</button>`:'<span style="width:28px;display:inline-block"></span>';
-    const _actionsHtml=`<span class="site-actions">${dropboxBtn}${dropboxBtn2}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
+    const _actionsHtml=`<span class="site-actions">${dropboxBtn}${dropboxBtn2}${!site.keyLocation?`<button class="btn btn-sm key-add-btn sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openKeyModal(${site.id})" title="鍵所在を入力">🔑＋</button>`:''}${!site.parking?`<button class="btn btn-sm sp-only" style="flex-shrink:0;padding:0 4px;font-size:11px;color:#888;border-color:#ccc" onclick="openParkingModal(${site.id})" title="駐車場を入力">🚗＋</button>`:''}${_sumpouBtn}${_orderBtn}<button class="btn btn-sm" style="flex-shrink:0" onclick="openSiteModal(${site.id})">編集</button><button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="openProcModal(${site.id},null)">＋</button></span>`;
     siteTd.innerHTML=`<div class="site-inner"><div class="site-top">
       <input type="checkbox" class="site-chk sp-hide" data-site-id="${site.id}" onchange="onSiteChkChange()" title="アーカイブ対象として選択">
       <span class="sort-handle-site" data-site="${site.id}" title="ドラッグで並び替え">⠿</span>
@@ -1354,7 +1354,7 @@ function _renderInner(){
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key" onclick="(window._isSP&&openKeyModal(${site.id}))" style="cursor:pointer">🔑 ${esc(site.keyLocation)}</div>`:''}
-      ${site.parking?`<div class="site-sub site-park" onclick="(window._isSP&&openParkingModal(${site.id}))" style="cursor:pointer">🚗 ${esc(site.parking)}</div>`:''}
+      ${site.parking?`<div class="site-sub site-park" onclick="openParkingModal(${site.id})" style="cursor:pointer">🚗 ${esc(site.parking)}</div>`:''}
       ${site.nyukyoDate?`<div class="site-sub" style="color:#1D6A3A;font-weight:600">🏠 入居 ${fmtD(site.nyukyoDate)}</div>`:''}
       ${_isSP?_actionsHtml:''}
       </div>`;
