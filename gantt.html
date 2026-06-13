@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=139;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=141;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -730,6 +730,10 @@ function normalizeSites(raw){
       p.doneDate=lastDate;
     }
   }));
+  // orderフィールドがあれば順番通りにソート
+  if(raw.some(s=>s.order!==undefined)){
+    raw.sort((a,b)=>(a.order!=null?a.order:9999)-(b.order!=null?b.order:9999));
+  }
   return raw;
 }
 async function loadData(){
@@ -1339,7 +1343,7 @@ function _renderInner(){
       </div>
       <div class="site-sub">${esc(site.addr)}<a href="${mapUrl}" style="color:#185FA5;font-size:10px;margin-left:3px" target="_blank">地図</a>${clientStr}</div>
       ${site.keyLocation?`<div class="site-sub site-key" onclick="(window._isSP&&openKeyModal(${site.id}))" style="cursor:pointer">🔑 ${esc(site.keyLocation)}</div>`:''}
-      ${site.parking?`<div class="site-sub site-park">🚗 ${esc(site.parking)}</div>`:''}
+      ${site.parking?`<div class="site-sub site-park" onclick="(window._isSP&&openParkingModal(${site.id}))" style="cursor:pointer">🚗 ${esc(site.parking)}</div>`:''}
       ${site.nyukyoDate?`<div class="site-sub" style="color:#1D6A3A;font-weight:600">🏠 入居 ${fmtD(site.nyukyoDate)}</div>`:''}
       ${_isSP?_actionsHtml:''}
       </div>`;
@@ -2070,7 +2074,8 @@ document.addEventListener('mouseup',function(e){
       const ti=sites.findIndex(x=>x.id===siteDrag.overSiteId);
       if(fi>=0&&ti>=0){const[m]=sites.splice(fi,1);sites.splice(ti,0,m);}
       // 並び替え後は全物件を個別保存（順番をGASに反映）
-      sites.forEach(s=>saveData(s.id));render();
+      // 並び替え後にorderフィールドを付与して個別保存
+      sites.forEach((s,i)=>{ s.order=i; saveData(s.id); });render();
     }
     siteDrag={active:false,siteId:null,overSiteId:null};return;
   }
@@ -2342,6 +2347,29 @@ function saveKeyOnly(siteId){
   const s=sites.find(x=>x.id===siteId);if(!s){closeModal();return;}
   const v=document.getElementById('k_loc').value.trim();
   s.keyLocation=v;
+  saveData(siteId);
+  closeModal();
+}
+
+function openParkingModal(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s)return;
+  document.getElementById('modalEl').innerHTML=`
+    <div class="modal-overlay"><div class="modal" style="max-width:380px">
+    <h3>🚗 駐車場</h3>
+    <div style="font-size:12px;color:#666;margin-bottom:6px">${esc(s.name||'')}</div>
+    <div class="field"><label>駐車場</label>
+      <input id="p_park" placeholder="敷地内◯番・近隣コインP など" value="${esc(s.parking||'')}" autofocus>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveParkingOnly(${siteId})">保存</button>
+    </div></div></div>`;
+  setTimeout(()=>{const el=document.getElementById('p_park');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},50);
+}
+function saveParkingOnly(siteId){
+  const s=sites.find(x=>x.id===siteId);if(!s){closeModal();return;}
+  const v=document.getElementById('p_park').value.trim();
+  s.parking=v;
   saveData(siteId);
   closeModal();
 }
