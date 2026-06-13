@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=148;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=149;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -3577,22 +3577,17 @@ function _joinMaterial(num,size,qty){
 function _unitBtnToCmStr(val, unit) {
   const n = parseFloat(val);
   if(!val || isNaN(n)) return val; // 空または非数値はそのまま
-  if(unit === 'm') return Math.round(n * 100) + 'cm';
-  return Math.round(n) + 'cm';
+  if(unit === 'm') return n + 'm';  // mはそのまま保存
+  return Math.round(n) + 'cm';     // cmはcmで保存
 }
-// cm文字列から表示用の数値と単位を推定（例: "240cm" → {val:"2.4", unit:"m"}）
+// 保存値から表示用の数値と単位を返す（入力単位をそのまま表示）
 function _cmStrToDisplay(sizeStr) {
-  if(!sizeStr) return {val:'', unit:'m'};
+  if(!sizeStr) return {val:'', unit:'cm'};
   const cmMatch = sizeStr.match(/^(\d+\.?\d*)\s*cm$/i);
-  if(cmMatch) {
-    const cm = parseFloat(cmMatch[1]);
-    // 200cm以上はcm表示、未満はm表示
-    if(cm >= 200) return {val: Math.round(cm)+'', unit:'cm'};
-    return {val: (cm/100)+'', unit:'m'};
-  }
+  if(cmMatch) return {val: cmMatch[1], unit:'cm'};
   const mMatch = sizeStr.match(/^(\d+\.?\d*)\s*m$/i);
   if(mMatch) return {val: mMatch[1], unit:'m'};
-  return {val: sizeStr, unit:'m'};
+  return {val: sizeStr, unit:'cm'};
 }
 
 // skipReasonが有効（空白・読点・句点のみでない）かチェック
