@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=141;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=142;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -901,6 +901,17 @@ function hideSaveErrorBanner(){
   const b=document.getElementById('saveErrorBanner');
   if(b)b.style.display='none';
 }
+// 全物件を個別保存（gasSave('gantt_sites')の全件上書きを使わず_runSaveのキューに積む）。pushUndo=trueでundoスタックに1件積む
+function saveAllSites(pushUndo){
+  if(_viewMode==='archived'){console.warn('saveAllSites: archived mode, skip');return;}
+  if(pushUndo&&_lastSaved!==null){_undoStack.push(_lastSaved);if(_undoStack.length>20)_undoStack.shift();const el=document.getElementById('undoBtn');if(el)el.disabled=false;}
+  localStorage.setItem('gantt_sites_ts',String(Date.now()));
+  _lastSaved=JSON.stringify(sites);
+  localStorage.setItem('gantt_sites',_lastSaved);
+  if(!_pendingSiteIds)_pendingSiteIds=new Set();
+  sites.forEach(s=>_pendingSiteIds.add(s.id));
+  if(_savingNow){_pendingSave=true;}else{_runSave();}
+}
 // ポーリング: 定期的にGASから最新を取得して、他人の変更を画面に反映
 let _pollingTimer=null;
 async function _pollOnce(){
@@ -983,7 +994,7 @@ function undoLast(){
   _lastSaved=prev;
   sites=normalizeSites(JSON.parse(prev));
   localStorage.setItem('gantt_sites',prev);
-  gasSave('gantt_sites',sites);
+  saveAllSites(false);
   // undo後はボタンの右にトースト表示
   const um=document.getElementById('undoMsg');
   if(um){um.textContent='元に戻しました';setTimeout(()=>{um.textContent='';},2000);}
@@ -2173,8 +2184,8 @@ function toggleChildren(procId){
   saveData(_findSiteIdByProc(procId));render();
 }
 function toggleSite(id){const s=sites.find(x=>x.id===id);if(s)s.collapsed=!s.collapsed;saveData(id);render();}
-function expandAll(){sites.forEach(s=>s.collapsed=false);saveData();render();}
-function collapseAll(){sites.forEach(s=>s.collapsed=true);saveData();render();}
+function expandAll(){sites.forEach(s=>s.collapsed=false);saveAllSites(true);render();}
+function collapseAll(){sites.forEach(s=>s.collapsed=true);saveAllSites(true);render();}
 function toggleDone(pid){
   for(const s of sites)for(const p of s.processes)if(p.id===pid){
     if(!p.done){
