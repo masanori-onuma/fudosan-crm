@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="工程表">
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<script>(function(){const VER=149;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
+<script>(function(){const VER=150;const p=new URLSearchParams(location.search);if(parseInt(p.get('v'))!==VER){p.set('v',VER);location.replace(location.pathname+'?'+p.toString()+(location.hash||''));}})()</script>
 <script>
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -3247,6 +3247,11 @@ function _smpUserBadge(){
 let _sumpouFilter={search:'',mode:'incomplete',focusSiteId:null};
 
 function openSumpouMode(jumpToSiteId){
+  // saiken-appのiframe内で動いている場合は親ウィンドウに通知
+  if(window.parent!==window){
+    window.parent.postMessage({type:'openDimension',siteId:jumpToSiteId||null},'https://saiken-app.vercel.app');
+    return;
+  }
   // 使用者が未設定なら選択ダイアログを表示してからモードを開く
   if(!getCurrentUser()){
     showUserPicker(true,()=>openSumpouMode(jumpToSiteId));
@@ -4517,6 +4522,11 @@ let _orderFilter={search:'',mode:'pending',focusSiteId:null,tab:'list'}; // tab:
 let _stockFilter={search:''};
 
 function openOrderListMode(jumpToSiteId){
+  // saiken-appのiframe内で動いている場合は親ウィンドウに通知
+  if(window.parent!==window){
+    window.parent.postMessage({type:'openOrder',siteId:jumpToSiteId||null},'https://saiken-app.vercel.app');
+    return;
+  }
   document.getElementById('sumpouView').style.display='';
   document.body.classList.add('smp-modal-open');
   if(jumpToSiteId){
