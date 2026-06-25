@@ -149,6 +149,17 @@ body {
   margin-left: 6px;
   vertical-align: middle;
 }
+.card-owner-addr {
+  font-size: 11px;
+  color: #718096;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .local-badge.kennai { background: #c6f6d5; color: #276749; }
 .local-badge.kengai { background: #fed7d7; color: #c53030; }
 
@@ -798,6 +809,93 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   line-height: 1.7;
   white-space: pre-wrap;
 }
+
+/* ─── ルートプランナー ─── */
+.route-section { padding: 12px; max-width: 700px; margin: 0 auto; }
+.route-header-card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.route-header-card h3 { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
+.route-origin-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.route-origin-input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.route-action-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.btn-route-all {
+  background: #edf2f7;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #4a5568;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-route-start {
+  flex: 1;
+  background: #2f855a;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-route-start:disabled { background: #a0aec0; cursor: not-allowed; }
+.btn-route-sort {
+  background: #e6f3ff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #1a3a5c;
+  cursor: pointer;
+  font-weight: 600;
+}
+.route-count { font-size: 12px; color: #718096; margin-top: 4px; }
+.route-property-item {
+  background: white;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 7px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.07);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.route-property-item.selected { border-left: 3px solid #2f855a; }
+.route-property-item input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #2f855a; }
+.route-prop-info { flex: 1; min-width: 0; }
+.route-prop-addr { font-size: 13px; font-weight: 600; color: #2d3748; }
+.route-prop-owner { font-size: 11px; color: #718096; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-prop-order { width: 22px; height: 22px; border-radius: 50%; background: #2f855a; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.route-prop-order.inactive { background: #e2e8f0; color: #a0aec0; }
+.route-empty { text-align: center; padding: 40px 20px; color: #718096; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -819,6 +917,7 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
     進行中 <span class="badge" id="activeCount" style="display:none">0</span>
   </div>
   <div class="tab" data-view="all" onclick="setView('all')">すべて</div>
+  <div class="tab" data-view="route" onclick="setView('route')">🗺️ルート</div>
   <div class="tab" data-view="weekly" onclick="setView('weekly')">週次</div>
 </div>
 
@@ -1149,6 +1248,8 @@ function setView(view) {
   });
   if (view === 'weekly') {
     renderWeekly();
+  } else if (view === 'route') {
+    renderRoute();
   } else {
     render();
   }
@@ -1300,6 +1401,7 @@ function render() {
         </div>
         <div class="card-address">${escHtml(p.address || '住所未入力')}</div>
         <div class="card-owner">${escHtml(p.owner_name || '所有者未入力')}${localBadge}</div>
+        ${p.owner_address ? `<div class="card-owner-addr">📮 ${escHtml(p.owner_address)}</div>` : ''}
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="card-next ${nextClass}" style="flex:1;">${nextText}</div>
           <button onclick="event.stopPropagation();openMapByAddress('${escHtml(p.map_address || p.address)}')" 
@@ -1715,6 +1817,198 @@ function openMapForProperty() {
   if (!p) return;
   const addr = p.map_address || p.address;
   openMapByAddress(addr);
+}
+
+// ─── ルートプランナー ────────────────────────────
+
+let routeSelectedIds = new Set();
+
+// 住所から市区町村を抽出（ソート用）
+function extractMunicipality(address) {
+  if (!address) return 'zzz';
+  const m = address.match(/埼玉県(.{2,5}?[市町村区])/);
+  return m ? m[1] : address.substring(0, 6);
+}
+
+// 最近傍法でルート順を最適化（住所テキストベース）
+function nearestNeighborSort(items, originLabel) {
+  if (items.length <= 1) return items;
+  // 市区町村でグルーピングしてクラスタ順に並べる
+  const groups = {};
+  items.forEach(p => {
+    const city = extractMunicipality(p.map_address || p.address);
+    if (!groups[city]) groups[city] = [];
+    groups[city].push(p);
+  });
+  // グループ内は登録ID順（登録順≒地番順）
+  const sorted = [];
+  Object.keys(groups).sort().forEach(city => {
+    groups[city].sort((a, b) => (a.id < b.id ? -1 : 1));
+    sorted.push(...groups[city]);
+  });
+  return sorted;
+}
+
+function renderRoute() {
+  const container = document.getElementById('propertyList');
+  const statBar = document.getElementById('statBar');
+  const sortBar = document.getElementById('sortBar');
+  if (statBar) statBar.style.display = 'none';
+  if (sortBar) sortBar.style.display = 'none';
+
+  // 県内・進行中の物件
+  const localProps = allProperties.filter(p => {
+    if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
+    if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
+    return p.is_local === '県内';
+  });
+
+  // 選択セットを県内物件IDで初期化（新規表示時は全選択）
+  if (routeSelectedIds.size === 0) {
+    localProps.forEach(p => routeSelectedIds.add(p.id));
+  }
+
+  const selectedCount = localProps.filter(p => routeSelectedIds.has(p.id)).length;
+
+  container.innerHTML = `
+    <div class="route-section">
+      <div class="route-header-card">
+        <h3>🗺️ 県内訪問ルート作成</h3>
+        <div class="route-origin-row">
+          <span style="font-size:12px;color:#718096;flex-shrink:0;">出発地</span>
+          <input class="route-origin-input" id="routeOriginInput" type="text"
+            value="${escHtml(localStorage.getItem('route_origin') || '埼玉県春日部市')}"
+            placeholder="例：埼玉県春日部市役所"
+            oninput="localStorage.setItem('route_origin', this.value)">
+        </div>
+        <div class="route-action-row">
+          <button class="btn-route-all" onclick="routeSelectAll(true)">全選択</button>
+          <button class="btn-route-all" onclick="routeSelectAll(false)">全解除</button>
+          <button class="btn-route-sort" onclick="routeApplySort()">🔀 エリア最適化</button>
+          <button class="btn-route-start" id="routeStartBtn" onclick="startRoute()" ${selectedCount === 0 ? 'disabled' : ''}>
+            📍 Googleマップでルート開始（<span id="routeSelCount">${selectedCount}</span>件）
+          </button>
+        </div>
+        <div class="route-count">県内物件 ${localProps.length}件中 <strong id="routeSelCountSub">${selectedCount}</strong>件を選択中</div>
+      </div>
+      ${localProps.length === 0 ? `
+        <div class="route-empty">
+          <div style="font-size:36px;margin-bottom:8px;">🗺️</div>
+          <p>県内物件がありません</p>
+          <p style="font-size:12px;margin-top:6px;">物件登録時に「県内」を選択すると表示されます</p>
+        </div>` : localProps.map((p, i) => {
+          const isSelected = routeSelectedIds.has(p.id);
+          const selIndex = isSelected ? [...routeSelectedIds].indexOf(p.id) + 1 : null;
+          const addr = p.map_address || p.address || '';
+          return `
+            <div class="route-property-item ${isSelected ? 'selected' : ''}" id="routeItem_${escHtml(p.id)}" onclick="toggleRouteSelect('${escHtml(p.id)}')">
+              <div class="route-prop-order ${isSelected ? '' : 'inactive'}" id="routeOrder_${escHtml(p.id)}">
+                ${isSelected ? selIndex : '–'}
+              </div>
+              <input type="checkbox" ${isSelected ? 'checked' : ''}
+                onclick="event.stopPropagation();toggleRouteSelect('${escHtml(p.id)}')"
+                id="routeChk_${escHtml(p.id)}">
+              <div class="route-prop-info">
+                <div class="route-prop-addr">${escHtml(p.address || '住所未入力')}</div>
+                <div class="route-prop-owner">${escHtml(p.owner_name || '')}${p.owner_address ? ' ▸ ' + escHtml(p.owner_address) : ''}</div>
+              </div>
+              <button onclick="event.stopPropagation();openMapByAddress('${escHtml(addr)}')"
+                style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>
+            </div>`;
+        }).join('')}
+    </div>
+  `;
+
+  // ルート用の内部リスト保持（ソート後の順序管理）
+  window._routeLocalProps = localProps;
+}
+
+function toggleRouteSelect(id) {
+  if (routeSelectedIds.has(id)) {
+    routeSelectedIds.delete(id);
+  } else {
+    routeSelectedIds.add(id);
+  }
+  updateRouteUI();
+}
+
+function routeSelectAll(select) {
+  const props = window._routeLocalProps || [];
+  props.forEach(p => {
+    if (select) routeSelectedIds.add(p.id);
+    else routeSelectedIds.delete(p.id);
+  });
+  updateRouteUI();
+}
+
+function routeApplySort() {
+  const props = window._routeLocalProps || [];
+  const sorted = nearestNeighborSort(props);
+  window._routeLocalProps = sorted;
+  // ルートタブを再描画（ソート適用後）
+  const container = document.getElementById('propertyList');
+  const routeSection = container.querySelector('.route-section');
+  if (!routeSection) { renderRoute(); return; }
+  // プロパティリストのみ再描画（シンプルに全再描画）
+  renderRoute();
+  showToast('✅ エリアごとに並び替えました', 'success');
+}
+
+function updateRouteUI() {
+  const props = window._routeLocalProps || [];
+  const selectedList = props.filter(p => routeSelectedIds.has(p.id));
+  const selectedCount = selectedList.length;
+
+  // カウンター更新
+  const el1 = document.getElementById('routeSelCount');
+  const el2 = document.getElementById('routeSelCountSub');
+  if (el1) el1.textContent = selectedCount;
+  if (el2) el2.textContent = selectedCount;
+
+  // ボタン有効/無効
+  const btn = document.getElementById('routeStartBtn');
+  if (btn) btn.disabled = selectedCount === 0;
+
+  // 各アイテムの見た目更新
+  props.forEach(p => {
+    const item = document.getElementById('routeItem_' + p.id);
+    const chk  = document.getElementById('routeChk_' + p.id);
+    const ord  = document.getElementById('routeOrder_' + p.id);
+    if (!item) return;
+    const sel = routeSelectedIds.has(p.id);
+    item.classList.toggle('selected', sel);
+    if (chk) chk.checked = sel;
+    if (ord) {
+      if (sel) {
+        const idx = selectedList.findIndex(x => x.id === p.id) + 1;
+        ord.textContent = idx;
+        ord.className = 'route-prop-order';
+      } else {
+        ord.textContent = '–';
+        ord.className = 'route-prop-order inactive';
+      }
+    }
+  });
+}
+
+function startRoute() {
+  const props = window._routeLocalProps || [];
+  const origin = document.getElementById('routeOriginInput')?.value?.trim()
+    || localStorage.getItem('route_origin') || '埼玉県春日部市';
+
+  const selected = props.filter(p => routeSelectedIds.has(p.id));
+  if (selected.length === 0) { showToast('訪問先を選択してください', 'error'); return; }
+
+  // Google Maps URL: /dir/出発地/住所1/住所2/...
+  // Google Mapsは最大10経由地（無料）
+  const MAX_STOPS = 9; // 出発地含め10
+  if (selected.length > MAX_STOPS) {
+    showToast(`⚠️ Google Mapsは最大${MAX_STOPS}件まで。先頭${MAX_STOPS}件でルートを作成します`, 'error');
+  }
+  const stops = selected.slice(0, MAX_STOPS).map(p => p.map_address || p.address || '');
+  const parts = [origin, ...stops].map(s => encodeURIComponent(s));
+  const url = `https://www.google.com/maps/dir/${parts.join('/')}`;
+  window.open(url, '_blank');
 }
 
 async function checkListingForProperty(propertyId) {
