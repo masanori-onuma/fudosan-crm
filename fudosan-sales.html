@@ -1833,10 +1833,10 @@ function extractMunicipality(address) {
 // 最近傍法でルート順を最適化（住所テキストベース）
 function nearestNeighborSort(items, originLabel) {
   if (items.length <= 1) return items;
-  // 市区町村でグルーピングしてクラスタ順に並べる
+  // 所有者住所の市区町村でグルーピングしてクラスタ順に並べる
   const groups = {};
   items.forEach(p => {
-    const city = extractMunicipality(p.map_address || p.address);
+    const city = extractMunicipality(p.owner_address);
     if (!groups[city]) groups[city] = [];
     groups[city].push(p);
   });
@@ -1899,7 +1899,8 @@ function renderRoute() {
         </div>` : localProps.map((p, i) => {
           const isSelected = routeSelectedIds.has(p.id);
           const selIndex = isSelected ? [...routeSelectedIds].indexOf(p.id) + 1 : null;
-          const addr = p.map_address || p.address || '';
+          const ownerAddr = p.owner_address || '';
+          const hasOwnerAddr = !!ownerAddr;
           return `
             <div class="route-property-item ${isSelected ? 'selected' : ''}" id="routeItem_${escHtml(p.id)}" onclick="toggleRouteSelect('${escHtml(p.id)}')">
               <div class="route-prop-order ${isSelected ? '' : 'inactive'}" id="routeOrder_${escHtml(p.id)}">
@@ -1909,11 +1910,11 @@ function renderRoute() {
                 onclick="event.stopPropagation();toggleRouteSelect('${escHtml(p.id)}')"
                 id="routeChk_${escHtml(p.id)}">
               <div class="route-prop-info">
-                <div class="route-prop-addr">${escHtml(p.address || '住所未入力')}</div>
-                <div class="route-prop-owner">${escHtml(p.owner_name || '')}${p.owner_address ? ' ▸ ' + escHtml(p.owner_address) : ''}</div>
+                <div class="route-prop-addr">${hasOwnerAddr ? escHtml(ownerAddr) : '<span style="color:#e53e3e;font-size:11px;">⚠️ 所有者住所未登録</span>'}</div>
+                <div class="route-prop-owner">物件：${escHtml(p.address || '未入力')} ／ ${escHtml(p.owner_name || '氏名未入力')}</div>
               </div>
-              <button onclick="event.stopPropagation();openMapByAddress('${escHtml(addr)}')"
-                style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>
+              ${hasOwnerAddr ? `<button onclick="event.stopPropagation();openMapByAddress('${escHtml(ownerAddr)}')"
+                style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>` : ''}
             </div>`;
         }).join('')}
     </div>
@@ -2005,7 +2006,7 @@ function startRoute() {
   if (selected.length > MAX_STOPS) {
     showToast(`⚠️ Google Mapsは最大${MAX_STOPS}件まで。先頭${MAX_STOPS}件でルートを作成します`, 'error');
   }
-  const stops = selected.slice(0, MAX_STOPS).map(p => p.map_address || p.address || '');
+  const stops = selected.slice(0, MAX_STOPS).map(p => p.owner_address || p.address || '');
   const parts = [origin, ...stops].map(s => encodeURIComponent(s));
   const url = `https://www.google.com/maps/dir/${parts.join('/')}`;
   window.open(url, '_blank');
