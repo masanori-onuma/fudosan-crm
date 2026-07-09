@@ -902,11 +902,11 @@ function App(){
             try{
               const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:10000}));
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:pos.coords.latitude,lng:pos.coords.longitude})});
-              setClockedIn(v=>{const nv=!v;const today=new Date().toISOString().slice(0,10);localStorage.setItem("clockedIn_"+today,String(nv));return nv;});
+              {const today=new Date().toISOString().slice(0,10);const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
               flash(`✓ ${type}しました`);
             }catch(e){
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:"",lng:""})});
-              setClockedIn(v=>{const nv=!v;const today=new Date().toISOString().slice(0,10);localStorage.setItem("clockedIn_"+today,String(nv));return nv;});
+              {const today=new Date().toISOString().slice(0,10);const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
               flash(`✓ ${type}しました（位置情報なし）`);
             }
             setClocking(false);
