@@ -485,6 +485,7 @@ async function loadSurveysFromGAS() {
 }
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const todayStr = () => new Date().toISOString().slice(0,10);
+const todayJST = () => { const d=new Date(); const jst=new Date(d.getTime()+9*60*60*1000); return jst.toISOString().slice(0,10); };
 const BUY_STATUSES   = ["未接触","初回面談済","物件提案中","契約交渉中","成約"];
 const SELL_STATUSES  = ["査定前","査定済","媒介契約中","販売活動中","売買交渉中","成約"];
 const TYPES          = ["マンション","一戸建て","土地","収益物件","その他"];
@@ -644,7 +645,7 @@ function StaffCard({s,onChangePass,onRemove}){
 }
 
 function App(){
-  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(()=>{const today=new Date().toISOString().slice(0,10);const saved=localStorage.getItem("clockedIn_"+today);return saved==="true";});const [clocking,setClocking]=useState(false);const [staffMaster,setStaffMaster]=useState([]);const alarmChecked=useRef(false);const saveTimer=useRef(null);
+  const [user,setUser]=useState(null);const [data,setData]=useState([]);const [loaded,setLoaded]=useState(false);const [syncing,setSyncing]=useState(false);const [syncMsg,setSyncMsg]=useState("");const [adminTab,setAdminTab]=useState("customers");const [mode,setMode]=useState("buy");const [filter,setFilter]=useState("all");const [staffFilter,setStaffFilter]=useState("all");const [sort,setSort]=useState({k:"no",asc:true});const [sq,setSq]=useState("");const [expanded,setExpanded]=useState({});const [modal,setModal]=useState(null);const [form,setForm]=useState({});const [formTab,setFormTab]=useState("info");const [alarms,setAlarms]=useState([]);const [surveyModal,setSurveyModal]=useState(false);const [surveyJson,setSurveyJson]=useState("");const [surveyError,setSurveyError]=useState("");const [histForm,setHistForm]=useState({date:todayStr(),content:"",comment:""});const [buyerForm,setBuyerForm]=useState({name:"",progress:"情報収集中",note:"",date:todayStr()});const [qrModal,setQrModal]=useState(false);const [folderModal,setFolderModal]=useState(null);const [surveyCount,setSurveyCount]=useState(0);const [menuOpen,setMenuOpen]=useState(false);const [clockedIn,setClockedIn]=useState(()=>{const today=todayJST();const saved=localStorage.getItem("clockedIn_"+today);return saved==="true";});const [clocking,setClocking]=useState(false);const [staffMaster,setStaffMaster]=useState([]);const alarmChecked=useRef(false);const saveTimer=useRef(null);
   const isAdmin=user?.role==="admin";const myName=user?.name||"";
   const flash=msg=>{setSyncMsg(msg);setTimeout(()=>setSyncMsg(""),3000);};
   const fetchGAS=useCallback(async(background=false)=>{
@@ -902,11 +903,11 @@ function App(){
             try{
               const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:10000}));
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:pos.coords.latitude,lng:pos.coords.longitude})});
-              {const today=new Date().toISOString().slice(0,10);const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
+              {const today=todayJST();const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
               flash(`✓ ${type}しました`);
             }catch(e){
               await fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"clockIn",staffName:myName,type,lat:"",lng:""})});
-              {const today=new Date().toISOString().slice(0,10);const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
+              {const today=todayJST();const nv=type==="出勤";localStorage.setItem("clockedIn_"+today,String(nv));setClockedIn(nv);}
               flash(`✓ ${type}しました（位置情報なし）`);
             }
             setClocking(false);
@@ -1162,9 +1163,9 @@ function AttendanceTab(){
         const dow=new Date(y,m-1,d).getDay();
         const dowStr=WEEKDAYS[dow];
         const isHoliday=dow===0||dow===6;
-        const dayRecords=staffRecords.filter(r=>r.datetime.slice(0,10)===dateStr);
+        const dayRecords=staffRecords.filter(r=>r.datetime.slice(0,10)===dateStr).sort((a,b)=>a.datetime.localeCompare(b.datetime));
         const inn=dayRecords.find(r=>r.type==="出勤"||r.type==="直行");
-        const out=dayRecords.find(r=>r.type==="退勤"||r.type==="直帰");
+        const out=[...dayRecords].reverse().find(r=>r.type==="退勤"||r.type==="直帰");
         const paid=dayRecords.find(r=>r.type==="有給");
         const toT=dt=>{if(!dt)return"";const d=new Date(dt);return d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Tokyo"});};
         const note=paid?"有給":dayRecords.find(r=>r.note)?.note||"";
