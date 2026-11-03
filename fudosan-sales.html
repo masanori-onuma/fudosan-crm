@@ -79,6 +79,36 @@ body {
   margin-left: 4px;
 }
 
+/* 検索・グループ表示 */
+.tab { white-space: nowrap; padding: 12px 4px; }
+.search-wrap { position: relative; margin-bottom: 8px; }
+.search-input { width: 100%; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 36px 10px 12px; font-size: 15px; font-family: inherit; background: white; }
+.search-input:focus { outline: none; border-color: #1a3a5c; }
+.search-input::-webkit-search-cancel-button { display: none; }
+.search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: #e2e8f0; color: #4a5568; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; cursor: pointer; display: none; }
+.grp { margin-bottom: 14px; }
+.grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #1a3a5c; color: white; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.grp > summary::-webkit-details-marker { display: none; }
+.grp > summary::before { content: '▶'; font-size: 10px; transition: transform 0.15s; }
+.grp[open] > summary::before { transform: rotate(90deg); }
+.grp > summary .grp-count { margin-left: auto; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 1px 9px; font-size: 12px; }
+.grp > summary .grp-hint { font-size: 11px; font-weight: 400; opacity: 0.8; }
+.grp.g-today > summary { background: #2f855a; }
+.grp.g-first > summary { background: #c05621; }
+.grp.g-follow > summary { background: #2b6cb0; }
+.grp.g-dm > summary { background: #718096; }
+.area-head { font-size: 12px; font-weight: 700; color: #4a5568; margin: 10px 2px 6px; display: flex; gap: 6px; align-items: center; }
+.area-head .area-n { background: #edf2f7; border-radius: 8px; padding: 0 7px; font-weight: 600; }
+.late-badge { display: inline-block; background: #fed7d7; color: #c53030; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+.result-badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; background: #edf2f7; color: #2d3748; }
+.result-badge.good { background: #c6f6d5; color: #22543d; }
+.result-badge.bad { background: #e2e8f0; color: #718096; }
+.act-time { font-size: 13px; font-weight: 700; color: #1a3a5c; margin-right: 6px; }
+.act-date { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.act-date input { border: 1px solid #cbd5e0; border-radius: 6px; padding: 6px 8px; font-size: 14px; font-family: inherit; }
+.act-date button { border: 1px solid #cbd5e0; background: white; border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.act-memo { font-size: 12px; color: #4a5568; background: #f7fafc; border-radius: 6px; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; }
+
 /* メイン */
 .main {
   padding: 12px;
@@ -819,6 +849,14 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   margin-bottom: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
+.route-mode { display: flex; gap: 6px; margin-bottom: 10px; }
+.route-mode button { flex: 1; border: 1px solid #cbd5e0; background: white; color: #4a5568; border-radius: 6px; padding: 8px 4px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.route-mode button.on { background: #1a3a5c; border-color: #1a3a5c; color: white; }
+.route-sort { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; font-size: 12px; color: #718096; }
+.route-sort button { border: 1px solid #cbd5e0; background: white; color: #4a5568; border-radius: 14px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.route-sort button.on { background: #2b6cb0; border-color: #2b6cb0; color: white; }
+.route-prop-meta { font-size: 11px; color: #718096; margin-top: 2px; }
+.route-prop-meta .late { color: #c53030; font-weight: 700; }
 .route-header-card h3 { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
 .route-origin-row {
   display: flex;
@@ -866,16 +904,6 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   gap: 6px;
 }
 .btn-route-start:disabled { background: #a0aec0; cursor: not-allowed; }
-.btn-route-sort {
-  background: #e6f3ff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: #1a3a5c;
-  cursor: pointer;
-  font-weight: 600;
-}
 .route-count { font-size: 12px; color: #718096; margin-top: 4px; }
 .route-property-item {
   background: white;
@@ -911,8 +939,9 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 
 <div class="tabs">
   <div class="tab active" data-view="today" onclick="setView('today')">
-    本日 <span class="badge" id="todayCount" style="display:none">0</span>
+    やること <span class="badge" id="todayCount" style="display:none">0</span>
   </div>
+  <div class="tab" data-view="activity" onclick="setView('activity')">活動</div>
   <div class="tab" data-view="active" onclick="setView('active')">
     進行中 <span class="badge" id="activeCount" style="display:none">0</span>
   </div>
@@ -922,6 +951,10 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 </div>
 
 <div class="main">
+  <div id="searchBar" class="search-wrap">
+    <input id="searchInput" class="search-input" type="search" placeholder="🔍 名前・住所・番号・メモで検索" oninput="onSearch(this.value)" autocomplete="off">
+    <button id="searchClear" class="search-clear" onclick="clearSearch()" aria-label="検索を消す">×</button>
+  </div>
   <div id="statBar" class="stat-bar" style="display:none"></div>
   <div id="sortBar" style="display:none;margin-bottom:8px;">
     <select id="sortSelect" onchange="setSort(this.value)"
@@ -1246,6 +1279,12 @@ function setView(view) {
   document.querySelectorAll('.tab').forEach(t => {
     t.classList.toggle('active', t.dataset.view === view);
   });
+  const sb = document.getElementById('searchBar');
+  if (sb) sb.style.display = (view === 'weekly' || view === 'route') ? 'none' : 'block';
+  if (view === 'weekly' || view === 'route') {
+    const so = document.getElementById('sortBar');
+    if (so) so.style.display = 'none';
+  }
   if (view === 'weekly') {
     renderWeekly();
   } else if (view === 'route') {
@@ -1333,83 +1372,240 @@ function getFilteredProperties() {
 
 // ─── レンダリング ────────────────────────────────
 
+// ─── 検索・やること・活動 ──────────────────────────
+
+let searchQuery = '';
+let activityDate = '';
+
+function onSearch(v) {
+  searchQuery = (v || '').trim();
+  const c = document.getElementById('searchClear');
+  if (c) c.style.display = searchQuery ? 'block' : 'none';
+  render();
+}
+
+function clearSearch() {
+  const el = document.getElementById('searchInput');
+  if (el) el.value = '';
+  onSearch('');
+}
+
+function normText(t) {
+  return String(t || '')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[－ー‐―−]/g, '-')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+}
+
+function searchProperties(q) {
+  const words = q.split(/[\s　]+/).map(normText).filter(Boolean);
+  return allProperties.filter(p => {
+    const hay = normText([p.id, p.address, p.map_address, p.owner_name, p.owner_address,
+      p.memo, p.next_action_note, p.response_pattern, p.stage].join(' '));
+    return words.every(w => hay.includes(w));
+  });
+}
+
+function areaOf(addr) {
+  let a = String(addr || '').replace(/^.*?[市町村]/, '').replace(/^大字/, '').trim();
+  const m = a.match(/^(.+?丁目)/) || a.match(/^(.+?)字/) || a.match(/^([^\d０-９\s-]+)/);
+  return m ? m[1] : (a || '住所なし');
+}
+
+function daysBetween(a, b) {
+  return Math.round((new Date(b) - new Date(a)) / 86400000);
+}
+
+function isClosed(p) {
+  return p.crm_migrated === true || p.crm_migrated === 'TRUE' ||
+    p.stage === '顧客化（CRM移管済）' || p.stage === '見送り';
+}
+
+const GOOD_RESULTS = ['条件次第で検討', 'すぐ売りたい', '即面談OK', '居住中（話できた）', '話せた'];
+const BAD_RESULTS = ['興味なし・送らないで', '今は売る気ない', '居住中（拒否的）'];
+
+function lastMemoLines(memo, dateStr) {
+  // その日の記録（[11/3 11:31] など）とその後の追記を抜き出す
+  const lines = String(memo || '').split('\n');
+  const d = new Date(dateStr);
+  const tag = `[${d.getMonth() + 1}/${d.getDate()} `;
+  const idx = lines.findIndex(l => l.startsWith(tag));
+  let out = idx >= 0 ? lines.slice(idx) : lines.filter(l => l.startsWith('[追記]'));
+  out = out.join('\n').trim();
+  return out.length > 160 ? out.slice(0, 160) + '…' : out;
+}
+
+function cardHtml(p, opt = {}) {
+  const today = todayStr();
+  const soonDate = addDays(today, 3);
+  const isMigrated = p.crm_migrated === true || p.crm_migrated === 'TRUE';
+  const isOverdue = p.next_action_date && p.next_action_date <= today && !isMigrated && p.stage !== '見送り';
+  const isSoon = p.next_action_date && p.next_action_date > today && p.next_action_date <= soonDate;
+  const cardClass = isMigrated ? 'migrated' : isOverdue ? 'overdue' : isSoon ? 'soon' : 'normal';
+  const stageClass = STAGE_CLASS[p.stage] || '';
+  const localBadge = p.is_local
+    ? `<span class="local-badge ${p.is_local === '県内' ? 'kennai' : 'kengai'}">${escHtml(p.is_local)}</span>`
+    : '';
+  const late = isOverdue && p.next_action_date < today ? daysBetween(p.next_action_date, today) : 0;
+  const lateBadge = late > 0 ? `<span class="late-badge">${late}日遅れ</span>` : '';
+  const nextClass = isOverdue ? 'overdue-text' : isSoon ? 'soon-text' : '';
+  const nextText = p.next_action_date
+    ? `📅 ${escHtml(p.next_action_date)} ${escHtml(p.next_action_note || '')}`
+    : (p.stage === '見送り' ? '見送り' : '次アクション未設定');
+  const r = p.response_pattern || '';
+  const rClass = GOOD_RESULTS.includes(r) ? 'good' : BAD_RESULTS.includes(r) ? 'bad' : '';
+  const timeHtml = opt.activity && p.updated_at
+    ? `<span class="act-time">${escHtml(String(p.updated_at).slice(11, 16))}</span>` : '';
+  const resultHtml = opt.activity && r ? `<div style="margin:6px 0 4px"><span class="result-badge ${rClass}">${escHtml(r)}</span></div>` : '';
+  const memo = opt.activity ? lastMemoLines(p.memo, opt.activity) : '';
+  const memoHtml = memo ? `<div class="act-memo">${escHtml(memo)}</div>` : '';
+
+  return `
+      <div class="property-card ${cardClass}" onclick="openDetail('${escHtml(p.id)}')">
+        <div class="card-top">
+          <span class="card-id">${timeHtml}${escHtml(p.id)}${lateBadge}</span>
+          <span class="card-stage ${stageClass}">${escHtml(p.stage || '未設定')}</span>
+        </div>
+        <div class="card-address">${escHtml(p.address || '住所未入力')}</div>
+        <div class="card-owner">${escHtml(p.owner_name || '所有者未入力')}${localBadge}</div>
+        ${!opt.activity && p.owner_address ? `<div class="card-owner-addr">📮 ${escHtml(p.owner_address)}</div>` : ''}
+        ${resultHtml}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="card-next ${nextClass}" style="flex:1;">${nextText}</div>
+          <button onclick="event.stopPropagation();openMapByAddress('${escHtml(p.map_address || p.address)}')"
+            style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>
+        </div>
+        ${memoHtml}
+      </div>
+    `;
+}
+
+function groupHtml(cls, title, hint, items, open, byArea) {
+  if (!items.length) return '';
+  let body;
+  if (byArea) {
+    const areas = {};
+    items.forEach(p => { const a = areaOf(p.address); (areas[a] = areas[a] || []).push(p); });
+    body = Object.keys(areas)
+      .sort((a, b) => a.localeCompare(b, 'ja'))
+      .map(a => `<div class="area-head">📍 ${escHtml(a)} <span class="area-n">${areas[a].length}</span></div>` +
+        areas[a].map(p => cardHtml(p)).join(''))
+      .join('');
+  } else {
+    body = items.map(p => cardHtml(p)).join('');
+  }
+  return `<details class="grp ${cls}" ${open ? 'open' : ''}>
+    <summary>${escHtml(title)} <span class="grp-hint">${escHtml(hint)}</span><span class="grp-count">${items.length}</span></summary>
+    ${body}
+  </details>`;
+}
+
+function renderTodo(container) {
+  const today = todayStr();
+  const due = allProperties.filter(p => !isClosed(p) && p.next_action_date && p.next_action_date <= today);
+  const byDate = (a, b) => (a.next_action_date < b.next_action_date ? -1 : 1);
+  const todays = due.filter(p => p.next_action_date === today);
+  const late = due.filter(p => p.next_action_date < today);
+  const first = late.filter(p => p.stage === '謄本取得済' || p.stage === '謄本取得待ち' || !p.stage);
+  const dm = late.filter(p => p.stage === 'DM1回目送付' || p.stage === 'DM2回目送付');
+  const follow = late.filter(p => !first.includes(p) && !dm.includes(p)).sort(byDate);
+
+  if (!due.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">✨</div><p>🎉 やることはありません</p></div>`;
+    return;
+  }
+  container.innerHTML =
+    groupHtml('g-today', '今日の予定', '', applySort(todays), true, false) +
+    groupHtml('g-follow', '遅れ：訪問のフォロー', '話の続き・再訪問', follow, true, false) +
+    groupHtml('g-first', '遅れ：最初の接触がまだ', 'エリアごと', first, true, true) +
+    groupHtml('g-dm', '遅れ：DMの反応待ち', '次の手を決める', dm, false, true);
+}
+
+function renderActivity(container) {
+  const today = todayStr();
+  if (!activityDate) activityDate = today;
+  const list = allProperties
+    .filter(p => p.last_action_date === activityDate)
+    .sort((a, b) => (String(a.updated_at) < String(b.updated_at) ? -1 : 1));
+  const d = new Date(activityDate);
+  const label = activityDate === today ? '今日' : `${d.getMonth() + 1}/${d.getDate()}`;
+  const head = `<div class="act-date">
+      <button onclick="shiftActivityDate(-1)">◀</button>
+      <input type="date" value="${escHtml(activityDate)}" onchange="activityDate=this.value;render()">
+      <button onclick="shiftActivityDate(1)">▶</button>
+      ${activityDate !== today ? `<button onclick="activityDate='';render()">今日</button>` : ''}
+    </div>`;
+  if (!list.length) {
+    container.innerHTML = head + `<div class="empty-state"><div class="icon">📭</div><p>${label}の活動記録はありません</p></div>`;
+    return;
+  }
+  container.innerHTML = head +
+    `<div class="stat-bar" style="display:block">${label}の活動 <strong>${list.length}件</strong>（記録した時刻順）</div>` +
+    list.map(p => cardHtml(p, { activity: activityDate })).join('');
+}
+
+function shiftActivityDate(n) {
+  activityDate = addDays(activityDate || todayStr(), n);
+  render();
+}
+
 function render() {
-  const list = getFilteredProperties();
   const container = document.getElementById('propertyList');
   const statBar = document.getElementById('statBar');
   const sortBar = document.getElementById('sortBar');
+  const searching = !!searchQuery;
 
-  // ソートバーはweekly以外で表示
   if (sortBar) {
-    sortBar.style.display = currentView === 'weekly' ? 'none' : 'block';
+    const showSort = !searching && (currentView === 'active' || currentView === 'all');
+    sortBar.style.display = showSort ? 'block' : 'none';
     const sel = document.getElementById('sortSelect');
     if (sel) sel.value = currentSort;
   }
 
+  if (searching) {
+    const hits = searchProperties(searchQuery)
+      .sort((a, b) => (String(b.updated_at) > String(a.updated_at) ? 1 : -1));
+    statBar.innerHTML = `「${escHtml(searchQuery)}」 <strong>${hits.length}件</strong>（すべての物件から）`;
+    statBar.style.display = 'block';
+    container.innerHTML = hits.length
+      ? hits.map(p => cardHtml(p)).join('')
+      : `<div class="empty-state"><div class="icon">🔍</div><p>見つかりません</p></div>`;
+    return;
+  }
+
+  if (currentView === 'today') {
+    statBar.style.display = 'none';
+    renderTodo(container);
+    return;
+  }
+  if (currentView === 'activity') {
+    statBar.style.display = 'none';
+    renderActivity(container);
+    return;
+  }
+
+  const list = getFilteredProperties();
   if (list.length === 0) {
-    const msg = currentView === 'today' 
-      ? '🎉 本日のアクションはありません' 
-      : currentView === 'active'
-      ? '進行中の案件はありません'
-      : '物件が登録されていません';
+    const msg = currentView === 'active' ? '進行中の案件はありません' : '物件が登録されていません';
     container.innerHTML = `
       <div class="empty-state">
-        <div class="icon">${currentView === 'today' ? '✨' : '📭'}</div>
+        <div class="icon">📭</div>
         <p>${msg}</p>
       </div>`;
     statBar.style.display = 'none';
     return;
   }
 
-  // ステータスバー
-  if (currentView === 'all' || currentView === 'active') {
-    const stageCount = {};
-    list.forEach(p => {
-      stageCount[p.stage] = (stageCount[p.stage] || 0) + 1;
-    });
-    statBar.innerHTML = `<strong>${list.length}</strong>件 ` + 
-      Object.keys(stageCount).slice(0, 4).map(s => 
-        `${escHtml(s)} <strong>${stageCount[s]}</strong>`
-      ).join(' / ');
-    statBar.style.display = 'flex';
-  } else {
-    statBar.style.display = 'none';
-  }
+  const stageCount = {};
+  list.forEach(p => { stageCount[p.stage] = (stageCount[p.stage] || 0) + 1; });
+  statBar.innerHTML = `<strong>${list.length}</strong>件 ` +
+    Object.keys(stageCount).slice(0, 4).map(s =>
+      `${escHtml(s)} <strong>${stageCount[s]}</strong>`
+    ).join(' / ');
+  statBar.style.display = 'flex';
 
-  const today = todayStr();
-  const soonDate = addDays(today, 3);
-
-  container.innerHTML = list.map(p => {
-    const isMigrated = p.crm_migrated === true || p.crm_migrated === 'TRUE';
-    const isOverdue = p.next_action_date && p.next_action_date <= today && !isMigrated;
-    const isSoon = p.next_action_date && p.next_action_date > today && p.next_action_date <= soonDate;
-    const cardClass = isMigrated ? 'migrated' : isOverdue ? 'overdue' : isSoon ? 'soon' : 'normal';
-    const stageClass = STAGE_CLASS[p.stage] || '';
-    const localBadge = p.is_local 
-      ? `<span class="local-badge ${p.is_local === '県内' ? 'kennai' : 'kengai'}">${escHtml(p.is_local)}</span>` 
-      : '';
-    const nextClass = isOverdue ? 'overdue-text' : isSoon ? 'soon-text' : '';
-    const nextText = p.next_action_date 
-      ? `📅 ${escHtml(p.next_action_date)} ${escHtml(p.next_action_note || '')}` 
-      : '次アクション未設定';
-
-    return `
-      <div class="property-card ${cardClass}" onclick="openDetail('${escHtml(p.id)}')">
-        <div class="card-top">
-          <span class="card-id">${escHtml(p.id)}</span>
-          <span class="card-stage ${stageClass}">${escHtml(p.stage || '未設定')}</span>
-        </div>
-        <div class="card-address">${escHtml(p.address || '住所未入力')}</div>
-        <div class="card-owner">${escHtml(p.owner_name || '所有者未入力')}${localBadge}</div>
-        ${p.owner_address ? `<div class="card-owner-addr">📮 ${escHtml(p.owner_address)}</div>` : ''}
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="card-next ${nextClass}" style="flex:1;">${nextText}</div>
-          <button onclick="event.stopPropagation();openMapByAddress('${escHtml(p.map_address || p.address)}')" 
-            style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = list.map(p => cardHtml(p)).join('');
 }
 
 function updateBadges() {
@@ -1822,6 +2018,66 @@ function openMapForProperty() {
 // ─── ルートプランナー ────────────────────────────
 
 let routeSelectedIds = new Set();
+let routeMode = (function () { try { return localStorage.getItem('route_mode') || 'owner'; } catch (e) { return 'owner'; } })();
+let routeInitFor = '';
+let routeSortMode = (function () { try { return localStorage.getItem('route_sort') || 'address'; } catch (e) { return 'address'; } })();
+let routeSortDesc = (function () { try { return localStorage.getItem('route_sort_desc') === '1'; } catch (e) { return false; } })();
+
+// 並べ替え：住所順（町名→番地）／アクション順（次の予定日が早い順）
+function routeSortList(list) {
+  const KN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  const num = t => String(t || '').replace(/([一二三四五六七八九十]+)丁目/g, (m, k) =>
+    String(k.length === 1 ? KN[k] : (k[0] === '十' ? 10 + (KN[k[1]] || 0) : KN[k[0]] * 10 + (KN[k[2]] || 0))).padStart(2, '0') + '丁目');
+  const key = p => num(routeMode === 'property' ? (p.address || '') : (p.owner_address || ''));
+  const area = p => num(routeMode === 'property' ? areaOf(p.address) : extractMunicipality(p.owner_address));
+  const byAddr = (a, b) => area(a).localeCompare(area(b), 'ja') ||
+    key(a).localeCompare(key(b), 'ja', { numeric: true });
+  const sorted = [...list];
+  if (routeSortMode === 'action') {
+    sorted.sort((a, b) => {
+      const da = a.next_action_date || '9999', db = b.next_action_date || '9999';
+      return da < db ? -1 : da > db ? 1 : byAddr(a, b);
+    });
+  } else {
+    sorted.sort(byAddr);
+  }
+  return routeSortDesc ? sorted.reverse() : sorted;
+}
+
+function setRouteSort(mode) {
+  // 同じボタンをもう一度押すと昇順⇔降順を切り替え
+  if (mode === routeSortMode) routeSortDesc = !routeSortDesc;
+  else { routeSortMode = mode; routeSortDesc = false; }
+  try {
+    localStorage.setItem('route_sort', routeSortMode);
+    localStorage.setItem('route_sort_desc', routeSortDesc ? '1' : '0');
+  } catch (e) {}
+  renderRoute();
+}
+
+// 行き先の住所（物件モード＝物件の場所、所有者モード＝所有者の自宅）
+function routeAddr(p) {
+  if (routeMode === 'property') {
+    const a = String(p.map_address || p.address || '').trim();
+    return /^(東京都|北海道|(京都|大阪)府|.{2,3}県)/.test(a) || /^\d|°/.test(a) ? a : (a ? '埼玉県' + a : '');
+  }
+  return p.owner_address || '';
+}
+
+function setRouteMode(mode) {
+  if (mode === routeMode) return;
+  routeMode = mode;
+  try { localStorage.setItem('route_mode', mode); } catch (e) {}
+  renderRoute();
+}
+
+function routeSelectDue() {
+  const today = todayStr();
+  const props = window._routeLocalProps || [];
+  routeSelectedIds.clear();
+  props.forEach(p => { if (p.next_action_date && p.next_action_date <= today) routeSelectedIds.add(p.id); });
+  updateRouteUI();
+}
 
 // 住所から市区町村を抽出（ソート用）
 function extractMunicipality(address) {
@@ -1831,24 +2087,6 @@ function extractMunicipality(address) {
 }
 
 // 最近傍法でルート順を最適化（住所テキストベース）
-function nearestNeighborSort(items, originLabel) {
-  if (items.length <= 1) return items;
-  // 所有者住所の市区町村でグルーピングしてクラスタ順に並べる
-  const groups = {};
-  items.forEach(p => {
-    const city = extractMunicipality(p.owner_address);
-    if (!groups[city]) groups[city] = [];
-    groups[city].push(p);
-  });
-  // グループ内は登録ID順（登録順≒地番順）
-  const sorted = [];
-  Object.keys(groups).sort().forEach(city => {
-    groups[city].sort((a, b) => (a.id < b.id ? -1 : 1));
-    sorted.push(...groups[city]);
-  });
-  return sorted;
-}
-
 function renderRoute() {
   const container = document.getElementById('propertyList');
   const statBar = document.getElementById('statBar');
@@ -1856,16 +2094,22 @@ function renderRoute() {
   if (statBar) statBar.style.display = 'none';
   if (sortBar) sortBar.style.display = 'none';
 
-  // 県内・進行中の物件
-  const localProps = allProperties.filter(p => {
+  // 進行中の物件（所有者モードは所有者が県内のものだけ）
+  let localProps = allProperties.filter(p => {
     if (p.crm_migrated === true || p.crm_migrated === 'TRUE') return false;
     if (p.stage === '顧客化（CRM移管済）' || p.stage === '見送り') return false;
-    return p.is_local === '県内';
+    return routeMode === 'property' ? true : p.is_local === '県内';
   });
+  localProps = routeSortList(localProps);
 
-  // 選択セットを県内物件IDで初期化（新規表示時は全選択）
-  if (routeSelectedIds.size === 0) {
-    localProps.forEach(p => routeSelectedIds.add(p.id));
+  // モードを開いた最初だけ選択を初期化（所有者＝全選択、物件＝やることの物件）
+  if (routeInitFor !== routeMode) {
+    routeSelectedIds.clear();
+    const today = todayStr();
+    localProps.forEach(p => {
+      if (routeMode === 'owner' || (p.next_action_date && p.next_action_date <= today)) routeSelectedIds.add(p.id);
+    });
+    routeInitFor = routeMode;
   }
 
   const selectedCount = localProps.filter(p => routeSelectedIds.has(p.id)).length;
@@ -1873,7 +2117,11 @@ function renderRoute() {
   container.innerHTML = `
     <div class="route-section">
       <div class="route-header-card">
-        <h3>🗺️ 県内訪問ルート作成</h3>
+        <h3>🗺️ 訪問ルート作成</h3>
+        <div class="route-mode">
+          <button class="${routeMode === 'property' ? 'on' : ''}" onclick="setRouteMode('property')">🏠 物件</button>
+          <button class="${routeMode === 'owner' ? 'on' : ''}" onclick="setRouteMode('owner')">👤 所有者宅（県内）</button>
+        </div>
         <div class="route-origin-row">
           <span style="font-size:12px;color:#718096;flex-shrink:0;">出発地</span>
           <input class="route-origin-input" id="routeOriginInput" type="text"
@@ -1884,23 +2132,35 @@ function renderRoute() {
         <div class="route-action-row">
           <button class="btn-route-all" onclick="routeSelectAll(true)">全選択</button>
           <button class="btn-route-all" onclick="routeSelectAll(false)">全解除</button>
-          <button class="btn-route-sort" onclick="routeApplySort()">🔀 エリア最適化</button>
+          <button class="btn-route-all" onclick="routeSelectDue()">やることだけ</button>
           <button class="btn-route-start" id="routeStartBtn" onclick="startRoute()" ${selectedCount === 0 ? 'disabled' : ''}>
             📍 Googleマップでルート開始（<span id="routeSelCount">${selectedCount}</span>件）
           </button>
         </div>
-        <div class="route-count">県内物件 ${localProps.length}件中 <strong id="routeSelCountSub">${selectedCount}</strong>件を選択中</div>
+        <div class="route-sort">並べ替え
+          <button class="${routeSortMode === 'address' ? 'on' : ''}" onclick="setRouteSort('address')">📍 住所順${routeSortMode === 'address' ? (routeSortDesc ? ' ▼' : ' ▲') : ''}</button>
+          <button class="${routeSortMode === 'action' ? 'on' : ''}" onclick="setRouteSort('action')">📅 アクション順${routeSortMode === 'action' ? (routeSortDesc ? ' ▼' : ' ▲') : ''}</button>
+        </div>
+        <div class="route-count">${routeMode === 'property' ? '進行中の物件' : '所有者が県内の物件'} ${localProps.length}件中 <strong id="routeSelCountSub">${selectedCount}</strong>件を選択中</div>
       </div>
       ${localProps.length === 0 ? `
         <div class="route-empty">
           <div style="font-size:36px;margin-bottom:8px;">🗺️</div>
-          <p>県内物件がありません</p>
+          <p>${routeMode === 'property' ? '進行中の物件がありません' : '所有者が県内の物件がありません'}</p>
           <p style="font-size:12px;margin-top:6px;">物件登録時に「県内」を選択すると表示されます</p>
         </div>` : localProps.map((p, i) => {
           const isSelected = routeSelectedIds.has(p.id);
-          const selIndex = isSelected ? [...routeSelectedIds].indexOf(p.id) + 1 : null;
-          const ownerAddr = p.owner_address || '';
+          const selIndex = isSelected ? localProps.filter(x => routeSelectedIds.has(x.id)).findIndex(x => x.id === p.id) + 1 : null;
+          const ownerAddr = routeAddr(p);
           const hasOwnerAddr = !!ownerAddr;
+          const todayR = todayStr();
+          const lateDays = p.next_action_date && p.next_action_date < todayR ? daysBetween(p.next_action_date, todayR) : 0;
+          const subLine = routeMode === 'property'
+            ? `所有者：${escHtml(p.owner_name || '氏名未入力')}${p.is_local ? '（' + escHtml(p.is_local) + '）' : ''}`
+            : `物件：${escHtml(p.address || '未入力')} ／ ${escHtml(p.owner_name || '氏名未入力')}`;
+          const metaLine = `${escHtml(p.id.replace('KSK-2026-', ''))}・${escHtml(p.stage || '')}` +
+            (p.next_action_date ? `・次 ${escHtml(p.next_action_date.slice(5).replace('-', '/'))}` : '') +
+            (lateDays > 0 ? ` <span class="late">${lateDays}日遅れ</span>` : '');
           return `
             <div class="route-property-item ${isSelected ? 'selected' : ''}" id="routeItem_${escHtml(p.id)}" onclick="toggleRouteSelect('${escHtml(p.id)}')">
               <div class="route-prop-order ${isSelected ? '' : 'inactive'}" id="routeOrder_${escHtml(p.id)}">
@@ -1910,8 +2170,9 @@ function renderRoute() {
                 onclick="event.stopPropagation();toggleRouteSelect('${escHtml(p.id)}')"
                 id="routeChk_${escHtml(p.id)}">
               <div class="route-prop-info">
-                <div class="route-prop-addr">${hasOwnerAddr ? escHtml(ownerAddr) : '<span style="color:#e53e3e;font-size:11px;">⚠️ 所有者住所未登録</span>'}</div>
-                <div class="route-prop-owner">物件：${escHtml(p.address || '未入力')} ／ ${escHtml(p.owner_name || '氏名未入力')}</div>
+                <div class="route-prop-addr">${hasOwnerAddr ? escHtml(routeMode === 'property' ? (p.address || ownerAddr) : ownerAddr) : `<span style="color:#e53e3e;font-size:11px;">⚠️ ${routeMode === 'property' ? '物件住所' : '所有者住所'}未登録</span>`}</div>
+                <div class="route-prop-owner">${subLine}</div>
+                <div class="route-prop-meta">${metaLine}</div>
               </div>
               ${hasOwnerAddr ? `<button onclick="event.stopPropagation();openMapByAddress('${escHtml(ownerAddr)}')"
                 style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>` : ''}
@@ -1940,19 +2201,6 @@ function routeSelectAll(select) {
     else routeSelectedIds.delete(p.id);
   });
   updateRouteUI();
-}
-
-function routeApplySort() {
-  const props = window._routeLocalProps || [];
-  const sorted = nearestNeighborSort(props);
-  window._routeLocalProps = sorted;
-  // ルートタブを再描画（ソート適用後）
-  const container = document.getElementById('propertyList');
-  const routeSection = container.querySelector('.route-section');
-  if (!routeSection) { renderRoute(); return; }
-  // プロパティリストのみ再描画（シンプルに全再描画）
-  renderRoute();
-  showToast('✅ エリアごとに並び替えました', 'success');
 }
 
 function updateRouteUI() {
@@ -2006,7 +2254,7 @@ function startRoute() {
   if (selected.length > MAX_STOPS) {
     showToast(`⚠️ Google Mapsは最大${MAX_STOPS}件まで。先頭${MAX_STOPS}件でルートを作成します`, 'error');
   }
-  const stops = selected.slice(0, MAX_STOPS).map(p => p.owner_address || p.address || '');
+  const stops = selected.slice(0, MAX_STOPS).map(p => routeAddr(p) || p.address || '');
   const parts = [origin, ...stops].map(s => encodeURIComponent(s));
   const url = `https://www.google.com/maps/dir/${parts.join('/')}`;
   window.open(url, '_blank');
