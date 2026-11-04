@@ -1105,6 +1105,9 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
       <option value="正範">正範</option>
       <option value="由美子">由美子</option>
     </select>
+    <label style="margin-top:12px;display:block;">未接触の物件の「次のアクション」</label>
+    <button onclick="normalizeActions()" id="normalizeBtn" style="width:100%;margin-top:4px;border:1px solid #cbd5e0;background:white;color:#1a3a5c;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer">所有者の住所でそろえる（訪問／DM郵送）</button>
+    <div style="font-size:11px;color:#a0aec0;margin-top:3px;">謄本取得済の物件だけが対象。日付は変えません</div>
     <label style="margin-top:12px;display:block;">表示するカレンダー</label>
     <div id="calendarCheckList" style="margin-top:6px;font-size:13px;color:#a0aec0;">読み込み中...</div>
     <div style="display:flex;gap:8px;margin-top:14px">
@@ -1372,6 +1375,64 @@ function getFilteredProperties() {
 }
 
 // ─── レンダリング ────────────────────────────────
+
+// ─── 次のアクション：所有者の住所で「訪問」か「DM郵送」かを決める ───
+// 近隣＝春日部・岩槻から車でおおむね1時間以内。ここを書き換えれば範囲を変えられる
+const NEAR_AREAS = [
+  // 埼玉県
+  'さいたま市', '春日部市', '越谷市', '草加市', '八潮市', '三郷市', '吉川市', '松伏町',
+  '杉戸町', '宮代町', '幸手市', '久喜市', '白岡市', '蓮田市', '伊奈町', '上尾市', '桶川市',
+  '北本市', '鴻巣市', '川口市', '蕨市', '戸田市', '加須市', '羽生市', '行田市',
+  // 東京都
+  '足立区', '葛飾区', '東京都北区',
+  // 千葉県
+  '野田市', '流山市', '柏市', '松戸市',
+  // 茨城県・栃木県
+  '古河市', '五霞町', '猿島郡境町', '坂東市', '野木町'
+];
+const ACTION_CHOICES = ['訪問・手紙投函', 'DM郵送', '電話', '保留（方針を決める）'];
+
+function isNearOwner(ownerAddress) {
+  const a = String(ownerAddress || '').replace(/\s/g, '');
+  if (!a) return false;
+  if (/^北区/.test(a)) return true; // 東京都を省いた北区
+  return NEAR_AREAS.some(k => a.includes(k));
+}
+
+function defaultAction(ownerAddress) {
+  return isNearOwner(ownerAddress) ? '訪問・手紙投函' : 'DM郵送';
+}
+
+
+// 未接触（謄本取得済・取得待ち）の次のアクションを、所有者住所のルールでそろえる
+async function normalizeActions() {
+  const gasUrl = localStorage.getItem('sales_gas_url');
+  if (!gasUrl) { showToast('GAS URL未設定', 'error'); return; }
+  const targets = allProperties.filter(p =>
+    (p.stage === '謄本取得済' || p.stage === '謄本取得待ち') &&
+    !(p.crm_migrated === true || p.crm_migrated === 'TRUE') &&
+    !ACTION_CHOICES.includes(p.next_action_note));
+  if (!targets.length) { showToast('そろえる物件はありません', 'success'); return; }
+  const visit = targets.filter(p => defaultAction(p.owner_address) === '訪問・手紙投函').length;
+  if (!confirm(`未接触の${targets.length}件の「次のアクション」をそろえます。\n訪問・手紙投函：${visit}件／DM郵送：${targets.length - visit}件\n（日付は変えません）`)) return;
+  const btn = document.getElementById('normalizeBtn');
+  if (btn) btn.disabled = true;
+  let done = 0;
+  for (const p of targets) {
+    const note = defaultAction(p.owner_address);
+    if (btn) btn.textContent = `そろえています… ${done + 1}/${targets.length}`;
+    await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'update', id: p.id, updates: { next_action_note: note },
+        source: 'manual', user: localStorage.getItem('sales_user') || '正範' })
+    });
+    p.next_action_note = note; done++;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '所有者の住所でそろえる（訪問／DM郵送）'; }
+  showToast(`✅ ${done}件をそろえました`, 'success');
+  render();
+}
 
 // ─── 検索・やること・活動 ──────────────────────────
 

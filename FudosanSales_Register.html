@@ -382,7 +382,7 @@ textarea.field-input { min-height: 72px; resize: vertical; }
       </div>
       <div class="field-group">
         <div class="field-label">所有者住所</div>
-        <input type="text" class="field-input" id="tr_owner_address" oninput="schedulePostalLookup('tr_owner_address','tr_postal_code')">
+        <input type="text" class="field-input" id="tr_owner_address" oninput="schedulePostalLookup('tr_owner_address','tr_postal_code');updateDefaultAction()">
       </div>
       <div class="field-group">
         <div class="field-label">郵便番号（所有者）</div>
@@ -402,6 +402,16 @@ textarea.field-input { min-height: 72px; resize: vertical; }
           <div class="field-label">登記原因</div>
           <input type="text" class="field-input" id="tr_registration_reason">
         </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">次のアクション</div>
+        <select class="field-input" id="tr_next_action" onchange="actionTouched=true">
+          <option value="訪問・手紙投函">訪問・手紙投函</option>
+          <option value="DM郵送">DM郵送</option>
+          <option value="電話">電話</option>
+          <option value="保留（方針を決める）">保留（方針を決める）</option>
+        </select>
+        <div id="tr_next_action_hint" style="font-size:11px;color:#a0aec0;margin-top:3px;">所有者の住所から自動で選びます（車で1時間以内なら訪問）</div>
       </div>
       <div class="field-group">
         <div class="field-label">メモ</div>
@@ -585,6 +595,55 @@ let scheduleData = [];
 let dmText = '';
 let nextActionDate = '';
 let nextActionNote = '';
+let actionTouched = false;
+
+// ─── 次のアクション：所有者の住所で「訪問」か「DM郵送」かを決める ───
+// 近隣＝春日部・岩槻から車でおおむね1時間以内。ここを書き換えれば範囲を変えられる
+const NEAR_AREAS = [
+  // 埼玉県
+  'さいたま市', '春日部市', '越谷市', '草加市', '八潮市', '三郷市', '吉川市', '松伏町',
+  '杉戸町', '宮代町', '幸手市', '久喜市', '白岡市', '蓮田市', '伊奈町', '上尾市', '桶川市',
+  '北本市', '鴻巣市', '川口市', '蕨市', '戸田市', '加須市', '羽生市', '行田市',
+  // 東京都
+  '足立区', '葛飾区', '東京都北区',
+  // 千葉県
+  '野田市', '流山市', '柏市', '松戸市',
+  // 茨城県・栃木県
+  '古河市', '五霞町', '猿島郡境町', '坂東市', '野木町'
+];
+const ACTION_CHOICES = ['訪問・手紙投函', 'DM郵送', '電話', '保留（方針を決める）'];
+
+function isNearOwner(ownerAddress) {
+  const a = String(ownerAddress || '').replace(/\s/g, '');
+  if (!a) return false;
+  if (/^北区/.test(a)) return true; // 東京都を省いた北区
+  return NEAR_AREAS.some(k => a.includes(k));
+}
+
+function defaultAction(ownerAddress) {
+  return isNearOwner(ownerAddress) ? '訪問・手紙投函' : 'DM郵送';
+}
+
+function localDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// 所有者住所が変わったら、手で選び直していない限り初期値を入れ直す
+function updateDefaultAction() {
+  if (actionTouched) return;
+  const addr = document.getElementById('tr_owner_address')?.value || '';
+  const sel = document.getElementById('tr_next_action');
+  if (!sel) return;
+  sel.value = defaultAction(addr);
+  const hint = document.getElementById('tr_next_action_hint');
+  if (hint) hint.textContent = addr
+    ? (isNearOwner(addr) ? '所有者が近隣（車で1時間以内）なので「訪問」にしました' : '所有者が遠方なので「DM郵送」にしました') + '。変えるときは選び直してください'
+    : '所有者の住所から自動で選びます（車で1時間以内なら訪問）';
+}
+
+function chosenAction() {
+  return document.getElementById('tr_next_action')?.value || defaultAction(document.getElementById('tr_owner_address')?.value);
+}
 
 // ─── ドラッグ&ドロップ ────────────────────────────────
 
@@ -718,6 +777,7 @@ function fillForm(d) {
   document.getElementById('tr_menseki').value = d.menseki || '';
   document.getElementById('tr_owner_name').value = d.owner_name || '';
   document.getElementById('tr_owner_address').value = d.owner_address || '';
+  updateDefaultAction();
   document.getElementById('tr_registration_date').value = d.registration_date || '';
   document.getElementById('tr_registration_reason').value = d.registration_reason || '';
 
@@ -794,7 +854,7 @@ function renderAnalysis(d) {
     scheduleData = d.schedule.map(s => {
       const dt = new Date(today);
       dt.setDate(dt.getDate() + (s.offset_days || 0));
-      return { ...s, date: dt.toISOString().slice(0, 10) };
+      return { ...s, date: localDateStr(dt) };
     });
     nextActionDate = scheduleData[0]?.date || '';
     nextActionNote = scheduleData[0]?.label || '';
@@ -835,7 +895,7 @@ function renderAnalysis(d) {
 // ─── 日付ピッカー（input[type=date]をオーバーレイで） ──────
 
 function pickDate(index) {
-  const current = scheduleData[index]?.date || new Date().toISOString().slice(0, 10);
+  const current = scheduleData[index]?.date || localDateStr(new Date());
   const input = document.createElement('input');
   input.type = 'date';
   input.value = current;
@@ -963,10 +1023,10 @@ async function registerProperty() {
     registration_date: document.getElementById('tr_registration_date').value,
     registration_reason: document.getElementById('tr_registration_reason').value,
     stage: '謄本取得済',
-    tohon_obtained: new Date().toISOString().slice(0, 10),
+    tohon_obtained: localDateStr(new Date()),
     memo: document.getElementById('tr_memo').value,
     next_action_date: '',
-    next_action_note: nextActionNote || '所有者情報確認済み。アプローチ方針を決定する。',
+    next_action_note: chosenAction(),
     priority: analysisData?.priority || '',
     situation_hypothesis: analysisData?.situation_hypothesis || '',
     hook: analysisData?.hook || '',
@@ -1053,7 +1113,7 @@ async function confirmAction() {
         body: JSON.stringify({
           action: 'update',
           id: target.id,
-          updates: { next_action_date: nextActionDate, next_action_note: nextActionNote },
+          updates: { next_action_date: nextActionDate, next_action_note: chosenAction() },
           source: 'claude',
           user: localStorage.getItem(USER_KEY) || '正範'
         })
@@ -1077,6 +1137,7 @@ function resetAll() {
   dmText = '';
   nextActionDate = '';
   nextActionNote = '';
+  actionTouched = false;
 
   document.getElementById('dropZone').style.display = 'block';
   document.getElementById('analyzingBox').style.display = 'none';
