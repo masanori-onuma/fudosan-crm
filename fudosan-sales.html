@@ -857,6 +857,10 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
 .route-sort { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; font-size: 12px; color: #718096; }
 .route-sort button { border: 1px solid #cbd5e0; background: white; color: #4a5568; border-radius: 14px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .route-sort button.on { background: #2b6cb0; border-color: #2b6cb0; color: white; }
+.grp > summary .grp-sel { font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.25); border-radius: 10px; padding: 1px 8px; }
+.grp > summary .grp-pick { margin-left: 6px; border: 1px solid rgba(255,255,255,0.6); background: transparent; color: white; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.route-section .grp { margin-bottom: 10px; }
+.route-section .grp > summary { margin-bottom: 6px; }
 .route-prop-meta { font-size: 11px; color: #718096; margin-top: 2px; }
 .route-prop-meta .late { color: #c53030; font-weight: 700; }
 .route-header-card h3 { font-size: 14px; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
@@ -2175,7 +2179,7 @@ function routeSelectDue() {
   const today = todayStr();
   const props = window._routeLocalProps || [];
   routeSelectedIds.clear();
-  props.forEach(p => { if (p.next_action_date && p.next_action_date <= today) routeSelectedIds.add(p.id); });
+  props.forEach(p => { if (isVisitDue(p, today)) routeSelectedIds.add(p.id); });
   updateRouteUI();
 }
 
@@ -2207,7 +2211,7 @@ function renderRoute() {
     routeSelectedIds.clear();
     const today = todayStr();
     localProps.forEach(p => {
-      if (routeMode === 'owner' || (p.next_action_date && p.next_action_date <= today)) routeSelectedIds.add(p.id);
+      if (routeMode === 'owner' || isVisitDue(p, today)) routeSelectedIds.add(p.id);
     });
     routeInitFor = routeMode;
   }
@@ -2232,7 +2236,7 @@ function renderRoute() {
         <div class="route-action-row">
           <button class="btn-route-all" onclick="routeSelectAll(true)">全選択</button>
           <button class="btn-route-all" onclick="routeSelectAll(false)">全解除</button>
-          <button class="btn-route-all" onclick="routeSelectDue()">やることだけ</button>
+          <button class="btn-route-all" onclick="routeSelectDue()">回るものだけ</button>
           <button class="btn-route-start" id="routeStartBtn" onclick="startRoute()" ${selectedCount === 0 ? 'disabled' : ''}>
             📍 Googleマップでルート開始（<span id="routeSelCount">${selectedCount}</span>件）
           </button>
@@ -2248,41 +2252,92 @@ function renderRoute() {
           <div style="font-size:36px;margin-bottom:8px;">🗺️</div>
           <p>${routeMode === 'property' ? '進行中の物件がありません' : '所有者が県内の物件がありません'}</p>
           <p style="font-size:12px;margin-top:6px;">物件登録時に「県内」を選択すると表示されます</p>
-        </div>` : localProps.map((p, i) => {
-          const isSelected = routeSelectedIds.has(p.id);
-          const selIndex = isSelected ? localProps.filter(x => routeSelectedIds.has(x.id)).findIndex(x => x.id === p.id) + 1 : null;
-          const ownerAddr = routeAddr(p);
-          const hasOwnerAddr = !!ownerAddr;
-          const todayR = todayStr();
-          const lateDays = p.next_action_date && p.next_action_date < todayR ? daysBetween(p.next_action_date, todayR) : 0;
-          const subLine = routeMode === 'property'
-            ? `所有者：${escHtml(p.owner_name || '氏名未入力')}${p.is_local ? '（' + escHtml(p.is_local) + '）' : ''}`
-            : `物件：${escHtml(p.address || '未入力')} ／ ${escHtml(p.owner_name || '氏名未入力')}`;
-          const metaLine = `${escHtml(p.id.replace('KSK-2026-', ''))}・${escHtml(p.stage || '')}` +
-            (p.next_action_date ? `・次 ${escHtml(p.next_action_date.slice(5).replace('-', '/'))}` : '') +
-            (lateDays > 0 ? ` <span class="late">${lateDays}日遅れ</span>` : '');
-          return `
-            <div class="route-property-item ${isSelected ? 'selected' : ''}" id="routeItem_${escHtml(p.id)}" onclick="toggleRouteSelect('${escHtml(p.id)}')">
-              <div class="route-prop-order ${isSelected ? '' : 'inactive'}" id="routeOrder_${escHtml(p.id)}">
-                ${isSelected ? selIndex : '–'}
-              </div>
-              <input type="checkbox" ${isSelected ? 'checked' : ''}
-                onclick="event.stopPropagation();toggleRouteSelect('${escHtml(p.id)}')"
-                id="routeChk_${escHtml(p.id)}">
-              <div class="route-prop-info">
-                <div class="route-prop-addr">${hasOwnerAddr ? escHtml(routeMode === 'property' ? (p.address || ownerAddr) : ownerAddr) : `<span style="color:#e53e3e;font-size:11px;">⚠️ ${routeMode === 'property' ? '物件住所' : '所有者住所'}未登録</span>`}</div>
-                <div class="route-prop-owner">${subLine}</div>
-                <div class="route-prop-meta">${metaLine}</div>
-              </div>
-              ${hasOwnerAddr ? `<button onclick="event.stopPropagation();openMapByAddress('${escHtml(ownerAddr)}')"
-                style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>` : ''}
-            </div>`;
-        }).join('')}
+        </div>` : routeGroupsHtml(localProps)}
     </div>
   `;
 
   // ルート用の内部リスト保持（ソート後の順序管理）
   window._routeLocalProps = localProps;
+}
+
+// ルートの箱（一覧タブと同じ分け方）。番号は回る順（並べ替えの順）なので、箱の中で飛び番になることがある
+const ROUTE_GROUPS = [
+  { key: 'resp', cls: 'g-resp', title: '反応あり', hint: '面談・条件の詰め', stages: ['反応あり'] },
+  { key: 'follow', cls: 'g-follow', title: '話の続き', hint: '訪問済・再訪問待ち', stages: ['訪問済', '再訪問待ち'] },
+  { key: 'first', cls: 'g-first', title: '未接触', hint: '謄本取得済', stages: ['謄本取得待ち', '謄本取得済'] },
+  { key: 'dm', cls: 'g-dm', title: 'DM・反応待ち', hint: '', stages: ['DM1回目送付', 'DM2回目送付'] }
+];
+let routeGroupOpen = {};
+
+// 回る必要があるもの：期限が来ていて、DM待ち・DM郵送ではないもの
+function isVisitDue(p, today) {
+  if (!p.next_action_date || p.next_action_date > today) return false;
+  if (p.stage === 'DM1回目送付' || p.stage === 'DM2回目送付') return false;
+  if (p.next_action_note === 'DM郵送') return false;
+  return true;
+}
+
+function routeGroupOf(p) {
+  const g = ROUTE_GROUPS.find(g => g.stages.includes(p.stage));
+  return g ? g.key : 'other';
+}
+
+function routeGroupsHtml(localProps) {
+  const groups = [...ROUTE_GROUPS, { key: 'other', cls: 'g-dm', title: 'その他', hint: '段階が未設定など', stages: [] }];
+  return groups.map(g => {
+    const items = localProps.filter(p => routeGroupOf(p) === g.key);
+    if (!items.length) return '';
+    const sel = items.filter(p => routeSelectedIds.has(p.id)).length;
+    const open = routeGroupOpen[g.key] !== undefined ? routeGroupOpen[g.key] : (sel > 0 || g.key === 'resp' || g.key === 'follow');
+    return `<details class="grp ${g.cls}" ${open ? 'open' : ''} ontoggle="routeGroupOpen['${g.key}']=this.open">
+      <summary>${escHtml(g.title)} <span class="grp-hint">${escHtml(g.hint)}</span>
+        <span class="grp-count" id="routeGrpSel_${g.key}">${sel}/${items.length}</span>
+        <button class="grp-pick" onclick="event.preventDefault();event.stopPropagation();routeSelectGroup('${g.key}')">${sel === items.length ? '外す' : '全部'}</button>
+      </summary>
+      ${items.map(p => routeRowHtml(p, localProps)).join('')}
+    </details>`;
+  }).join('');
+}
+
+function routeRowHtml(p, localProps) {
+  const isSelected = routeSelectedIds.has(p.id);
+  const selIndex = isSelected ? localProps.filter(x => routeSelectedIds.has(x.id)).findIndex(x => x.id === p.id) + 1 : null;
+  const ownerAddr = routeAddr(p);
+  const hasOwnerAddr = !!ownerAddr;
+  const todayR = todayStr();
+  const lateDays = p.next_action_date && p.next_action_date < todayR ? daysBetween(p.next_action_date, todayR) : 0;
+  const subLine = routeMode === 'property'
+    ? `所有者：${escHtml(p.owner_name || '氏名未入力')}${p.is_local ? '（' + escHtml(p.is_local) + '）' : ''}`
+    : `物件：${escHtml(p.address || '未入力')} ／ ${escHtml(p.owner_name || '氏名未入力')}`;
+  const metaLine = `${escHtml(String(p.id).replace('KSK-2026-', ''))}` +
+    (p.next_action_date ? `・次 ${escHtml(p.next_action_date.slice(5).replace('-', '/'))}` : '') +
+    (p.next_action_note ? ` ${escHtml(p.next_action_note)}` : '') +
+    (lateDays > 0 ? ` <span class="late">${lateDays}日遅れ</span>` : '');
+  return `
+    <div class="route-property-item ${isSelected ? 'selected' : ''}" id="routeItem_${escHtml(p.id)}" onclick="toggleRouteSelect('${escHtml(p.id)}')">
+      <div class="route-prop-order ${isSelected ? '' : 'inactive'}" id="routeOrder_${escHtml(p.id)}">
+        ${isSelected ? selIndex : '–'}
+      </div>
+      <input type="checkbox" ${isSelected ? 'checked' : ''}
+        onclick="event.stopPropagation();toggleRouteSelect('${escHtml(p.id)}')"
+        id="routeChk_${escHtml(p.id)}">
+      <div class="route-prop-info">
+        <div class="route-prop-addr">${hasOwnerAddr ? escHtml(routeMode === 'property' ? (p.address || ownerAddr) : ownerAddr) : `<span style="color:#e53e3e;font-size:11px;">⚠️ ${routeMode === 'property' ? '物件住所' : '所有者住所'}未登録</span>`}</div>
+        <div class="route-prop-owner">${subLine}</div>
+        <div class="route-prop-meta">${metaLine}</div>
+      </div>
+      ${hasOwnerAddr ? `<button onclick="event.stopPropagation();openMapByAddress('${escHtml(ownerAddr)}')"
+        style="flex-shrink:0;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">🗺️</button>` : ''}
+    </div>`;
+}
+
+// 箱の物件をまとめて選ぶ／外す
+function routeSelectGroup(key) {
+  const items = (window._routeLocalProps || []).filter(p => routeGroupOf(p) === key);
+  const allOn = items.every(p => routeSelectedIds.has(p.id));
+  items.forEach(p => allOn ? routeSelectedIds.delete(p.id) : routeSelectedIds.add(p.id));
+  routeGroupOpen[key] = true;
+  renderRoute();
 }
 
 function toggleRouteSelect(id) {
@@ -2317,6 +2372,17 @@ function updateRouteUI() {
   // ボタン有効/無効
   const btn = document.getElementById('routeStartBtn');
   if (btn) btn.disabled = selectedCount === 0;
+
+  // 箱ごとの選択数
+  [...ROUTE_GROUPS.map(g => g.key), 'other'].forEach(k => {
+    const el = document.getElementById('routeGrpSel_' + k);
+    if (!el) return;
+    const items = props.filter(p => routeGroupOf(p) === k);
+    const sel = items.filter(p => routeSelectedIds.has(p.id)).length;
+    el.textContent = `${sel}/${items.length}`;
+    const btn = el.parentElement.querySelector('.grp-pick');
+    if (btn) btn.textContent = sel === items.length ? '外す' : '全部';
+  });
 
   // 各アイテムの見た目更新
   props.forEach(p => {
