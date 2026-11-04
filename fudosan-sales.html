@@ -97,6 +97,8 @@ body {
 .grp.g-first > summary { background: #c05621; }
 .grp.g-follow > summary { background: #2b6cb0; }
 .grp.g-dm > summary { background: #718096; }
+.grp.g-resp > summary { background: #2f855a; }
+.grp.g-closed > summary { background: #a0aec0; }
 .area-head { font-size: 12px; font-weight: 700; color: #4a5568; margin: 10px 2px 6px; display: flex; gap: 6px; align-items: center; }
 .area-head .area-n { background: #edf2f7; border-radius: 8px; padding: 0 7px; font-weight: 600; }
 .late-badge { display: inline-block; background: #fed7d7; color: #c53030; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-left: 6px; }
@@ -943,9 +945,8 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
   </div>
   <div class="tab" data-view="activity" onclick="setView('activity')">活動</div>
   <div class="tab" data-view="active" onclick="setView('active')">
-    進行中 <span class="badge" id="activeCount" style="display:none">0</span>
+    一覧 <span class="badge" id="activeCount" style="display:none">0</span>
   </div>
-  <div class="tab" data-view="all" onclick="setView('all')">すべて</div>
   <div class="tab" data-view="route" onclick="setView('route')">🗺️ルート</div>
   <div class="tab" data-view="weekly" onclick="setView('weekly')">週次</div>
 </div>
@@ -963,7 +964,7 @@ textarea.field-input { min-height: 80px; resize: vertical; font-size: 16px; }
       <option value="priority">優先度順（高→中→低）</option>
       <option value="local_first">県内優先（県内→県外）</option>
       <option value="registered">登録日順（新しい順）</option>
-      <option value="area">エリア順</option>
+      <option value="area">エリア順（エリアごとに分ける）</option>
     </select>
   </div>
   <div id="propertyList">
@@ -1481,6 +1482,13 @@ function cardHtml(p, opt = {}) {
     `;
 }
 
+// 「大沼四丁目」→「大沼04丁目」のように丁目を数字にして、四→五→六の順に並ぶようにする
+function chomeKey(t) {
+  const KN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+  return String(t || '').replace(/([一二三四五六七八九十]+)丁目/g, (m, k) =>
+    String(k.length === 1 ? KN[k] : (k[0] === '十' ? 10 + (KN[k[1]] || 0) : KN[k[0]] * 10 + (KN[k[2]] || 0))).padStart(2, '0') + '丁目');
+}
+
 function groupHtml(cls, title, hint, items, open, byArea) {
   if (!items.length) return '';
   let body;
@@ -1488,9 +1496,9 @@ function groupHtml(cls, title, hint, items, open, byArea) {
     const areas = {};
     items.forEach(p => { const a = areaOf(p.address); (areas[a] = areas[a] || []).push(p); });
     body = Object.keys(areas)
-      .sort((a, b) => a.localeCompare(b, 'ja'))
+      .sort((a, b) => chomeKey(a).localeCompare(chomeKey(b), 'ja', { numeric: true }))
       .map(a => `<div class="area-head">📍 ${escHtml(a)} <span class="area-n">${areas[a].length}</span></div>` +
-        areas[a].map(p => cardHtml(p)).join(''))
+        [...areas[a]].sort((x, y) => (x.next_action_date || '9999') < (y.next_action_date || '9999') ? -1 : 1).map(p => cardHtml(p)).join(''))
       .join('');
   } else {
     body = items.map(p => cardHtml(p)).join('');
@@ -1545,6 +1553,31 @@ function renderActivity(container) {
     list.map(p => cardHtml(p, { activity: activityDate })).join('');
 }
 
+// 一覧：段階ごとの箱。並べ替えは箱の中で効く。エリア順のときだけエリアごとに分ける
+function renderStageGroups(container) {
+  const migrated = p => p.crm_migrated === true || p.crm_migrated === 'TRUE' || p.stage === '顧客化（CRM移管済）';
+  const live = allProperties.filter(p => !migrated(p));
+  const by = (...st) => live.filter(p => st.includes(p.stage));
+  const resp = by('反応あり');
+  const follow = by('訪問済', '再訪問待ち');
+  const first = by('謄本取得待ち', '謄本取得済');
+  const dm = by('DM1回目送付', 'DM2回目送付');
+  const closed = by('見送り');
+  const known = new Set([...resp, ...follow, ...first, ...dm, ...closed].map(p => p.id));
+  const other = live.filter(p => !known.has(p.id));
+  const area = currentSort === 'area';
+  const sorted = list => area ? list : applySort(list);
+  const html =
+    groupHtml('g-resp', '反応あり', '面談・条件の詰め', sorted(resp), true, area) +
+    groupHtml('g-follow', '話の続き', '訪問済・再訪問待ち', sorted(follow), true, area) +
+    groupHtml('g-first', '未接触', '謄本取得済', sorted(first), true, area) +
+    groupHtml('g-dm', 'DM・反応待ち', '県外オーナー中心', sorted(dm), false, area) +
+    groupHtml('g-dm', 'その他', '段階が未設定など', sorted(other), false, area) +
+    groupHtml('g-closed', '見送り', '', sorted(closed), false, area) +
+    groupHtml('g-closed', 'CRM移管済み', '', sorted(allProperties.filter(migrated)), false, area);
+  container.innerHTML = html || `<div class="empty-state"><div class="icon">📭</div><p>物件がありません</p></div>`;
+}
+
 function shiftActivityDate(n) {
   activityDate = addDays(activityDate || todayStr(), n);
   render();
@@ -1557,7 +1590,7 @@ function render() {
   const searching = !!searchQuery;
 
   if (sortBar) {
-    const showSort = !searching && (currentView === 'active' || currentView === 'all');
+    const showSort = !searching && currentView === 'active';
     sortBar.style.display = showSort ? 'block' : 'none';
     const sel = document.getElementById('sortSelect');
     if (sel) sel.value = currentSort;
@@ -1582,6 +1615,12 @@ function render() {
   if (currentView === 'activity') {
     statBar.style.display = 'none';
     renderActivity(container);
+    return;
+  }
+
+  if (currentView === 'active') {
+    statBar.style.display = 'none';
+    renderStageGroups(container);
     return;
   }
 
@@ -1642,7 +1681,7 @@ async function recordVisitResult(responsePattern, newStage) {
 
   const p = allProperties.find(x => x.id === currentDetailId);
   const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10);
+  const dateStr = localDateStr(now);
   const timeStr = now.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
 
   const NEXT_DAYS = {
@@ -2364,7 +2403,7 @@ async function recordDmSend(dmType) {
 
   const p = allProperties.find(x => x.id === currentDetailId);
   const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10);
+  const dateStr = localDateStr(now);
   const timeStr = now.toLocaleString('ja-JP', { month:'numeric', day:'numeric' });
 
   const stageMap = { 'DM1回目': 'DM1回目送付', 'DM2回目': 'DM2回目送付', '手紙': 'DM2回目送付' };
@@ -3023,6 +3062,13 @@ function saveConfig() {
 
 // ─── ユーティリティ ────────────────────────────────
 
+// 日本時間（端末の時刻）での日付 YYYY-MM-DD。toISOString は世界標準時になるので使わない
+function localDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
 function todayStr() {
   const d = new Date();
   return d.getFullYear() + '-' + 
@@ -3465,7 +3511,7 @@ async function analyzeTohon(input) {
       reader.readAsDataURL(file);
     });
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayStr();
     const saitamaKeywords = ['埼玉県','さいたま市','春日部市','越谷市','草加市','川口市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','久喜市','北本市','八潮市','富士見市','三郷市','蓮田市','坂戸市','幸手市','鶴ヶ島市','日高市','吉川市','ふじみ野市','白岡市','川越市','熊谷市','所沢市','飯能市','加須市','本庄市','東松山市','狭山市','羽生市','鴻巣市','深谷市','上尾市','入間市','行田市','秩父市'];
 
     // 1回のAPIコールで抽出＋深い分析＋アプローチ提案まで全部やる
@@ -3640,7 +3686,7 @@ async function registerFromTohon() {
     registration_date: document.getElementById('tr_registration_date').value,
     registration_reason: document.getElementById('tr_registration_reason').value,
     stage: '謄本取得済',
-    tohon_obtained: new Date().toISOString().slice(0, 10),
+    tohon_obtained: todayStr(),
     memo: memo,
     next_action_date: '',
     next_action_note: '所有者情報確認済み。アプローチ方針を決定する。'
@@ -3714,7 +3760,7 @@ async function generateApproachProposal(property) {
 
   // フォールバック：分析データがない場合は従来通りAPIを呼ぶ
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
   let monthsElapsed = null;
   if (property.registration_date) {
     const regDate = new Date(property.registration_date);
@@ -3846,7 +3892,7 @@ function renderApproachProposal(data, property) {
         step: s.step,
         label: s.label,
         note: s.note,
-        date: d.toISOString().slice(0, 10)
+        date: localDateStr(d)
       };
     });
 
